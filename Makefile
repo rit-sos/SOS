@@ -34,7 +34,7 @@ USER_OPTIONS = -DCLEAR_BSS_SEGMENT -DSP2_CONFIG -DISR_DEBUGGING_CODE
 #
 # We only want to include from the current directory and ~wrc/include
 #
-INCLUDES = -I. -I../include
+INCLUDES = -I. -I./include
 
 #
 # Compilation/assembly/linking commands and options
