@@ -66,10 +66,10 @@ void prt_status( char *msg, Status stat ) {
 		return;
 	}
 
-	c_printf( msg, ustatus(stat) );
+	//c_printf( msg, ustatus(stat) );
 
 	if( stat >= STATUS_SENTINEL ) {
-		c_printf( "bad code: %d", stat );
+		//c_printf( "bad code: %d", stat );
 	}
 
 }
@@ -104,14 +104,14 @@ Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
 		status = set_priority( prio );
 		if( status != SUCCESS ) {
 			status2 = get_pid( &new );
-			c_printf( "Child pid %d", new );
+			//c_printf( "Child pid %d", new );
 			prt_status( ", set_priority() status %s\n", status );
 			exit();
 		}
 		status = exec( entry );
 		// if we got here, the exec() failed
 		status2 = get_pid( &new );
-		c_printf( "Child pid %d", new );
+		//c_printf( "Child pid %d", new );
 		prt_status( ", exec() status %s\n", status );
 		exit();
 	}

@@ -34,6 +34,12 @@ const char *_kstatus_strings[] = {
 	"bad priority"		/* BAD_PRIO */
 };
 
+const unsigned char _EXIT_INJECT[] = {
+	0xb8,0x02,0x00,0x00,0x00,	// mov	$SYS_exit, %eax
+	0xcd,0x80,					// int	$INT_VEC_SYSCALL
+	0xc3						// ret
+};
+
 /*
 ** PRIVATE FUNCTIONS
 */
