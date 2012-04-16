@@ -84,10 +84,13 @@ KERNEL_BASE = 0x10000
 BOOT_BITS = bootstrap.o
 BOOT_BASE = 0x0
 
-.PHONY: build list
+.DEFAULT_GOAL = all
+
+.PHONY: build list all clean realclean
+$(USER_BITS): $(MAPS)
 
 # top level target
-all: $(MAPS) boot kernel $(USERS) build list
+all: build list
 
 # Generic build rules for {.c,.s,.S} => .o
 .SUFFIXES:  .S
@@ -125,7 +128,7 @@ boot: $(BOOT_BITS)
 #
 # make the kernel
 #
-kernel: $(KERNEL_BITS)
+kernel: $(MAPS) $(KERNEL_BITS)
 	$(LD) -Ttext $(KERNEL_BASE) -o kernel.o $(KERNEL_BITS)
 	$(LD) $(LDFLAGS) -Ttext $(KERNEL_BASE) -o kernel -e _start kernel.o
 
@@ -147,6 +150,7 @@ $(USERS): ustrap.o $(USER_BITS)
 $(MAPS): map
 	@echo Reading map...
 	@bash mkmap.sh < map
+
 
 #
 # make something bootable
@@ -172,7 +176,7 @@ clean:
 	-rm -f *.o
 
 realclean: clean
-	-rm -f boot kernel $(USERS) usb.image floppy.image $(MAPS) *.nl
+	-rm -f boot kernel $(USERS) usb.image floppy.image $(MAPS) *.nl *.lst
 
 help:
 	@head -n `grep -m 1 -n "##END" Makefile | cut -f 1 -d ':'` Makefile \
