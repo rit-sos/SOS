@@ -84,7 +84,8 @@ void prt_status( char *msg, Status stat ) {
 ** success, and the status of the creation attempt
 */
 
-Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
+//Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
+Status spawnp(Pid *pid, Prio prio, Uint32 entry_id) {
 	Pid new;
 	Status status, status2;
 
@@ -108,7 +109,7 @@ Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
 			prt_status( ", set_priority() status %s\n", status );
 			exit();
 		}
-		status = exec( entry );
+		status = exec( entry_id );
 		// if we got here, the exec() failed
 		status2 = get_pid( &new );
 		//c_printf( "Child pid %d", new );
@@ -131,10 +132,11 @@ Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
 ** success, and the status of the creation attempt
 */
 
-Status spawn( Pid *pid, void (*entry)(void) ) {
+//Status spawn( Pid *pid, void (*entry)(void) ) {
+Status spawn(Pid *pid, Uint32 entry_id) {
 
 	// take the easy way out
 
-	return( spawnp(pid,PRIO_STD,entry) );
+	return( spawnp(pid,PRIO_STD,entry_id) );
 
 }

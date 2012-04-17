@@ -67,6 +67,7 @@
 
 #include "clock.h"
 #include "stacks.h"
+#include "mman.h"
 
 /*
 ** Types
@@ -115,6 +116,7 @@ typedef struct pcb {
 	// four-byte fields
 	Context		*context;	// process context
 	Stack		*stack;		// this process' stack
+	Pagedir		*pgdir;		// this process's virtual address space
 	Time		wakeup;		// wakeup time for sleeping process
 	// two-byte fields
 	Pid		pid;		// our processid

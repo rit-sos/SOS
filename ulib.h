@@ -249,7 +249,8 @@ void prt_status( char *msg, Status stat );
 ** usage:  status = spawn( &pid, entry );
 */
 
-Status spawn( Pid *pid, void (*entry)(void) );
+//Status spawn( Pid *pid, void (*entry)(void) );
+Status spawn(Pid *pid, Uint32 entry_id);
 
 /*
 ** spawnp - create a new process running a different program at
@@ -258,7 +259,8 @@ Status spawn( Pid *pid, void (*entry)(void) );
 ** usage:  status = spawnp( &pid, prio, entry );
 */
 
-Status spawnp( Pid *pid, Prio prio, void (*entry)(void) );
+//Status spawnp( Pid *pid, Prio prio, void (*entry)(void) );
+Status spawnp(Pid *pid, Prio prio, Uint32 entry_id);
 
 #endif
 

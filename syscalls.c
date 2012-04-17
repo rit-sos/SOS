@@ -205,7 +205,6 @@ static void _sys_fork( Pcb *pcb ) {
 */
 
 static void _sys_exit( Pcb *pcb ) {
-	c_puts("*** _sys_exit() ***");
 
 	// deallocate all the OS data structures
 

@@ -21,6 +21,7 @@
 #include "syscalls.h"
 #include "sio.h"
 #include "scheduler.h"
+#include "mman.h"
 
 // need init() address
 #include "kmap.h"
@@ -87,7 +88,7 @@ void _cleanup( Pcb *pcb ) {
 **	success of the operation
 */
 
-Status _create_process( Pcb *pcb, Uint32 entry ) {
+Status _create_process( Pcb *pcb, void(*entry)(void) ) {
 	Context *context;
 	Stack *stack;
 	Uint32 *ptr;
@@ -171,7 +172,7 @@ Status _create_process( Pcb *pcb, Uint32 entry ) {
 	// essence, we're pretending that this is where we were
 	// executing when the interrupt arrived
 
-	context->eip = entry;
+	context->eip = (Uint32)entry;
 
 	return( SUCCESS );
 
@@ -222,6 +223,7 @@ void _init( void ) {
 	_syscall_init();
 	_sched_init();
 	_clock_init();
+	_mman_init();
 
 	c_puts( "\n" );
 
@@ -273,7 +275,7 @@ void _init( void ) {
 	** Set up the initial process context.
 	*/
 
-	status = _create_process( pcb, (Uint32) init );
+	status = _create_process( pcb, init );
 	if( status != SUCCESS ) {
 		_kpanic( "_init", "create init process status %s\n", status );
 	}

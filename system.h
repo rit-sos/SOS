@@ -53,7 +53,7 @@ void _cleanup( Pcb *pcb );
 **      success of the operation
 */
 
-Status _create_process( Pcb *pcb, Uint32 entry );
+Status _create_process( Pcb *pcb, void(*entry)(void) );
 
 /*
 ** _init - system initialization routine
