@@ -23,7 +23,7 @@
 #include "scheduler.h"
 
 // need init() address
-#include "users.h"
+#include "kmap.h"
 
 // need the exit() prototype
 #include "ulib.h"
@@ -145,7 +145,7 @@ Status _create_process( Pcb *pcb, Uint32 entry ) {
 
 	// assign the "return" address
 
-	*ptr = (Uint32) exit;
+	//*ptr = (Uint32) exit;
 
 	// next, set up the process context
 

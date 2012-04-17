@@ -18,8 +18,9 @@
 **
 ** Could be used, e.g., by _kpanic
 */
-
+	.text
 	.globl	_get_ebp
 _get_ebp:
 	movl	%ebp, %eax
 	ret
+

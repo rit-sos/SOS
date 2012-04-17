@@ -220,7 +220,8 @@ Status set_time(Time time);
 **      failure status of the replacement attempt (if the attempt fails)
 */
 
-Status exec(void (*entry)(void));
+//Status exec(void (*entry)(void));
+Status exec(Uint32 entry_id);
 
 /*
 ** bogus - a bogus system call, for testing our syscall ISR
