@@ -19,6 +19,7 @@
 #include "sio.h"
 #include "syscalls.h"
 #include "system.h"
+#include "kmap.h"
 
 #include "startup.h"
 
@@ -204,6 +205,7 @@ static void _sys_fork( Pcb *pcb ) {
 */
 
 static void _sys_exit( Pcb *pcb ) {
+	c_puts("*** _sys_exit() ***");
 
 	// deallocate all the OS data structures
 
@@ -537,8 +539,11 @@ static void _sys_exec( Pcb *pcb ) {
 
 	// invoke the common code for process creation
 
-	status = _create_process( pcb, ARG(pcb)[1] );
-
+	if (ARG(pcb)[1] < PROC_NUM_ENTRY) {
+		status = _create_process( pcb, PROC_IMAGE_MAP[ARG(pcb)[1]] );
+	} else {
+		status = BAD_PARAM;
+	}
 	// we only need to assign this if the creation failed
 	// for some reason - otherwise, this process never
 	// "returns" from the syscall

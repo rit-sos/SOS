@@ -16,8 +16,8 @@ cat <<EOF > kmap.c
 
 EOF
 
-echo -e "extern const Uint32 PROC_LOAD_MAP[];\n" >> kmap.h
-echo "const Uint32 PROC_IMAGE_MAP[] = {" >> kmap.c
+echo -e "extern const void (*PROC_IMAGE_MAP[])(void);\n" >> kmap.h
+echo "const void (*PROC_IMAGE_MAP[])(void) = {" >> kmap.c
 
 i=0
 while read -a line; do
@@ -29,11 +29,12 @@ while read -a line; do
 	echo "#define ${line[*]}" >> kmap.h
 	echo "#define ${line[0]}_ID ${i}" | tee -a kmap.h >> umap.h
 	echo >> kmap.h
-	echo "	/* ${line[0]} */	${line[1]}," >> kmap.c
+	echo "	/* ${line[0]} */	(void(*)(void))${line[1]}," >> kmap.c
 	i=$((i+1))
 done
 
 cat <<EOF | tee -a kmap.h >> umap.h
+#define PROC_NUM_ENTRY	${i}
 #endif
 EOF
 

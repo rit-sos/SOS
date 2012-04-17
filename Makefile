@@ -40,6 +40,17 @@
 # version contains the IDs and mapping addresses, as well as an array to map
 # program IDs to their mapping addresses.
 #
+# Another note on user programs: all user programs are linked with ustrap.S
+# for two reasons. The first is to ensure that the entry point, _start, is
+# always at the beginning of the user program when it's mapped in. _start
+# in turn calls main, so as long as your user program has a function called
+# main you should be good to go. For reference, the prototype is a rather
+# non-standard "void main(void);".
+#
+# The other reason that user programs are linked with ustrap.S is to set up
+# the "exit handler", in other words, returning to exit(). The asm pseudo--
+# function "_start" sets the return address to the address of exit() in the
+# user program's own local copy of ulib, then jumps to main.
 # 
 # tl;dr version:
 #
@@ -49,6 +60,7 @@
 #   3. make all
 #
 # If you want to add a user program:
+#	0. Make sure your program has a main() function
 #   1. Add <program-name> to USERS
 #   2. Add <program-name> to map
 #   3. make depends (maybe)
@@ -73,8 +85,9 @@ LDFLAGS = --oformat binary -s
 MAPS = umap.h kmap.h kmap.c
 
 # don't remove init from this list, bad things will happen
-USERS = init
-USER_BITS = ulibc.o ulibs.o # $(patsubst %,%.o,$(USERS))
+USERS = init user_a
+USER_BITS = ulibc.o ulibs.o
+USER_OBJ = $(patsubst %,%.o,$(USERS))
 USER_BASE = 0x50000
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
@@ -137,9 +150,13 @@ kernel: $(MAPS) $(KERNEL_BITS)
 # entry point of the program and is located at the beginning of the program
 # text. Without this, main would have to be the first function linked into
 # the user program.
-$(USERS): ustrap.o $(USER_BITS)
+$(USERS): ustrap.o $(USER_BITS) $(USER_OBJ)
 	$(CC) $(CFLAGS) -c -o $@.tmp.o $@.c
+ifeq ($@,user_a)
+	$(LD) -Ttext 0x51000 -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
+else
 	$(LD) -Ttext $(USER_BASE) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
+endif
 	-rm -f $@.tmp.o
 	$(LD) $(LDFLAGS) -Ttext $(USER_BASE) -o $@ -e _start $@.o
 
@@ -168,15 +185,15 @@ list: boot kernel $(USERS)
 	nm -Bn bootstrap.o | pr -w80 -3 > boot.nl
 	nm -Bn kernel.o | pr -w80 -3 > kernel.nl
 	nm -Bn init.o | pr -w80 -3 > init.nl
-
+	nm -Bn user_a.o | pr -w80 -3 > user_a.nl
 #
 # etcetera
 #
 clean:
-	-rm -f *.o
+	-rm -f *.o $(MAPS) *.nl *.lst
 
 realclean: clean
-	-rm -f boot kernel $(USERS) usb.image floppy.image $(MAPS) *.nl *.lst
+	-rm -f boot kernel $(USERS) usb.image floppy.image 
 
 help:
 	@head -n `grep -m 1 -n "##END" Makefile | cut -f 1 -d ':'` Makefile \

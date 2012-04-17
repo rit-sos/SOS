@@ -44,10 +44,6 @@
 
 extern const char *_kstatus_strings[];
 
-// fake exit() for user stacks
-
-extern const unsigned char _EXIT_INJECT[];
-
 /*
 ** Prototypes
 */

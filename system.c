@@ -126,13 +126,11 @@ Status _create_process( Pcb *pcb, Uint32 entry ) {
 	**
 	** The low end of the stack will contain these values:
 	**
-	**      esp ->  ?         <- context save area
-	**              ...       <- context save area
-	**              ?         <- context save area
-	**              &fakeexit <- return address for main()
-	**              filler    <- last dword in stack
-	**				fakeexit  <- 8 bytes of code to simulate exit() <- ptr
-	**              filler    <- real last dword in stack
+	**      esp ->  ?       <- context save area
+	**              ...     <- context save area
+	**              ?       <- context save area
+	**              exit    <- return address for main()
+	**              filler  <- last word in stack
 	**
 	** When this process is dispatched, the context restore
 	** code will pop all the saved context information off
@@ -143,18 +141,15 @@ Status _create_process( Pcb *pcb, Uint32 entry ) {
 
 	// first, compute a pointer to the second-to-last longword
 
-	ptr = ((Uint32 *) (stack + 1)) - 3;
-
-	// inject fakeexit
-	_kmemcpy(ptr, _EXIT_INJECT, 8);
+	ptr = ((Uint32 *) (stack + 1)) - 2;
 
 	// assign the "return" address
 
-	ptr[-2] = (Uint32) ptr;
+	//*ptr = (Uint32) exit;
 
 	// next, set up the process context
 
-	context = ((Context *) (ptr - 2)) - 1;
+	context = ((Context *) ptr) - 1;
 	pcb->context = context;
 
 	// initialize all the fields that should be non-zero, starting

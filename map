@@ -1,1 +1,2 @@
-init 0x50000
+init	0x50000
+user_a	0x51000

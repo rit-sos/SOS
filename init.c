@@ -16,6 +16,7 @@
 #include "umap.h"
 
 #define DELAY_LONG 100000000
+#define SPAWN_A
 
 /*
 ** USER PROCESSES
@@ -81,7 +82,7 @@ void main(void) {
 	if( status != SUCCESS ) {
 		//prt_status( "init: can't fork() user A, status %s\n", status );
 	} else if( pid == 0 ) {
-		status = exec( user_a );
+		status = exec( user_a_ID );
 		//prt_status( "init: can't exec() user A, status %s\n", status );
 		exit();
 	}
