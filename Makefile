@@ -76,9 +76,9 @@ INCLUDES = -I. -I./include
 CPP = cpp
 CPPFLAGS = $(USER_OPTIONS) -nostdinc $(INCLUDES)
 CC = gcc
-CFLAGS = -m32 -fno-stack-protector -fno-builtin -Wall -Wstrict-prototypes $(CPPFLAGS)
+CFLAGS = -m32 -fno-stack-protector -fno-builtin -Wall -Wstrict-prototypes $(CPPFLAGS) -ggdb
 AS = as --32
-ASFLAGS = 
+ASFLAGS = -ggdb
 LD = ld -m elf_i386
 LDFLAGS = --oformat binary -s
 
@@ -87,7 +87,7 @@ MAPS = umap.h kmap.h kmap.c
 # don't remove init from this list, bad things will happen
 USERS = init user_a
 USER_BITS = ulibc.o ulibs.o
-USER_OBJ = $(patsubst %,%.o,$(USERS))
+USER_SRC = $(patsubst %,%.c,$(USERS))
 USER_BASE = 0x50000
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
@@ -150,15 +150,13 @@ kernel: $(MAPS) $(KERNEL_BITS)
 # entry point of the program and is located at the beginning of the program
 # text. Without this, main would have to be the first function linked into
 # the user program.
-$(USERS): ustrap.o $(USER_BITS) $(USER_OBJ)
+$(USERS): ustrap.o $(USER_BITS) $(USER_SRC)
 	$(CC) $(CFLAGS) -c -o $@.tmp.o $@.c
-ifeq ($@,user_a)
-	$(LD) -Ttext 0x51000 -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
-else
-	$(LD) -Ttext $(USER_BASE) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
-endif
+#	$(LD) -Ttext $(USER_BASE) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
+	$(LD) -Ttext $(shell if [ "$@" = "user_a" ]; then echo -n "0x51000"; else echo -n "0x50000"; fi) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
 	-rm -f $@.tmp.o
-	$(LD) $(LDFLAGS) -Ttext $(USER_BASE) -o $@ -e _start $@.o
+#	$(LD) $(LDFLAGS) -Ttext $(USER_BASE) -o $@ -e _start $@.o
+	$(LD) $(LDFLAGS) -Ttext $(shell if [ "$@" = "user_a" ]; then echo -n "0x51000"; else echo -n "0x50000"; fi) -o $@ -e _start $@.o
 
 # When adding or removing user programs, update the map file (called 'map').
 # This file contains a list of program names and their offsets in the
