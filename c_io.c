@@ -709,6 +709,7 @@ void c_io_init( void ){
 	** Set up the interrupt handler for the keyboard
 	*/
 	__install_isr( INT_VEC_KEYBOARD, __c_keyboard_isr );
+	
 }
 
 #ifdef SA_DEBUG

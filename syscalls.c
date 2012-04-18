@@ -14,6 +14,7 @@
 
 #include "headers.h"
 
+#include "fd.h"
 #include "pcbs.h"
 #include "scheduler.h"
 #include "sio.h"
@@ -235,7 +236,8 @@ static void _sys_read( Pcb *pcb ) {
 
 	// try to get the next character
 
-	ch = _sio_readc();
+	//ch = _sio_readc();
+	ch = _fds[SIO_FD].getc();
 
 	// if there was a character, return it to the process;
 	// otherwise, block the process until one comes in
@@ -284,7 +286,8 @@ static void _sys_write( Pcb *pcb ) {
 	// the low-level device access fromm the higher-level
 	// syscall implementation
 
-	_sio_writec( ch );
+	//_sio_writec( ch );
+	_fds[SIO_FD].putc(ch);
 
 	RET(pcb) = SUCCESS;
 

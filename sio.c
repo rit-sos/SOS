@@ -5,7 +5,7 @@
 **
 ** Author:	Warren R. Carithers
 **
-** Contributor:
+** Contributor: Andrew LeCain
 **
 ** Description:	SIO module
 **
@@ -34,7 +34,7 @@
 **		-1.
 **
 **	Output:	We maintain a buffer of outgoing characters that haven't
-**		yet been sent to the device, and an indication of whether
+*		yet been sent to the device, and an indication of whether
 **		or not we are in the middle of a transmit sequence.  When
 **		an interrupt comes in, if there is another character to
 **		send we copy it to the transmitter buffer; otherwise, we
@@ -55,6 +55,7 @@
 
 #include "headers.h"
 
+#include "fd.h"
 #include "sio.h"
 
 #include "queues.h"
@@ -313,10 +314,17 @@ void _sio_init( void ) {
 
 	__outb( UA4_MCR, UA4_MCR_ISEN | UA4_MCR_DTR | UA4_MCR_RTS );
 
+
+	/*
+	** Set up our file descriptor.
+	*/
+	_fds[SIO_FD].getc=&_sio_readc;
+	_fds[SIO_FD].putc=&_sio_writec;
+	_fds[SIO_FD].flags= RW;
+
 	/*
 	** Report that we're done.
 	*/
-
 	c_puts( " sio" );
 
 }
