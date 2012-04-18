@@ -21,6 +21,7 @@
 #include "syscalls.h"
 #include "sio.h"
 #include "scheduler.h"
+#include "fd.h"
 
 // need init() address
 #include "users.h"
@@ -219,6 +220,7 @@ void _init( void ) {
 	_pcb_init();
 	_stack_init();
 	_sio_init();
+	_fd_init();
 	_syscall_init();
 	_sched_init();
 	_clock_init();
