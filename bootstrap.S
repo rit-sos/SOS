@@ -413,6 +413,11 @@ switch:
 	lidt	idt_48 + BOOT_ADDRESS
 	lgdt	gdt_48 + BOOT_ADDRESS
 
+#ifdef USE_TSS
+	mov		$0x20, %ax	/* gdt entry #5 */
+	ltr		%ax
+#endif
+
 	movl	%cr0, %eax	/* get current CR0 */
 	orl	$1, %eax	/* set the PE bit */
 	movl	%eax, %cr0	/* and store it back. */
@@ -506,6 +511,52 @@ wait2_loop:
 wait2_exit:
 	ret
 
+#ifdef USE_TSS
+#define TSS_START	0x300
+
+.org TSS_START
+.globl tss_data
+tss_data:
+	.word	0				/* reserved */
+	.word	0				/* link */
+	.long	TARGET_STACK	/* esp0 */
+	.word	0				/* reserved */
+	.word	0x10			/* ss0  */
+	.long	0				/* esp1 */
+	.word	0				/* reserved */
+	.word	0				/* ss1  */
+	.long	0				/* esp2 */
+	.word	0				/* reserved */
+	.word	0				/* ss2 */
+	.long	0				/* cr3 */
+	.long	0				/* eip */
+	.long	0				/* eflags */
+	.long	0				/* eax */
+	.long	0				/* ecx */
+	.long	0				/* edx */
+	.long	0				/* ebx */
+	.long	0				/* esp */
+	.long	0				/* ebp */
+	.long	0				/* esi */
+	.long	0				/* edi */
+	.word	0				/* reserved */
+	.word	0				/* es */
+	.word	0				/* reserved */
+	.word	0				/* cs */
+	.word	0				/* reserved */
+	.word	0				/* ss */
+	.word	0				/* reserved */
+	.word	0				/* ds */
+	.word	0				/* reserved */
+	.word	0				/* fs */
+	.word	0				/* reserved */
+	.word	0				/* gs */
+	.word	0				/* reserved */
+	.word	0				/* ldtr */
+	.word	104				/* iopb off */
+	.word	0				/* reserved */
+#endif
+
 /*
 ** The GDT.  This cannot be created in C because the bootstrap is not
 ** linked with that code.
@@ -544,6 +595,32 @@ stack_seg:	/* limit FFFFF, base 0, R/W data seg, 32-bit 4K */
 	.byte	0x92
 	.byte	0xCF
 	.byte	0x00
+
+#ifdef USE_TSS
+user_code:
+	.word	0xffff
+	.word	0x0000
+	.byte	0x00
+	.byte	0xf2
+	.byte	0xcf
+	.byte	0x00
+
+user_data:
+	.word	0xffff
+	.word	0x0000
+	.byte	0x00
+	.byte	0xfa
+	.byte	0xcf
+	.byte	0x00
+
+gdt_tss_entry:
+	.word	104	/* limit = sizeof(TSS) */
+	.word	(TSS_START & 0xffff)
+	.byte	((TSS_START >> 16) & 0xff)
+	.byte	0x89	/* present, executable, accessed */
+	.byte	0x40
+	.byte	((TSS_START >> 24) & 0xff)
+#endif
 
 end_gdt:
 gdt_len = end_gdt - start_gdt

@@ -3,4 +3,8 @@
 *.b
 *.nl
 *.image
+*.s
 BuildImage
+kmap.h
+kmap.c
+umap.h

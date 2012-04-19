@@ -66,10 +66,10 @@ void prt_status( char *msg, Status stat ) {
 		return;
 	}
 
-	c_printf( msg, ustatus(stat) );
+	//c_printf( msg, ustatus(stat) );
 
 	if( stat >= STATUS_SENTINEL ) {
-		c_printf( "bad code: %d", stat );
+		//c_printf( "bad code: %d", stat );
 	}
 
 }
@@ -84,7 +84,8 @@ void prt_status( char *msg, Status stat ) {
 ** success, and the status of the creation attempt
 */
 
-Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
+//Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
+Status spawnp(Pid *pid, Prio prio, Uint32 entry_id) {
 	Pid new;
 	Status status, status2;
 
@@ -104,14 +105,14 @@ Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
 		status = set_priority( prio );
 		if( status != SUCCESS ) {
 			status2 = get_pid( &new );
-			c_printf( "Child pid %d", new );
+			//c_printf( "Child pid %d", new );
 			prt_status( ", set_priority() status %s\n", status );
 			exit();
 		}
-		status = exec( entry );
+		status = exec( entry_id );
 		// if we got here, the exec() failed
 		status2 = get_pid( &new );
-		c_printf( "Child pid %d", new );
+		//c_printf( "Child pid %d", new );
 		prt_status( ", exec() status %s\n", status );
 		exit();
 	}
@@ -131,10 +132,37 @@ Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
 ** success, and the status of the creation attempt
 */
 
-Status spawn( Pid *pid, void (*entry)(void) ) {
+//Status spawn( Pid *pid, void (*entry)(void) ) {
+Status spawn(Pid *pid, Uint32 entry_id) {
 
 	// take the easy way out
 
-	return( spawnp(pid,PRIO_STD,entry) );
+	return( spawnp(pid,PRIO_STD,entry_id) );
+}
 
+Status puts(const char *str) {
+	Status status = SUCCESS;
+	const char *p = str;
+
+	while (*p && status == SUCCESS) {
+		status = write(*p++);
+	}
+
+	return status;
+}
+
+void putx(Uint32 x) {
+	write('0');
+	write('x');
+	if (x) {
+		for ( ; x; x <<= 4) {
+			if (((x>>28) & 0x0f) >= 10) {
+				write('a' + ((x>>28) & 0x0f) - 10);
+			} else {
+				write('0' + ((x>>28) & 0x0f));
+			}
+		}
+	} else {
+		write('0');
+	}
 }

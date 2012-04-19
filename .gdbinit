@@ -26,5 +26,5 @@ target remote localhost:1234
 # Look at the tools page at
 #  http://pdos.csail.mit.edu/6.828/2009/tools.html
 # for instructions on building GDB with ELF support.
-echo + symbol-file prog.o\n
-symbol-file prog.o
+echo + symbol-file bootstrap.o kernel.o init.o user_a.o\n
+symbol-file bootstrap.o kernel.o init.o user_a.o

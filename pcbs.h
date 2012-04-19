@@ -67,6 +67,7 @@
 
 #include "clock.h"
 #include "stacks.h"
+#include "mman.h"
 
 /*
 ** Types
@@ -80,6 +81,9 @@ typedef Uint8		State;
 
 typedef Uint8		Prio;
 
+// process image handle (e.g. index into PROC_IMAGE_MAP)
+
+typedef Uint8		Program;
 
 // process context structure
 //
@@ -114,7 +118,9 @@ typedef struct context {
 typedef struct pcb {
 	// four-byte fields
 	Context		*context;	// process context
-	Stack		*stack;		// this process' stack
+	Stack		*stack;		// kernel-mode address of stack
+	Memmap_ptr	virt_map;	// kernel-mode address of process VM usage map
+	Pagedir_ptr	pgdir;		// kernel-mode address of process page directory
 	Time		wakeup;		// wakeup time for sleeping process
 	// two-byte fields
 	Pid		pid;		// our processid
@@ -123,6 +129,7 @@ typedef struct pcb {
 	State		state;		// current process state
 	Prio		priority;	// current process priority
 	Uint8		quantum;	// remaining process quantum
+	Program		program;	// process image handle
 } Pcb;
 
 /*
