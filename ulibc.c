@@ -138,5 +138,31 @@ Status spawn(Pid *pid, Uint32 entry_id) {
 	// take the easy way out
 
 	return( spawnp(pid,PRIO_STD,entry_id) );
+}
 
+Status puts(const char *str) {
+	Status status = SUCCESS;
+	const char *p = str;
+
+	while (*p && status == SUCCESS) {
+		status = write(*p++);
+	}
+
+	return status;
+}
+
+void putx(Uint32 x) {
+	write('0');
+	write('x');
+	if (x) {
+		for ( ; x; x <<= 4) {
+			if (((x>>28) & 0x0f) >= 10) {
+				write('a' + ((x>>28) & 0x0f) - 10);
+			} else {
+				write('0' + ((x>>28) & 0x0f));
+			}
+		}
+	} else {
+		write('0');
+	}
 }

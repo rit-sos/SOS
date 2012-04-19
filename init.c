@@ -17,6 +17,7 @@
 
 #define DELAY_LONG 100000000
 #define SPAWN_A
+#define SPAWN_MMAN
 
 /*
 ** USER PROCESSES
@@ -59,6 +60,7 @@
 */
 
 
+
 /*
 ** Initial process; it starts the other top-level user processes.
 */
@@ -71,8 +73,11 @@ void main(void) {
 	Status status;
 
 	//c_puts( "Init started\n" );
-
-	write( '$' );
+	puts("init: my main lives at ");
+	putx((Uint32)&main);
+	puts("\n");
+	
+	//puts("hello from ring 3 init\n");
 
 	// we'll start the first three "manually"
 	// by doing fork() and exec() ourselves
@@ -82,7 +87,20 @@ void main(void) {
 	if( status != SUCCESS ) {
 		//prt_status( "init: can't fork() user A, status %s\n", status );
 	} else if( pid == 0 ) {
+		puts("CHILD");
 		status = exec( user_a_ID );
+		//prt_status( "init: can't exec() user A, status %s\n", status );
+		exit();
+	}
+	puts("PARENT");
+#endif
+
+#ifdef SPAWN_MMAN
+	status = fork( &pid );
+	if( status != SUCCESS ) {
+		//prt_status( "init: can't fork() user A, status %s\n", status );
+	} else if( pid == 0 ) {
+		status = exec( mman_test_ID );
 		//prt_status( "init: can't exec() user A, status %s\n", status );
 		exit();
 	}

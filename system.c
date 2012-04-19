@@ -50,6 +50,33 @@ void _put_char_or_code( int ch ) {
 
 }
 
+
+/*
+** _get_proc_address
+**
+** Get the address of a program image from a handle.
+**
+** Note: Address is in kernel virtual address space.
+** Program will actually start at USER_ENTRY in its own address space.
+*/
+
+Status _get_proc_address(Program program, void(**entry)(void), Uint32 *size) {
+	if (!entry) {
+		return BAD_PARAM;
+	}
+
+	if (program >= PROC_NUM_ENTRY) {
+		*entry = NULL;
+		return NOT_FOUND;
+	}
+
+	*entry = PROC_IMAGE_MAP[program];
+	//*size = PROC_IMAGE_SIZE[program];
+	*size = 0x5000;
+	return SUCCESS;
+}
+
+
 /*
 ** _cleanup(pcb)
 **
@@ -61,6 +88,10 @@ void _cleanup( Pcb *pcb ) {
 
 	if( pcb == NULL ) {
 		return;
+	}
+
+	if ((status = _mman_proc_exit(pcb)) != SUCCESS) {
+		_kpanic("_cleanup", "_mman_proc_exit(pcb)", status);
 	}
 
 	if( pcb->stack != NULL ) {
@@ -88,9 +119,10 @@ void _cleanup( Pcb *pcb ) {
 **	success of the operation
 */
 
-Status _create_process( Pcb *pcb, void(*entry)(void) ) {
+Status _create_process( Pcb *pcb, Program entry ) {
 	Context *context;
 	Stack *stack;
+	Status status;
 	Uint32 *ptr;
 
 	// don't need to do this if called from _sys_exec(), but
@@ -110,6 +142,13 @@ Status _create_process( Pcb *pcb, void(*entry)(void) ) {
 			return( ALLOC_FAILED );
 		}
 		pcb->stack = stack;
+	}
+
+	pcb->program = entry;
+
+	// Do per-process VM setup
+	if ((status = _mman_proc_init(pcb)) != SUCCESS) {
+		return status;
 	}
 
 	// clear the stack
@@ -144,10 +183,6 @@ Status _create_process( Pcb *pcb, void(*entry)(void) ) {
 
 	ptr = ((Uint32 *) (stack + 1)) - 2;
 
-	// assign the "return" address
-
-	//*ptr = (Uint32) exit;
-
 	// next, set up the process context
 
 	context = ((Context *) ptr) - 1;
@@ -172,7 +207,10 @@ Status _create_process( Pcb *pcb, void(*entry)(void) ) {
 	// essence, we're pretending that this is where we were
 	// executing when the interrupt arrived
 
-	context->eip = (Uint32)entry;
+	context->eip = USER_ENTRY;
+
+//	context->esp = USER_STACK;
+	context->esp = (Uint32)((Context*)((Uint32*)(stack+1)-2)-1);
 
 	return( SUCCESS );
 
@@ -275,7 +313,7 @@ void _init( void ) {
 	** Set up the initial process context.
 	*/
 
-	status = _create_process( pcb, init );
+	status = _create_process( pcb, init_ID );
 	if( status != SUCCESS ) {
 		_kpanic( "_init", "create init process status %s\n", status );
 	}
@@ -300,5 +338,4 @@ void _init( void ) {
 	*/
 
 	c_puts( "System initialization complete.\n" );
-
 }

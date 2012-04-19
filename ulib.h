@@ -262,6 +262,8 @@ Status spawn(Pid *pid, Uint32 entry_id);
 //Status spawnp( Pid *pid, Prio prio, void (*entry)(void) );
 Status spawnp(Pid *pid, Prio prio, Uint32 entry_id);
 
+Status puts(const char *str);
+void putx(Uint32 x);
 #endif
 
 #endif

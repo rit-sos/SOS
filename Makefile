@@ -56,55 +56,61 @@
 # and the user libraries. A future update to this makefile will add
 # support for more involved user programs.
 #
+# Another current limitation: user programs should not use globals. Sorry.
+# I'll have this one fixed soon.
+#
 # tl;dr version:
 #
 # If you want to add a kernel module:
 #   1. Add <module-name>.o to KERNEL_BITS
 #   2. make depends (maybe)
-#   3. make all
+#   3. make
 #
 # If you want to add a user program:
 #   1. Make sure your program has a main() function
 #   2. Add <program-name> to USERS
 #   3. Add <program-name> to map
 #   4. make depends (maybe)
-#   5. make all
+#   5. make
 #
 # If you want to change the bootloader:
 #   1. Don't.
+#	2. Please don't.
+#	(The Makefile won't really stop you from doing this...)
 #   
 ############################################################################END
 
-USER_OPTIONS = -DCLEAR_BSS_SEGMENT -DSP2_CONFIG -DISR_DEBUGGING_CODE
-INCLUDES = -I. -I./include
-CPP = cpp
-CPPFLAGS = $(USER_OPTIONS) -nostdinc $(INCLUDES)
-CC = gcc
-CFLAGS = -m32 -fno-stack-protector -fno-builtin -Wall -Wstrict-prototypes -Wno-main $(CPPFLAGS) -ggdb
-AS = as --32
-ASFLAGS = -ggdb
-LD = ld -m elf_i386
-LDFLAGS = --oformat binary -s
+# Add your user programs here, and add a line to the map too.
+# Don't remove init from this list, bad things will happen.
+USERS = init user_a mman_test
 
 MAPS = umap.h kmap.h kmap.c
 
-# don't remove init from this list, bad things will happen
-USERS = init user_a
 USER_BITS = ulibc.o ulibs.o
 USER_SRC = $(patsubst %,%.c,$(USERS))
-USER_BASE = 0x50000
+USER_BASE = 0x400000
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
 	clock.o sio.o stacks.o syscalls.o kmap.o isr_stubs.o support.o c_io.o \
 	mmanc.o mmans.o
 KERNEL_BASE = 0x10000
-PGDIR_BASE = 0x32000
 
 BOOT_BITS = bootstrap.o
 BOOT_BASE = 0x0
 
 INCLUDES = -I. -Iinclude
 SOURCES = $(wildcard *.c)
+
+USER_OPTIONS = -DCLEAR_BSS_SEGMENT -DSP2_CONFIG -DISR_DEBUGGING_CODE -DUSER_ENTRY="$(USER_BASE)" -ggdb
+INCLUDES = -I. -I./include
+CPP = cpp
+CPPFLAGS = $(USER_OPTIONS) -nostdinc $(INCLUDES)
+CC = gcc
+CFLAGS = -m32 -fno-stack-protector -fno-builtin -Wall -Wstrict-prototypes -Wno-main $(CPPFLAGS)
+AS = as --32
+ASFLAGS = -ggdb
+LD = ld -m elf_i386
+LDFLAGS = --oformat binary -s
 
 .DEFAULT_GOAL = all
 
@@ -161,11 +167,11 @@ kernel: $(MAPS) $(KERNEL_BITS)
 # the user program.
 $(USERS): ustrap.o $(USER_BITS) $(USER_SRC)
 	$(CC) $(CFLAGS) -c -o $@.tmp.o $@.c
-#	$(LD) -Ttext $(USER_BASE) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
-	$(LD) -Ttext $(shell if [ "$@" = "user_a" ]; then echo -n "0x51000"; else echo -n "0x50000"; fi) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
+	$(LD) -Ttext $(USER_BASE) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
+#	$(LD) -Ttext $(shell if [ "$@" = "user_a" ]; then echo -n "0x55000"; elif [ "$@" = "mman_test" ]; then echo -n "0x60000"; else echo -n "0x50000"; fi) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
 	-rm -f $@.tmp.o
-#	$(LD) $(LDFLAGS) -Ttext $(USER_BASE) -o $@ -e _start $@.o
-	$(LD) $(LDFLAGS) -Ttext $(shell if [ "$@" = "user_a" ]; then echo -n "0x51000"; else echo -n "0x50000"; fi) -o $@ -e _start $@.o
+	$(LD) $(LDFLAGS) -Ttext $(USER_BASE) -o $@ -e _start $@.o
+#	$(LD) $(LDFLAGS) -Ttext $(shell if [ "$@" = "user_a" ]; then echo -n "0x55000"; elif [ "$@" = "mman_test" ]; then echo -n "0x60000"; else echo -n "0x50000"; fi) -o $@ -e _start $@.o
 
 # When adding or removing user programs, update the map file (called 'map').
 # This file contains a list of program names and their offsets in the
@@ -175,25 +181,22 @@ $(MAPS): map
 	@echo Reading map...
 	@bash mkmap.sh < map
 
-
 #
 # make something bootable
 #
 usb: build
-	dd if=usb.image of=/local/devices/disk
+	dd if=usb.image of=/local/devices/disk && sync
 
 floppy: build
-	dd if=floppy.image of=/dev/fd0
+	dd if=floppy.image of=/dev/fd0 && sync
 
 #
 # namelists
 #
 list: boot kernel $(USERS)
-	nm -Bn bootstrap.o | pr -w80 -3 > boot.nl
-	nm -Bn kernel.o | pr -w80 -3 > kernel.nl
-	nm -Bn init.o | pr -w80 -3 > init.nl
-	nm -Bn user_a.o | pr -w80 -3 > user_a.nl
+	@for i in $(USERS) kernel bootstrap; do echo "$$i: generating namelist"; nm -Bn $$i.o | pr -w80 -3 > $$i.nl; done
 #	@bash -c "if [[ \"0x`nm -Bn kernel.o | tail -n 1 | cut -f 1 -d ' '`\" -ge \"$(PGDIR_BASE)\" ]]; then echo 'KERNEL SIZE CHANGED, ADJUST PGTBL START'; false; else true; fi"
+
 #
 # etcetera
 #
@@ -212,7 +215,7 @@ depend: realclean
 
 # DO NOT DELETE
 
-0.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
+0.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h clock.h
 0.o: stacks.h klib.h
 BuildImage.o: /usr/include/stdio.h /usr/include/features.h
 BuildImage.o: /usr/include/bits/predefs.h /usr/include/sys/cdefs.h
@@ -231,35 +234,37 @@ BuildImage.o: /usr/include/alloca.h /usr/include/unistd.h
 BuildImage.o: /usr/include/bits/posix_opt.h /usr/include/bits/confname.h
 BuildImage.o: /usr/include/getopt.h /usr/include/string.h
 BuildImage.o: /usr/include/xlocale.h
-c_io.o: c_io.h startup.h support.h include/x86arch.h
-clock.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-clock.o: stacks.h klib.h include/x86arch.h startup.h queues.h scheduler.h
-clock.o: sio.h syscalls.h
-init.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-init.o: stacks.h klib.h
-klibc.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-klibc.o: stacks.h klib.h
-mmanc.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-mmanc.o: stacks.h klib.h mman.h
-pcbs.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-pcbs.o: stacks.h klib.h queues.h
-queues.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-queues.o: stacks.h klib.h queues.h
-scheduler.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h
+c_io.o: c_io.h startup.h support.h ./include/x86arch.h
+clock.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+clock.o: clock.h stacks.h klib.h ./include/x86arch.h startup.h queues.h
+clock.o: scheduler.h sio.h syscalls.h
+init.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+init.o: clock.h stacks.h klib.h
+klibc.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+klibc.o: clock.h stacks.h klib.h
+mmanc.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+mmanc.o: clock.h stacks.h klib.h ./include/x86arch.h queues.h
+mman_test.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+mman_test.o: clock.h stacks.h klib.h
+pcbs.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+pcbs.o: clock.h stacks.h klib.h queues.h
+queues.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+queues.o: clock.h stacks.h klib.h queues.h
+scheduler.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
 scheduler.o: clock.h stacks.h klib.h scheduler.h queues.h
-sio.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-sio.o: stacks.h klib.h sio.h queues.h scheduler.h startup.h include/uart.h
-sio.o: include/x86arch.h
-stacks.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-stacks.o: stacks.h klib.h queues.h
-support.o: startup.h support.h c_io.h include/x86arch.h bootstrap.h
-syscalls.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-syscalls.o: stacks.h klib.h scheduler.h queues.h sio.h syscalls.h
-syscalls.o: include/x86arch.h startup.h
-system.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-system.o: stacks.h klib.h bootstrap.h syscalls.h queues.h include/x86arch.h
-system.o: sio.h scheduler.h ulib.h
-ulibc.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-ulibc.o: stacks.h klib.h
-user_a.o: headers.h defs.h types.h c_io.h support.h system.h pcbs.h clock.h
-user_a.o: stacks.h klib.h
+sio.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+sio.o: clock.h stacks.h klib.h sio.h queues.h scheduler.h startup.h
+sio.o: ./include/uart.h ./include/x86arch.h
+stacks.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+stacks.o: clock.h stacks.h klib.h queues.h
+support.o: startup.h support.h c_io.h ./include/x86arch.h bootstrap.h
+syscalls.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+syscalls.o: clock.h stacks.h klib.h scheduler.h queues.h sio.h syscalls.h
+syscalls.o: ./include/x86arch.h startup.h
+system.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+system.o: clock.h stacks.h klib.h bootstrap.h syscalls.h queues.h
+system.o: ./include/x86arch.h sio.h scheduler.h ulib.h
+ulibc.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+ulibc.o: clock.h stacks.h klib.h
+user_a.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+user_a.o: clock.h stacks.h klib.h

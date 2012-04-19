@@ -1,7 +1,20 @@
 #ifndef _MMAN_H
 #define _MMAN_H
 
-#define PAGEDIR_BASE	(0x00040000)
+#define PAGE_ALIGNED __attribute__((aligned(0x1000)))
+
+/* this should be somewhere above kernel and kernel data */
+#ifndef USER_ENTRY
+#error USER_ENTRY is not defined
+#elif (USER_ENTRY < 0x00200000)
+#error USER_ENTRY is below the end of kernel data
+#endif
+
+/* grow heap up from here (1GB) */
+#define USER_HEAP	(0x40000000)
+
+/* grow stack down from here */
+#define USER_STACK	(0xfeff0000)
 
 /*
 ** Core system data structures and defines
@@ -144,16 +157,16 @@ typedef union {
 #ifndef __ASM__20113__
 typedef union {
 	struct {
-		Uint32	pgtbl_addr	:20;
-		Uint32	unused0		:4;
-		Uint32	pgsize		:1;
-		Uint32	unused1		:1;
-		Uint32	accessed	:1;
-		Uint32	cachedis	:1;
-		Uint32	cachewrt	:1;
-		Uint32	user		:1;
-		Uint32	write		:1;
 		Uint32	present		:1;
+		Uint32	write		:1;
+		Uint32	user		:1;
+		Uint32	cachewrt	:1;
+		Uint32	cachedis	:1;
+		Uint32	accessed	:1;
+		Uint32	unused1		:1;
+		Uint32	pgsize		:1;
+		Uint32	unused0		:4;
+		Uint32	pgtbl_addr	:20;
 	};
 	Uint32 dword;
 } Pagedir_entry;
@@ -178,23 +191,57 @@ typedef union {
 #ifndef __ASM__20113__
 typedef union {
 	struct {
-		Uint32	frame		:20;
-		Uint32	unused		:3;
-		Uint32	global		:1;
-		Uint32	reserved	:1;
-		Uint32	dirty		:1;
-		Uint32	accessed	:1;
+		Uint32	present		:1;
+		Uint32	write		:1;
+		Uint32	user		:1;
 		Uint32	cachedis	:1;
 		Uint32	cachewrt	:1;
-		Uint32	user		:1;
-		Uint32	write		:1;
-		Uint32	present		:1;
+		Uint32	accessed	:1;
+		Uint32	dirty		:1;
+		Uint32	reserved	:1;
+		Uint32	global		:1;
+//		Uint32	unused		:3;
+		Uint32	cow			:1;
+		Uint32	zero		:1;
+		Uint32	disk		:1;
+		Uint32	frame		:20;
 	};
 	Uint32 dword;
 } Pagetbl_entry;
 
 typedef Pagedir_entry Pagedir[1024];
+typedef Pagedir_entry *Pagedir_ptr;
 typedef Pagetbl_entry Pagetbl[1024];
+typedef Pagetbl_entry *Pagetbl_ptr;
+#endif
+
+/*
+** Mapping flags (pass to _mman_map_page and _mman_alloc)
+*/
+#define MAP_USER		(0x00000004)
+#define MAP_WRITE		(0x00000002)
+//#define MAP_EXEC		(0x00000000)
+#define MAP_COW			(0x00000200)
+#define MAP_ZERO		(0x00000400)
+#define MAP_DISK		(0x00000800)
+
+#define MAP_FLAGS_MASK	(0x00000e06)
+#define MAP_PD_MASK		(0x00000006)
+
+/*
+** Page fault flags
+*/
+#define PF_PRESENT		(0x00000001)
+#define PF_WRITE		(0x00000002)
+#define PF_USER			(0x00000004)
+#define PF_FLAGS_MASK	(0x00000007)
+
+/*
+** Memory management data structures
+*/
+#ifndef __ASM__20113__
+typedef Uint32 Memmap[0x8000];
+typedef Uint32 *Memmap_ptr;
 #endif
 
 /*
@@ -202,11 +249,35 @@ typedef Pagetbl_entry Pagetbl[1024];
 */
 
 #ifndef __ASM__20113__
-void _mman_init(void);
-void _mman_set_cr3(Pagedir *pgdir);
+struct pcb;
+
+/* exposed internal functions */
+Uint32 _mman_set_cr3(Pagedir_entry *pgdir);
 Uint32 _mman_get_cr2(void);
-void _mman_enable_paging(void);
+Uint32 _mman_enable_paging(void);
 void _mman_pagefault_isr(int vec, int code);
+Status _mman_pgdir_alloc(Pagedir_entry **pgdir);
+Status _mman_map_alloc(Memmap_ptr *map);
+Status _mman_map_free(Memmap_ptr map);
+
+/* exposed semi-internal functions */
+Status _mman_translate_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 *phys);
+Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 flags);
+Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt);
+
+/* non-internal functions */
+void _mman_init(void);
+Status _mman_proc_init(struct pcb *pcb);
+Status _mman_proc_exit(struct pcb *pcb);
+Status _mman_alloc(void **ptr, Uint32 size, struct pcb *pcb, Uint32 flags);
+Status _mman_free(void *ptr, Uint32 size, struct pcb *pcb);
+
+#ifndef USE_TSS
+extern struct pcb *_current;
+void _mman_restore_pgdir(void);
+void _mman_kernel_mode(void);
+#endif
+
 #endif
 
 #endif
