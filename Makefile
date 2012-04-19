@@ -75,8 +75,8 @@
 #
 # If you want to change the bootloader:
 #   1. Don't.
-#	2. Please don't.
-#	(The Makefile won't really stop you from doing this...)
+#   2. Please don't.
+#   (The Makefile won't really stop you from doing this...)
 #   
 ############################################################################END
 
