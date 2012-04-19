@@ -21,6 +21,7 @@
 
 #ifndef __ASM__20113__
 
+#include "mman.h"
 #include "pcbs.h"
 
 /*
@@ -35,6 +36,18 @@
 */
 
 void _put_char_or_code( int ch );
+
+/*
+** _get_proc_address
+**
+** Get the address of a program image from a handle.
+**
+** Note: Address is in kernel virtual address space.
+** Program will actually start at USER_ENTRY in its own address space.
+*/
+
+Status _get_proc_address(Program program, void(**entry)(void), Uint32 *size);
+
 
 /*
 ** _cleanup(pcb)
@@ -53,7 +66,7 @@ void _cleanup( Pcb *pcb );
 **      success of the operation
 */
 
-Status _create_process( Pcb *pcb, Uint32 entry );
+Status _create_process( Pcb *pcb, Program entry );
 
 /*
 ** _init - system initialization routine

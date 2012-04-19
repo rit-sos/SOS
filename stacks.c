@@ -31,7 +31,7 @@
 
 // User stacks
 
-static Stack _stacks[ N_STACKS ];
+__attribute__((aligned(4096))) static Stack _stacks[ N_STACKS ];
 
 // Available Stack queue
 

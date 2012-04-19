@@ -95,6 +95,13 @@ isr_save:
 ** Set up parameters for the ISR call.
 */
 
+// temporary hack - switch to kernel address space
+#ifndef USE_TSS
+	pusha
+	call	_mman_kernel_mode
+	popa
+#endif
+
 	movl	52(%esp),%eax	// get vector number and error code
 	movl	56(%esp),%ebx
 
@@ -167,7 +174,7 @@ __isr_restore:
 	** IF THE LOCATION OF EITHER FIELD IN THE PCB CHANGES!
 	*/
 
-	movl	12(%ebx), %eax	// get PID and PPID of this process
+	movl	20(%ebx), %eax	// get PID and PPID of this process
 	pushl	%eax
 	pushl	_system_time	// and the current system time
 
@@ -192,6 +199,13 @@ __isr_restore:
 */
 #endif
 
+// hack to get around not having a ring0-ring3 switch
+#ifndef USE_TSS
+	pusha
+	call	_mman_restore_pgdir
+	popa
+#endif
+
 /*
 ** Restore the context.
 */
@@ -211,6 +225,8 @@ __isr_restore:
 /*
 ** MOD for 20113 SP2
 */
+spfmt:	.string "RESTORING ESP 0x%08x\n"
+
 fmt:	.ascii	"time %08x pids %08x\n"
 	.ascii	" ss=%08x  gs=%08x  fs=%08x  es=%08x  ds=%08x\n"
 /*

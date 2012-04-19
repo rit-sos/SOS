@@ -23,13 +23,13 @@
 
 // Number of Qnodes to allocate
 //
-// need one per PCB, one per Stack, and a few extra
+// need one per PCB, one per Stack, and a whole bunch for page tables
 
-#define	N_QNODES	(N_PCBS + N_STACKS + 5)
+#define	N_QNODES	(500)
 
 // Number of queues to allocate
 
-#define	N_QUEUES	10
+#define	N_QUEUES	20
 
 /*
 ** PRIVATE DATA TYPES

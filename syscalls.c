@@ -14,11 +14,13 @@
 
 #include "headers.h"
 
+#include "fd.h"
 #include "pcbs.h"
 #include "scheduler.h"
 #include "sio.h"
 #include "syscalls.h"
 #include "system.h"
+#include "kmap.h"
 
 #include "startup.h"
 
@@ -76,8 +78,8 @@ Queue *_sleeping;
 
 static void _sys_fork( Pcb *pcb ) {
 	Pcb *new;
-	int diff;
 	Uint32 *ptr;
+	Uint32 diff;
 	Status status;
 
 	// allocate a pcb for the new process
@@ -107,63 +109,24 @@ static void _sys_fork( Pcb *pcb ) {
 
 	// fix the pcb fields that should be unique to this process
 
+	diff = (Uint32)new->stack - (Uint32)pcb->stack;
+
+	new->context = (Context*)((Uint32)new->context + diff);
+	new->context->esp += diff;
+	ARG(new)[1] += diff;
+
 	new->pid = _next_pid++;
 	new->ppid = pcb->pid;
 	new->state = NEW;
 
-	/*
-	** We duplicated the parent's stack contents, which means that
-	** the child's ESP and EBP are still pointing into the parent's
-	** stack.  Fix these, and also fix the child's context pointer.
-        **
-        ** We have to change EBP because that's how the compiled code for
-        ** the user process accesses its local variables.  If we didn't
-        ** change this, as soon as the child was dispatched, it would
-        ** start to stomp on the local variables in the parent's stack.
-	** We also have to fix the EBP chain in the child process.
-        **
-        ** None of this would be an issue if we were doing "real" virtual
-        ** memory, as we would be talking about virtual addresses here rather
-        ** than physical addresses, and all processes would share the same
-        ** virtual address space layout.
-	**
-	** First, determine the distance (in bytes) between the two
-	** stacks.  This is the adjustment value we must add to the
-	** three pointers to correct them.
-	*/
+	c_printf("fork: old: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", pcb, pcb->stack, pcb->context, pcb->context->esp, ARG(pcb)[1]);
 
-	diff = (void *) new->stack - (void *) pcb->stack;
+	c_printf("fork: new: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", new, new->stack, new->context, new->context->esp, ARG(new)[1]);
 
-	// adjust the context pointer, esp, and ebp
+	c_printf("***\n");
 
-	new->context = (Context *) ( (void *) new->context + diff );
-
-	new->context->esp += diff;
-	new->context->ebp += diff;
-
-	/*
-        ** Next, we must fix the EBP chain in the child.  This is necessary
-        ** in the situation where the fork() occurred in a nested function
-	** call sequence; we fixed EBP, but the "saved" EBP in the stack
-	** frame is pointing to the calling function's frame in the parent's
-	** stack, not the child's stack.
-	**
-	** We are guaranteed that the chain of frames ends at the user
-	** process' main routine, because exec() will initialize EBP for
-	** the process to 0, and the entry prologue code in the main
-	** routine will push EBP, ensuring a NULL pointer in the chain.
-        */
-
-	// start at the current frame
-
-	ptr = (Uint32 *) new->context->ebp;
-
-	// follow the chain of frame pointers to its end
-	while( *ptr != 0 ) {
-		// update the back link from this frame to the previous
-		*ptr = (Uint32) ((void *) *ptr + diff );
-		// follow the updated link
-		ptr = (Uint32 *) *ptr;
+	if ((status = _mman_proc_init(new)) != SUCCESS) {
+		_kpanic("_sys_fork", "_mman_proc_init: %s", status);
 	}
 
 	// assign the PID return values for the two processes
@@ -171,8 +134,14 @@ static void _sys_fork( Pcb *pcb ) {
 	ptr = (Uint32 *) (ARG(pcb)[1]);
 	*ptr = new->pid;
 
-	ptr = (Uint32 *) ( ((void *)(ARG(new)[1])) + diff );
+	ptr = (Uint32 *) (ARG(new)[1]);
 	*ptr = 0;
+
+	c_printf("fork: old: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", pcb, pcb->stack, pcb->context, pcb->context->esp, ARG(pcb)[1]);
+
+	c_printf("fork: new: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", new, new->stack, new->context, new->context->esp, ARG(new)[1]);
+
+//	_kpanic("asdf", "asdf", 0);
 
 	/*
 	** Philosophical issue:  should the child run immediately, or
@@ -235,7 +204,8 @@ static void _sys_read( Pcb *pcb ) {
 
 	// try to get the next character
 
-	ch = _sio_readc();
+	//ch = _sio_readc();
+	ch = _fds[SIO_FD].getc();
 
 	// if there was a character, return it to the process;
 	// otherwise, block the process until one comes in
@@ -284,7 +254,8 @@ static void _sys_write( Pcb *pcb ) {
 	// the low-level device access fromm the higher-level
 	// syscall implementation
 
-	_sio_writec( ch );
+	//_sio_writec( ch );
+	_fds[SIO_FD].putc(ch);
 
 	RET(pcb) = SUCCESS;
 
@@ -537,8 +508,14 @@ static void _sys_exec( Pcb *pcb ) {
 
 	// invoke the common code for process creation
 
-	status = _create_process( pcb, ARG(pcb)[1] );
-
+	if (ARG(pcb)[1] < PROC_NUM_ENTRY) {
+		status = _mman_proc_exit(pcb);
+		if (status == SUCCESS) {
+			status = _create_process( pcb, ARG(pcb)[1] );
+		}
+	} else {
+		status = BAD_PARAM;
+	}
 	// we only need to assign this if the creation failed
 	// for some reason - otherwise, this process never
 	// "returns" from the syscall
