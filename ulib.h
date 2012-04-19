@@ -89,7 +89,7 @@ Status exit(void);
 **      status of the operation
 */
 
-Status read(int *buf);
+Status read( int fd, int *buf);
 
 /*
 ** write - write a single character to the SIO
@@ -100,7 +100,7 @@ Status read(int *buf);
 **      status of the operation
 */
 
-Status write(char buf);
+Status write(int fd, char buf);
 
 /*
 ** msleep - put the current process to sleep for some length of time

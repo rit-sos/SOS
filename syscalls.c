@@ -231,20 +231,24 @@ static void _sys_exit( Pcb *pcb ) {
 static void _sys_read( Pcb *pcb ) {
 	Key key;
 	int ch;
+	int fd;
 	int *ptr;
 	Status status;
 
 	// try to get the next character
 
 	//ch = _sio_readc();
-	ch = _fds[SIO_FD].getc();
+	
+
+	fd=ARG(pcb)[1];
+	ch = _fds[fd].getc();
 
 	// if there was a character, return it to the process;
 	// otherwise, block the process until one comes in
 
 	if( ch >= 0 ) {
 
-		ptr = (int *) (ARG(pcb)[1]);
+		ptr = (int *) (ARG(pcb)[2]);
 		*ptr = ch;
 		RET(pcb) = SUCCESS;
 
@@ -280,14 +284,15 @@ static void _sys_read( Pcb *pcb ) {
 */
 
 static void _sys_write( Pcb *pcb ) {
-	int ch = ARG(pcb)[1];
+	int fd = ARG(pcb)[1];
+	int ch = ARG(pcb)[2];
 
 	// this is almost insanely simple, but it does separate
 	// the low-level device access fromm the higher-level
 	// syscall implementation
 
 	//_sio_writec( ch );
-	_fds[SIO_FD].putc(ch);
+	_fds[fd].putc(ch);
 
 	RET(pcb) = SUCCESS;
 

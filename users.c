@@ -74,14 +74,14 @@ void user_a( void ) {
 	int i, j;
 	Status status;
 
-	status = write( 'A' );
+	status = write(1, 'A' );
 	if( status != SUCCESS ) {
 		prt_status( "User A, write 1 status %s\n", status );
 	}
 	for( i = 0; i < 30; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		status = write( 'A' );
+		status = write(1, 'A' );
 		if( status != SUCCESS ) {
 			prt_status( "User A, write 2 status %s\n", status );
 		}
@@ -90,7 +90,7 @@ void user_a( void ) {
 	c_puts( "User A exiting\n" );
 	exit();
 
-	status = write( 'a' );	/* shouldn't happen! */
+	status = write(1, 'a' );	/* shouldn't happen! */
 	if( status != SUCCESS ) {
 		prt_status( "User A, write 3 status %s\n", status );
 	}
@@ -102,14 +102,14 @@ void user_b( void ) {
 	Status status;
 
 	c_puts( "User B running\n" );
-	status = write( 'B' );
+	status = write(0, 'B' );
 	if( status != SUCCESS ) {
 		prt_status( "User B, write 1 status %s\n", status );
 	}
 	for( i = 0; i < 30; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		status = write( 'B' );
+		status = write(0, 'B' );
 		if( status != SUCCESS ) {
 			prt_status( "User B, write 2 status %s\n", status );
 		}
@@ -118,7 +118,7 @@ void user_b( void ) {
 	c_puts( "User B exiting\n" );
 	exit();
 
-	status = write( 'b' );	/* shouldn't happen! */
+	status = write(0, 'b' );	/* shouldn't happen! */
 	if( status != SUCCESS ) {
 		prt_status( "User B, write 3 status %s\n", status );
 	}
@@ -130,14 +130,14 @@ void user_c( void ) {
 	Status status;
 
 	c_puts( "User C running\n" );
-	status = write( 'C' );
+	status = write(0, 'C' );
 	if( status != SUCCESS ) {
 		prt_status( "User C, write 1 status %s\n", status );
 	}
 	for( i = 0; i < 30; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		status = write( 'C' );
+		status = write(0, 'C' );
 		if( status != SUCCESS ) {
 			prt_status( "User C, write 2 status %s\n", status );
 		}
@@ -146,7 +146,7 @@ void user_c( void ) {
 	c_puts( "User C exiting\n" );
 	exit();
 
-	status = write( 'c' );	/* shouldn't happen! */
+	status = write(0, 'c' );	/* shouldn't happen! */
 	if( status != SUCCESS ) {
 		prt_status( "User C, write 3 status %s\n", status );
 	}
@@ -163,12 +163,12 @@ void user_d( void ) {
 	Pid pid;
 
 	c_puts( "User D running\n" );
-	write( 'D' );
+	write(0, 'D' );
 	status = spawn( &pid, user_z );
 	if( status != SUCCESS ) {
 		prt_status( "User D, exec of Z status %s\n", status );
 	}
-	write( 'D' );
+	write(0, 'D' );
 
 	c_puts( "User D exiting\n" );
 	exit();
@@ -192,10 +192,10 @@ void user_e( void ) {
 		prt_status( "User E get_pid status %s\n", status );
 	}
 	c_printf( "User E (%d) running\n", pid );
-	write( 'E' );
+	write(0, 'E' );
 	for( i = 0; i < 5 ; ++i ) {
 		sleep( 10 );
-		write( 'E' );
+		write(0, 'E' );
 	}
 
 	c_puts( "User E exiting\n" );
@@ -218,10 +218,10 @@ void user_f( void ) {
 		prt_status( "User F get_pid status %s\n", status );
 	}
 	c_printf( "User F (%d) running\n", pid );
-	write( 'F' );
+	write(0, 'F' );
 	for( i = 0; i < 5 ; ++i ) {
 		sleep( 5 );
-		write( 'F' );
+		write(0, 'F' );
 	}
 
 	c_puts( "User F exiting\n" );
@@ -244,10 +244,10 @@ void user_g( void ) {
 		prt_status( "User G get_pid status %s\n", status );
 	}
 	c_printf( "User G (%d) running\n", pid );
-	write( 'G' );
+	write(0, 'G' );
 	for( i = 0; i < 5; ++i ) {
 		sleep( 15 );
-		write( 'G' );
+		write(0, 'G' );
 	}
 
 	c_puts( "User G exiting\n" );
@@ -265,11 +265,11 @@ void user_h( void ) {
 	int i, j;
 
 	c_puts( "User H running\n" );
-	write( 'H' );
+	write(0, 'H' );
 	for( i = 0; i < 5; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		write( 'H' );
+		write(0, 'H' );
 	}
 
 	c_puts( "User H returning without exiting!\n" );
@@ -287,14 +287,14 @@ void user_j( void ) {
 	Status status;
 
 	c_puts( "User J running\n" );
-	write( 'J' );
+	write(0, 'J' );
 
 	for( i = 0; i < N_PCBS * 2 ; ++i ) {
 		status = spawn( &pid, user_y );
 		if( status != SUCCESS ) {
 			prt_status( "User J, exec of y status %s\n", status );
 		} else {
-			write( 'J' );
+			write(0, 'J' );
 		}
 	}
 
@@ -315,7 +315,7 @@ void user_k( void ) {
 	Status status;
 
 	c_puts( "User K running\n" );
-	write( 'K' );
+	write(0, 'K' );
 
 	for( i = 0; i < 3 ; ++i ) {
 		status = spawn( &pid, user_x );
@@ -323,7 +323,7 @@ void user_k( void ) {
 			prt_status( "User K, user x exec status %s\n", status );
 		} else {
 			sleep( 30 );
-			write( 'K' );
+			write(0, 'K' );
 		}
 	}
 
@@ -351,7 +351,7 @@ void user_l( void ) {
 	} else {
 		c_printf( " initial time %u\n", time );
 	}
-	write( 'L' );
+	write(0, 'L' );
 
 	for( i = 0; i < 3 ; ++i ) {
 		status = get_time( &time );
@@ -363,7 +363,7 @@ void user_l( void ) {
 			prt_status( "User L, user_x spawn status %s\n", status );
 		} else {
 			sleep( 30 );
-			write( 'L' );
+			write(0, 'L' );
 		}
 	}
 
@@ -395,7 +395,7 @@ void user_m( void ) {
 			prt_status( "User M, user w exec status %s\n", status );
 		} else {
 			c_printf( "User M spawned W, PID %d\n", pid );
-			write( 'M' );
+			write(0, 'M' );
 		}
 	}
 
@@ -422,14 +422,14 @@ void user_n( void ) {
 			prt_status( "User N, user w exec status %s\n", status );
 		} else {
 			c_printf( "User N spawned W, PID %d\n", pid );
-			write( 'N' );
+			write(0, 'N' );
 		}
 		status = spawnp( &pid, PRIO_HIGH, user_z );
 		if( status != SUCCESS ) {
 			prt_status( "User N, user z exec status %s\n", status );
 		} else {
 			c_printf( "User N spawned Z, PID %d\n", pid );
-			write( 'N' );
+			write(0, 'N' );
 		}
 	}
 
@@ -457,7 +457,7 @@ void user_p( void ) {
 		c_printf( " start at %08x\n", time );
 	}
 
-	write( 'P' );
+	write(0, 'P' );
 
 	for( i = 0; i < 3; ++i ) {
 		sleep( 2 );
@@ -467,7 +467,7 @@ void user_p( void ) {
 		} else {
 			c_printf( "User P reporting time %08x\n", time );
 		}
-		write( 'P' );
+		write(0, 'P' );
 	}
 
 	c_printf( "User P exiting\n" );
@@ -483,7 +483,7 @@ void user_p( void ) {
 void user_q( void ) {
 
 	c_puts( "User Q running\n" );
-	write( 'Q' );
+	write(0, 'Q' );
 	bogus();
 	c_puts( "User Q returned from bogus syscall!?!?!\n" );
 	exit();
@@ -504,15 +504,15 @@ void user_r( void ) {
 	sleep( 10 );
 	for( i = 0; i < 3; ++i ) {
 		do {
-			write( 'R' );
-			status = read( &ch );
+			write(0, 'R' );
+			status = read(0, &ch );
 			if( status != SUCCESS ) {
 				prt_status( "User R, read status %s\n", status );
 			} else if( ch == -1 ) {	/* wait a bit */
 				sleep( 1 );
 			}
 		} while( ch == -1 );
-		write( ch );
+		write(0, ch );
 	}
 
 	c_puts( "User R exiting\n" );
@@ -528,10 +528,10 @@ void user_r( void ) {
 void user_s( void ) {
 
 	c_puts( "User S running\n" );
-	write( 'S' );
+	write(0, 'S' );
 	for(;;) {
 		sleep( 30 );
-		write( 'S' );
+		write(0, 'S' );
 	}
 
 	c_puts( "User S exiting!?!?!n" );
@@ -562,16 +562,16 @@ void user_t( void ) {
 		  	  pid, priority );
 	}
 	
-	write( 'T' );
+	write(0, 'T' );
 	for( i = 0; i < 30; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		write( 'T' );
+		write(0, 'T' );
 	}
 
 	status = set_priority( PRIO_HIGH );
 	if( status != SUCCESS ) {
-		write( 't' );
+		write(0, 't' );
 		prt_status( "User T, set prio #1 status %s\n", status );
 	}
 	status = get_priority( &prio2 );
@@ -582,16 +582,16 @@ void user_t( void ) {
 	}
 	priority = prio2;
 	
-	write( 'T' );
+	write(0, 'T' );
 	for( i = 0; i < 30; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		write( 'T' );
+		write(0, 'T' );
 	}
 
 	status = set_priority( PRIO_LOW );
 	if( status != SUCCESS ) {
-		write( 't' );
+		write(0, 't' );
 		prt_status( "User T, set prio #2 status %s\n", status );
 	}
 	status = get_priority( &prio2 );
@@ -602,16 +602,16 @@ void user_t( void ) {
 	}
 	priority = prio2;
 
-	write( 'T' );
+	write(0, 'T' );
 	for( i = 0; i < 30; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		write( 'T' );
+		write(0, 'T' );
 	}
 
 	status = set_priority( PRIO_STD );
 	if( status != SUCCESS ) {
-		write( 't' );
+		write(0, 't' );
 		prt_status( "User T, set prio #3 status %s\n", status );
 	}
 	status = get_priority( &prio2 );
@@ -622,11 +622,11 @@ void user_t( void ) {
 	}
 	priority = prio2;
 	
-	write( 'T' );
+	write(0, 'T' );
 	for( i = 0; i < 30; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		write( 'T' );
+		write(0, 'T' );
 	}
 
 	c_puts( "User T exiting\n" );
@@ -651,7 +651,7 @@ void user_w( void ) {
 	}
 	c_printf( " PID %d\n", pid );
 	for( i = 0; i < 20 ; ++i ) {
-		write( 'W' );
+		write(0, 'W' );
 		sleep( 3 );
 	}
 
@@ -679,7 +679,7 @@ void user_x( void ) {
 	c_printf( "PID %d, ", pid );
 
 	for( i = 0; i < 20 ; ++i ) {
-		write( 'X' );
+		write(0, 'X' );
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
 	}
@@ -699,7 +699,7 @@ void user_y( void ) {
 
 	c_puts( "User Y running\n" );
 	for( i = 0; i < 10 ; ++i ) {
-		write( 'Y' );
+		write(0, 'Y' );
 		for( j = 0; j < DELAY_ALT; ++j )
 			continue;
 		sleep( 1 );
@@ -720,7 +720,7 @@ void user_z( void ) {
 
 	c_puts( "User Z running\n" );
 	for( i = 0; i < 10 ; ++i ) {
-		write( 'Z' );
+		write(0, 'Z' );
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
 	}
@@ -748,7 +748,7 @@ void init( void ) {
 
 	c_puts( "Init started\n" );
 
-	write( '$' );
+	write(0, '$' );
 
 	// we'll start the first three "manually"
 	// by doing fork() and exec() ourselves
@@ -893,7 +893,7 @@ void init( void ) {
 	}
 #endif
 
-	write( '!' );
+	write(0, '!' );
 
 	/*
 	** And now we start twiddling our thumbs
@@ -910,12 +910,12 @@ void init( void ) {
 		prt_status( "idle: priority change status %s\n", status );
 	}
 
-	write( '.' );
+	write(0, '.' );
 
 	for(;;) {
 		for( i = 0; i < DELAY_LONG; ++i )
 			continue;
-		write( '.' );
+		write(0, '.' );
 	}
 
 	/*
