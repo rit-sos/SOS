@@ -20,13 +20,13 @@ char PMBios[BIOS_SIZE];	// 32KB
 void* bios_probe(void)
 {
 	// pointer to video bios
-	char *bios = BIOS_START;
+	char *bios = (char*)BIOS_START;
 	char *new_bios = PMBios;
 	int i;
 	char checksum;
 
 	// copy bios
-	while(bios < BIOS_END)
+	while(bios < (char*)BIOS_END)
 	{
 		*new_bios++ = *bios;
 	}

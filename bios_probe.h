@@ -17,7 +17,7 @@
 #define BIOS_SIZE	(BIOS_END-BIOS_START)
 
 /* protected mode bios */
-extern char *PMBios;
+extern char PMBios[];
 
 /* 
  * return the location of the VBE protected mode

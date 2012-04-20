@@ -14,6 +14,10 @@
 #include "bios_probe.h"
 #include "c_io.h"
 
+// for GDT offsets
+#include "bootstrap.h"
+
+
 /* 
  * Memory areas for VBE
  */
@@ -37,19 +41,27 @@ void _vbe_init()
 		// found it, inititalize now
 		
 		// clear the BIOS data area
-		for( i = 0; i < sizeof(BIOSDataSel); i++ )
+		for( i = 0; i < sizeof(BIOSDataSeg); i++ )
 		{
-			BIOSDataSel[i] = 0;
+			BIOSDataSeg[i] = 0;
 		}
 
 		// set the data area
-		pmid.BIOSDataSel = (BIOSDataSeg / 16);
+		pmid->BIOSDataSel = GDT_VBE_DATA;
+
+		// A0000, B0000, B8000
+		pmid->A0000Sel = GDT_VBE_A0000;
+		pmid->B0000Sel = GDT_VBE_B0000;
+		pmid->B8000Sel = GDT_VBE_B8000;
 
 		// codeSegSel
-		pmid.CodeSegSel = (PMBios / 16);
+		pmid->CodeSegSel = GDT_VBE_BIOS_DATA;
 		
 		// in protected mode
-		pmid.InProtectMode = 1;
+		pmid->InProtectMode = 1;
+
+		// now call initialize function
+		_vbe_call( pmid->PMInitialize );
 	}
 	else
 	{

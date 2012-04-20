@@ -596,6 +596,62 @@ stack_seg:	/* limit FFFFF, base 0, R/W data seg, 32-bit 4K */
 	.byte	0xCF
 	.byte	0x00
 
+vbe_bios_seg_data:	/* bios_size = 0x8000, base = 0x40000 data seg */
+	.word	0x8000
+	.word	0x0000
+	.byte	0x04
+	.byte	0x92
+	.byte	0x00
+	.byte	0x00
+	
+vbe_bios_seg_code:	/* bios_size = 0x8000, base = 0x40000 code seg */
+	.word	0x8000
+	.word	0x0000
+	.byte	0x04
+	.byte	0x9A
+	.byte	0x00
+	.byte	0x00
+
+vbe_data_seg:	/* data_size = 0x600, base = 0x48000 data seg */
+	.word	0x600
+	.word	0x8000
+	.byte	0x04
+	.byte	0x92
+	.byte	0x00
+	.byte	0x00
+
+vbe_stack_seg:	/* data_size = 0x400, base = 0x48000 data seg */
+	.word	0x0258
+	.word	0x8000
+	.byte	0x04
+	.byte	0x92
+	.byte	0x00
+	.byte	0x00
+
+vbe_A0000_seg:	/* data_size = 0x10000, base = 0xA0000 data seg */
+	.word	0x0000
+	.word	0x0000
+	.byte	0x0A
+	.byte	0x92
+	.byte	0x01
+	.byte	0x00
+
+vbe_B0000_seg:	/* data_size = 0x10000, base = 0xB0000 data seg */
+	.word	0x0000
+	.word	0x0000
+	.byte	0x0B
+	.byte	0x92
+	.byte	0x01
+	.byte	0x00
+
+vbe_B8000_seg:	/* data_size = 0x10000, base = 0xB0000 data seg */
+	.word	0x8000
+	.word	0x8000
+	.byte	0x0B
+	.byte	0x92
+	.byte	0x00
+	.byte	0x00
+
 #ifdef USE_TSS
 user_code:
 	.word	0xffff
