@@ -44,7 +44,7 @@
 */
 
 #define	SPAWN_A   // write, exit
-#define	SPAWN_B   // write, exit
+/*#define	SPAWN_B   // write, exit
 #define	SPAWN_C   // write, exit
 #define	SPAWN_D   // write, spawn, exit
 #define	SPAWN_E   // write, get_pid, sleep, exit
@@ -60,6 +60,7 @@
 // no user O
 #define	SPAWN_P   // write, sleep, get_time
 #define	SPAWN_Q   // write, bogus, exit
+*/
 #define	SPAWN_R   // write, read, sleep, exit
 #define	SPAWN_S   // write, sleep, forever
 #define	SPAWN_T   // write, get_prio, set_priority, exit

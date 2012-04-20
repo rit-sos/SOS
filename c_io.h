@@ -53,9 +53,14 @@
 **	No conversions are provided (yet).
 */
 
+#include "fd.h"
+
 #ifndef _C_IO_H_
 #define _C_IO_H_
 
+#ifndef __ASM__20113__
+
+void c_startWrite(Fd *fd);
 /*
 ** Name:	c_io_init
 **
@@ -104,6 +109,7 @@ void c_moveto( unsigned int x, unsigned int y );
 ** Arguments:	the character to be printed
 */
 void c_putchar( unsigned int c );
+
 
 /*
 ** Name:	c_puts
@@ -237,5 +243,7 @@ int c_gets( char *buffer, unsigned int size );
 ** Returns:	number of characters in the input queue
 */
 int c_input_queue( void );
+
+#endif
 
 #endif

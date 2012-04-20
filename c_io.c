@@ -15,6 +15,8 @@
 **
 */
 
+#include "io.h"
+#include "fd.h"
 #include "c_io.h"
 #include "startup.h"
 #include "support.h"
@@ -551,7 +553,7 @@ unsigned char scan_code[ 2 ][ 128 ] = {
 #define	C_BUFSIZE	200
 #define	KEYBOARD_DATA	0x60
 #define	KEYBOARD_STATUS	0x64
-#define	READY		0x1
+#define	_C_READY		0x1
 #define	EOT		'\04'
 
 /*
@@ -607,7 +609,9 @@ static void __c_input_scan_code( int code ){
 			code = scan_code[ shift ][ (int)code ];
 			if( code != '\377' ){
 				volatile char	*next = __c_increment( __c_next_space );
-
+				
+				_fd_readDone(&_fds[CIO_FD], code & ctrl_mask & 0xff);
+				
 				/*
 				** Store character only if there's room
 				*/
@@ -625,6 +629,14 @@ static void __c_keyboard_isr( int vector, int code ){
 	__outb( PIC_MASTER_CMD_PORT, PIC_EOI );
 }
 
+
+void c_startWrite(Fd *fd){
+	int c=_fd_getTx(fd);
+	c_putchar(c);
+
+}	
+
+
 int c_getchar( void ){
 	char	c;
 	int	interrupts_enabled = __get_flags() & EFLAGS_IF;
@@ -632,9 +644,9 @@ int c_getchar( void ){
 	while( __c_next_char == __c_next_space ){
 		if( !interrupts_enabled ){
 			/*
-			** Must read the next keystroke ourselves.
-			*/
-			while( ( __inb( KEYBOARD_STATUS ) & READY ) == 0 ){
+			 ** Must read the next keystroke ourselves.
+			 */
+			while( ( __inb( KEYBOARD_STATUS ) & _C_READY ) == 0 ){
 				;
 			}
 			__c_input_scan_code( __inb( KEYBOARD_DATA ) );
@@ -679,37 +691,37 @@ int c_input_queue( void ){
 }
 
 /*
-** Initialization routines
-*/
+ ** Initialization routines
+ */
 void c_io_init( void ){
 	/*
-	** Screen dimensions
-	*/
+	 ** Screen dimensions
+	 */
 	min_x  = SCREEN_MIN_X;	
 	min_y  = SCREEN_MIN_Y;
 	max_x  = SCREEN_MAX_X;
 	max_y  = SCREEN_MAX_Y;
 
 	/*
-	** Scrolling region
-	*/
+	 ** Scrolling region
+	 */
 	scroll_min_x = SCREEN_MIN_X;
 	scroll_min_y = SCREEN_MIN_Y;
 	scroll_max_x = SCREEN_MAX_X;
 	scroll_max_y = SCREEN_MAX_Y;
 
 	/*
-	** Initial cursor location
-	*/
+	 ** Initial cursor location
+	 */
 	curr_y = min_y;
 	curr_x = min_x;
 	__c_setcursor();
 
 	/*
-	** Set up the interrupt handler for the keyboard
-	*/
+	 ** Set up the interrupt handler for the keyboard
+	 */
 	__install_isr( INT_VEC_KEYBOARD, __c_keyboard_isr );
-	
+
 }
 
 #ifdef SA_DEBUG

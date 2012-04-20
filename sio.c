@@ -99,9 +99,30 @@ static Uint8 _ier;
 ** PUBLIC GLOBAL VARIABLES
 */
 
-// the "blocked for reading" queue
+/*
+**PRIVATE FUNCTIONS
+*/
+void _sio_startWrite(Fd *fd){
+	int ch;
 
-Queue *_reading;
+	if( _sending ) {
+		return;
+	}
+	//
+	// Not sending - must prime the pump
+	//
+
+	_sending = 1;
+	
+	ch=_fd_getTx(fd);
+	
+	__outb( UA4_TXD, ch );
+
+	// Also must enable transmitter interrupts
+
+	_sio_enable( SIO_TX );
+
+}
 
 /*
 ** PUBLIC FUNCTIONS
@@ -112,11 +133,8 @@ Queue *_reading;
 */
 
 void _isr_sio( int vector, int code ) {
-	Pcb *pcb;
 	int eir, lsr, msr;
 	int ch;
-	int stat;
-	int *ptr;
 
 	//
 	// Must process all pending events; loop until the EIR
@@ -143,39 +161,8 @@ void _isr_sio( int vector, int code ) {
 			if( ch == '\r' ) {	// map CR to LF
 				ch = '\n';
 			}
-
-			//
-			// If there is a waiting process, this must be 
-			// the first input character; give it to that
-			// process and awaken the process.
-			//
-
-			if( !_q_empty(_reading) ) {
-
-				stat = _q_remove( _reading, (void **) &pcb );
-				if( stat != SUCCESS ) {
-					_kpanic( "_isr_sio",
-						 "serial wakeup status %s",
-						 stat );
-				}
-				ptr = (int *) (ARG(pcb)[1]);
-				*ptr = ch & 0xff;
-				RET(pcb) = SUCCESS;
-				_sched( pcb );
-
-			} else {
-
-				//
-				// Nobody waiting - add to the input buffer
-				// if there is room, otherwise just ignore it.
-				//
-
-				if( _incount < BUF_SIZE ) {
-					*_inlast++ = ch;
-					++_incount;
-				}
-			
-			}
+			//run the callback for getting data
+			_fd_readDone(&_fds[SIO_FD],ch);
 			break;
 
 		   case UA5_EIR_RX_FIFO_TIMEOUT_INT_PENDING:
@@ -251,15 +238,7 @@ void _sio_init( void ) {
 	_outcount = 0;
 	_sending = 0;
 
-	/*
-	** Create the SIO "blocked for input" queue
-	*/
 
-	status = _q_alloc( &_reading, NULL );
-	if( status != SUCCESS ) {
-		_kpanic( "_sio_init", "reading queue create status %s\n",
-			 status );
-	}
 
 	/*
 	** Next, initialize the UART.
@@ -318,8 +297,8 @@ void _sio_init( void ) {
 	/*
 	** Set up our file descriptor.
 	*/
-	_fds[SIO_FD].getc=&_sio_readc;
-	_fds[SIO_FD].putc=&_sio_writec;
+	_fds[SIO_FD].startRead=NULL;
+	_fds[SIO_FD].startWrite=&_sio_startWrite;
 	_fds[SIO_FD].flags= RW;
 
 	/*

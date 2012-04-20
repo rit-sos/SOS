@@ -501,11 +501,11 @@ void user_r( void ) {
 	Status status;
 
 	c_puts( "User R running\n" );
-	sleep( 10 );
+	sleep( 3 );
 	for( i = 0; i < 3; ++i ) {
 		do {
 			write(0, 'R' );
-			status = read(0, &ch );
+			status = read(CIO_FD, &ch );
 			if( status != SUCCESS ) {
 				prt_status( "User R, read status %s\n", status );
 			} else if( ch == -1 ) {	/* wait a bit */
