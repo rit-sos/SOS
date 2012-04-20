@@ -264,6 +264,7 @@ void _init( void ) {
 	_sched_init();
 	_clock_init();
 	_mman_init();
+	_vbe_init();
 
 	c_puts( "\n" );
 
