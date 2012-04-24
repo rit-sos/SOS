@@ -88,7 +88,7 @@ MAPS = umap.h kmap.h kmap.c
 
 USER_BITS = ulibc.o ulibs.o
 USER_SRC = $(patsubst %,%.c,$(USERS))
-USER_BASE = 0x400000
+USER_BASE = 0xc0000000
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
 	clock.o sio.o stacks.o syscalls.o kmap.o isr_stubs.o support.o c_io.o \
@@ -101,7 +101,7 @@ BOOT_BASE = 0x0
 INCLUDES = -I. -Iinclude
 SOURCES = $(wildcard *.c)
 
-USER_OPTIONS = -DCLEAR_BSS_SEGMENT -DSP2_CONFIG -DISR_DEBUGGING_CODE -DUSER_ENTRY="$(USER_BASE)" -ggdb
+USER_OPTIONS = -DCLEAR_BSS_SEGMENT -DSP2_CONFIG -DISR_DEBUGGING_CODE -DUSER_ENTRY="$(USER_BASE)" -ggdb -DUSE_TSS
 INCLUDES = -I. -I./include
 CPP = cpp
 CPPFLAGS = $(USER_OPTIONS) -nostdinc $(INCLUDES)

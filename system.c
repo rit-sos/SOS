@@ -210,8 +210,8 @@ Status _create_process( Pcb *pcb, Program entry ) {
 
 	context->eip = USER_ENTRY;
 
-//	context->esp = USER_STACK;
-	context->esp = (Uint32)((Context*)((Uint32*)(stack+1)-2)-1);
+	context->esp = USER_STACK;
+//	context->esp = (Uint32)((Context*)((Uint32*)(stack+1)-2)-1);
 
 	return( SUCCESS );
 

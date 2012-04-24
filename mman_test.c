@@ -1,6 +1,6 @@
 #include "headers.h"
 
-int somefunc() {
+int somefunc(void) {
 	int i;
 	int x = 0x840ad381;
 	int y = 0x08dda830;

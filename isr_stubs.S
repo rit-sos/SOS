@@ -96,11 +96,9 @@ isr_save:
 */
 
 // temporary hack - switch to kernel address space
-#ifndef USE_TSS
 	pusha
 	call	_mman_kernel_mode
 	popa
-#endif
 
 	movl	52(%esp),%eax	// get vector number and error code
 	movl	56(%esp),%ebx
@@ -200,11 +198,9 @@ __isr_restore:
 #endif
 
 // hack to get around not having a ring0-ring3 switch
-#ifndef USE_TSS
 	pusha
 	call	_mman_restore_pgdir
 	popa
-#endif
 
 /*
 ** Restore the context.

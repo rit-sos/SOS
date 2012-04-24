@@ -68,7 +68,7 @@ void _mman_pagefault_isr(int vec, int code) {
 	c_printf("*** PAGE FAULT: vec=0x%08x code=0x%08x cr2=0x%08x ***\n", vec, code, cr2);
 	c_printf("Mapping vpg 0x%08x to ppg 0x%08x\n", addr, addr);
 
-	if ((status = _mman_map_page(pgdir, addr, addr, MAP_WRITE)) != SUCCESS) {
+	if ((status = _mman_map_page(pgdir, addr, addr, MAP_WRITE | MAP_USER)) != SUCCESS) {
 		_kpanic("_mman_pagefault_isr", "%s", status);
 	}
 
@@ -300,7 +300,7 @@ Status _mman_proc_init(Pcb *pcb) {
 	*/
 	vpg = (USER_STACK >> 12) - 1;
 	ppg = ((Uint32)(pcb->stack - 1)) >> 12;
-	if ((status = _mman_map_page(pgdir, vpg, ppg, MAP_WRITE)) != SUCCESS) {
+	if ((status = _mman_map_page(pgdir, vpg, ppg, MAP_WRITE | MAP_USER)) != SUCCESS) {
 		_mman_map_free(map);
 		_mman_pgdir_free(pgdir);
 		return status;
@@ -315,8 +315,8 @@ Status _mman_proc_init(Pcb *pcb) {
 	*/
 	vpg = USER_ENTRY >> 12;
 	ppg = ((Uint32)entry) >> 12;
-	for (i = 0; i < size; i++, vpg++) {
-		if ((status = _mman_map_page(pgdir, vpg, ppg, MAP_WRITE)) != SUCCESS) {
+	for (i = 1; i < size; i++, vpg++) {
+		if ((status = _mman_map_page(pgdir, vpg, ppg, MAP_WRITE | MAP_USER)) != SUCCESS) {
 			_mman_map_free(map);
 			_mman_pgdir_free(pgdir);
 			return status;
@@ -599,7 +599,6 @@ void _mman_init() {
 	c_puts (" mman");
 }
 
-#ifndef USE_TSS
 void _mman_kernel_mode(void) {
 //	c_printf("stack: 0x%08x\n", _current->stack);
 //	c_printf("ctxt stack: 0x%08x\n", _current->context->esp);
@@ -611,8 +610,7 @@ void _mman_restore_pgdir(void) {
 //	c_printf("stack: 0x%08x\n", _current->stack);
 //	c_printf("ctxt stack: 0x%08x\n", _current->context->esp);
 //	_kpanic("_mman_restore_pgdir", "hello", FAILURE);
-	_current->context->esp = (_current->context->esp - ((Uint32)_current->stack)) + (USER_STACK - sizeof(Stack));
+//	_current->context->esp = (_current->context->esp - ((Uint32)_current->stack)) + (USER_STACK - sizeof(Stack));
 //	c_printf("adjusted: 0x%08x\n", _current->context->esp);
 	_mman_set_cr3(_current->pgdir);
 }
-#endif

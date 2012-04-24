@@ -272,11 +272,10 @@ Status _mman_proc_exit(struct pcb *pcb);
 Status _mman_alloc(void **ptr, Uint32 size, struct pcb *pcb, Uint32 flags);
 Status _mman_free(void *ptr, Uint32 size, struct pcb *pcb);
 
-#ifndef USE_TSS
 extern struct pcb *_current;
+
 void _mman_restore_pgdir(void);
 void _mman_kernel_mode(void);
-#endif
 
 #endif
 
