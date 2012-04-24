@@ -57,6 +57,7 @@
 
 #include "fd.h"
 #include "sio.h"
+#include "c_io.h"
 
 #include "queues.h"
 #include "pcbs.h"
@@ -572,7 +573,8 @@ void _sio_dump( void ) {
 	int n;
 	char *ptr;
 
-	c_printf( "SIO buffers:  in %d ot %d\n", _incount, _outcount );
+	c_printf( "SIO characters available: %d\n",  _fd_available(&_fds[SIO_FD]) );
+	/*
 	if( _incount ) {
 		c_puts( " in: \"" );
 		ptr = _innext; 
@@ -588,5 +590,5 @@ void _sio_dump( void ) {
 			_put_char_or_code( *ptr++ );
 		c_puts( "\"\n" );
 	}
-
+	*/
 }

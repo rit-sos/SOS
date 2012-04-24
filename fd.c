@@ -68,6 +68,10 @@ inline int buffer_get(Buffer *b){
 	return c;
 }
 
+inline int buffer_size(Buffer *b){
+	int c = (b->in - b->out)%FD_BUF_SIZE;
+	return c;
+}
 
 
 /*
@@ -92,11 +96,11 @@ Fd *_fd_alloc(Rwflags flags){
 		fd->flags=flags;
 
 		if (flags != W){
-			//TODO: allocate read
+			//TODO: dynamically allocate read
 
 		}
 		if (flags != R){
-			//TODO: allocate write
+			//TODO: dynamically allocate write
 		}
 
 	}	
@@ -217,6 +221,25 @@ int _fd_read(Fd *fd){
 		return -1;
 	}
 }
+
+/*
+ ** _fd_available(file)
+ **
+ ** determine how much there is currently in the pipe to read from a file descriptor.
+ **
+ ** returns the number of queued characters
+ */
+int _fd_available(Fd *fd){
+	return buffer_size(&fd->inbuffer);
+}
+
+
+/*
+ ****************************************************************************
+ *			Callbacks
+ ****************************************************************************
+ */
+
 
 /*
  ** _fd_readDone(file)

@@ -126,6 +126,16 @@ int _fd_getTx(Fd *fd);
 int _fd_read(Fd *fd);
 
 /*
+ ** _fd_available(file)
+ **
+ ** determine how much there is currently in the pipe to read from a file descriptor.
+ **
+ ** returns the number of queued characters
+ */
+int _fd_available(Fd *fd);
+
+
+/*
  ***************************************
  ** Functions for device to supply data
  **************************************
