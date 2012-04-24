@@ -29,7 +29,7 @@
 
 // Number of queues to allocate
 
-#define	N_QUEUES	20
+#define	N_QUEUES	50
 
 /*
 ** PRIVATE DATA TYPES

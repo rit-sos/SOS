@@ -23,12 +23,12 @@ void main(void) {
 	putx((Uint32)&main);
 	puts("\n");
 
-	read(&c);
+	read(CIO_FD,&c);
 
 	*p = x;
 	y = *p;
 
-	write(y);
+	write(CIO_FD,y);
 
-	write('~');
+	write(CIO_FD,'~');
 }

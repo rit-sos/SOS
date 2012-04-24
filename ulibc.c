@@ -145,24 +145,24 @@ Status puts(const char *str) {
 	const char *p = str;
 
 	while (*p && status == SUCCESS) {
-		status = write(*p++);
+		status = write(CIO_FD,*p++);
 	}
 
 	return status;
 }
 
 void putx(Uint32 x) {
-	write('0');
-	write('x');
+	write(CIO_FD,'0');
+	write(CIO_FD,'x');
 	if (x) {
 		for ( ; x; x <<= 4) {
 			if (((x>>28) & 0x0f) >= 10) {
-				write('a' + ((x>>28) & 0x0f) - 10);
+				write(CIO_FD,'a' + ((x>>28) & 0x0f) - 10);
 			} else {
-				write('0' + ((x>>28) & 0x0f));
+				write(CIO_FD,'0' + ((x>>28) & 0x0f));
 			}
 		}
 	} else {
-		write('0');
+		write(CIO_FD,'0');
 	}
 }

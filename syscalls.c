@@ -199,20 +199,23 @@ static void _sys_exit( Pcb *pcb ) {
 static void _sys_read( Pcb *pcb ) {
 	Key key;
 	int ch;
+	int fd;
 	int *ptr;
 	Status status;
 
 	// try to get the next character
 
-	//ch = _sio_readc();
-	ch = _fds[SIO_FD].getc();
+
+	fd=ARG(pcb)[1];
+	ch =_fd_read(&_fds[fd]);
 
 	// if there was a character, return it to the process;
 	// otherwise, block the process until one comes in
 
+	
 	if( ch >= 0 ) {
 
-		ptr = (int *) (ARG(pcb)[1]);
+		ptr = (int *) (ARG(pcb)[2]);
 		*ptr = ch;
 		RET(pcb) = SUCCESS;
 
@@ -222,15 +225,14 @@ static void _sys_read( Pcb *pcb ) {
 		// serial i/o input queue
 
 		_current->state = BLOCKED;
-
-		key.u = _current->pid;
+		key.u = fd;
+	
 		status = _q_insert( _reading, (void *) _current, key );
 		if( status != SUCCESS ) {
 			_kpanic( "_sys_read", "insert status %s", status );
 		}
 
 		// select a new current process
-
 		_dispatch();
 
 	}
@@ -248,14 +250,33 @@ static void _sys_read( Pcb *pcb ) {
 */
 
 static void _sys_write( Pcb *pcb ) {
-	int ch = ARG(pcb)[1];
+	Status status;
+	Key key;
+	int fd = ARG(pcb)[1];
+	int ch = ARG(pcb)[2];
+
 
 	// this is almost insanely simple, but it does separate
 	// the low-level device access fromm the higher-level
 	// syscall implementation
 
-	//_sio_writec( ch );
-	_fds[SIO_FD].putc(ch);
+	status = _fd_write(&_fds[fd], ch);
+	if (status != SUCCESS){
+		
+		// no character; block this process on the fd
+
+		_current->state = BLOCKED;
+		key.u = fd;
+	
+		status = _q_insert( _writing, (void *) _current, key );
+		if( status != SUCCESS ) {
+			_kpanic( "_sys_write", "insert status %s", status );
+		}
+
+		// select a new current process
+		_dispatch();
+	}
+
 
 	RET(pcb) = SUCCESS;
 

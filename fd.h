@@ -13,14 +13,13 @@
 #ifndef _FD_H
 #define _FD_H
 
+#include "io.h"
 #include "headers.h"
+#include "queues.h"
 
 /*
 ** General (C and/or assembly) definitions
 */
-
-#define SIO_FD 		0	//define default file descriptors for serial I/O 
-#define CIO_FD	 	1	//define default file descriptors for console I/O
 
 
 #ifndef __ASM__20113__
@@ -40,15 +39,29 @@ typedef enum rwflags{
 	RW
 }Rwflags;
 
-typedef struct fd{
-	int (*getc)(void);
-	void (*putc)(int c);
+typedef struct buffer{
+	char buff[FD_BUF_SIZE];
+	int in;
+	int out;
+}Buffer;
+
+
+typedef struct Fd{
+	Buffer inbuffer;
+	Buffer outbuffer;
 	Rwflags flags;
+	void (*startRead)(struct Fd *fd);	//request more data from the driver.. If we can't, then NULL
+	void (*startWrite)(struct Fd *fd);	//request that the device start writing. If we can't, then NULL
+
 }Fd;
 
 /*
 ** Globals
 */
+
+
+extern Queue *_reading;
+extern Queue *_writing;
 
 extern Fd _fds[];		// all fds in the system
 extern Fd _next_fd;		// next free fd
@@ -66,10 +79,10 @@ extern Fd _next_fd;		// next free fd
 **
 ** returns new fd on success, NULL on failure
 */
-Fd *_fd_alloc(void);
+Fd *_fd_alloc(Rwflags flags);
 
 /*
-** _fd_dealloc()
+** _fd_dealloc(toFree)
 **
 ** deallocates a new file descriptor
 **
@@ -84,6 +97,69 @@ Status _fd_dealloc(Fd *toFree);
 **
 */
 void _init_fd(void);
+
+/*
+** _fd_write(file, char)
+**
+** write to a file descriptor.. Non-blocking, lossy
+**
+** returns the status 
+*/
+Status _fd_write(Fd *fd, int c);
+
+/*
+ ** _fd_getTx(file)
+ **
+ ** get the next character to be transmitted.
+ **
+ ** returns status 
+ */
+int _fd_getTx(Fd *fd);
+
+/*
+ ** _fd_read(file)
+ **
+ ** read from a file descriptor.. Non-blocking
+ **
+ ** returns the read character 
+ */
+int _fd_read(Fd *fd);
+
+/*
+ ** _fd_available(file)
+ **
+ ** determine how much there is currently in the pipe to read from a file descriptor.
+ **
+ ** returns the number of queued characters
+ */
+int _fd_available(Fd *fd);
+
+
+/*
+ ***************************************
+ ** Functions for device to supply data
+ **************************************
+ */
+
+/*
+ ** _fd_readDone(file)
+ **
+ ** read from device successful. Puts character into read buffer and unblocks any read blocked processes.
+ ** To be called from the device
+ **
+ */
+void _fd_readDone(Fd *fd, int c);
+
+/*
+ ** _fd_writeDone(file)
+ **
+ ** Write to device successful. Requests another character from the write buffer and unblocks any write blocked processes.
+ ** To be called from the device
+ **
+ ** Returns the next character to be written, or -1
+ **
+ */
+int _fd_writeDone(Fd *fd);
 
 #endif
 

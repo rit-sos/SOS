@@ -70,7 +70,7 @@ void main( void ) {
 	putx((Uint32)&main);
 	puts("\n");
 
-	status = write( 'A' );
+	status = write(CIO_FD, 'A' );
 	if( status != SUCCESS ) {
 		//prt_status( "User A, write 1 status %s\n", status );
 	}
@@ -78,7 +78,7 @@ void main( void ) {
 //	for (;;) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
-		status = write( 'A' );
+		status = write(CIO_FD, 'A' );
 		if( status != SUCCESS ) {
 			//prt_status( "User A, write 2 status %s\n", status );
 		}
@@ -87,7 +87,7 @@ void main( void ) {
 	//c_puts( "User A exiting\n" );
 //	exit();
 
-	status = write( 'a' );	/* shouldn't happen! */
+	status = write(CIO_FD, 'a' );	/* shouldn't happen! */
 	if( status != SUCCESS ) {
 		//prt_status( "User A, write 3 status %s\n", status );
 	}

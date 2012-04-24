@@ -20,7 +20,8 @@
 #include "defs.h"
 #include "types.h"
 
-#include "c_io.h"
+#include "io.h"
+#include "fd.h"
 #include "support.h"
 
 

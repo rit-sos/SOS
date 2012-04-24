@@ -235,7 +235,7 @@ void main(void) {
 	}
 #endif
 
-	write( '!' );
+	write(CIO_FD, '!' );
 
 	/*
 	** And now we start twiddling our thumbs
@@ -252,12 +252,12 @@ void main(void) {
 		//prt_status( "idle: priority change status %s\n", status );
 	}
 
-	write( '.' );
+	write(CIO_FD, '.' );
 
 	for(;;) {
 		for( i = 0; i < DELAY_LONG; ++i )
 			continue;
-		write( '.' );
+		write(CIO_FD, '.' );
 	}
 
 	/*
