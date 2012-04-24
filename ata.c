@@ -74,11 +74,12 @@ int _ata_identify(int slave, Uint32 base){
 
 	//detect a floating drive
 	if( __inb( base+REGULAR_STATUS ) != 0xFF){ //High if there is no drive
+		int i;
 
 		//select the master/slave drive as appropriate
 		__outb(base+DRIVE_HEAD_PORT, MASTER | slave<< 4);	
 
-		for (int i = 0 ; i < 10; i++){
+		for (i = 0 ; i < 10; i++){
 			//read the control register 5 times to give it time to settle
 			__inb(DEVICE_CONTROL);
 
@@ -144,7 +145,7 @@ int _ata_identify(int slave, Uint32 base){
 		}
 		c_puts("IDENTIFY\n");
 
-		for(int i =0; i < 256; i++){
+		for(i =0; i < 256; i++){
 			block[i] = __inw(base+DATA);
 		}
 
