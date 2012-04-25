@@ -38,6 +38,7 @@
 #define GDT_VBE_A0000		0x0048
 #define GDT_VBE_B0000		0x0050
 #define GDT_VBE_B8000		0x0058
+#define GDT_VBE_PARAM		0x0060
 
 /*
 ** The Interrupt Descriptor Table (0000:2500 - 0000:2D00)

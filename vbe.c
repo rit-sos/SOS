@@ -24,7 +24,8 @@
 char BIOSDataSeg[600];
 char BIOSStackSeg[1024];
 
-
+/* VBE mode info */
+VbeModeInfoBlock vbe_mode_info;
 /* 
  * _vbe_init()
  * 
@@ -33,13 +34,40 @@ char BIOSStackSeg[1024];
  */
 void _vbe_init()
 {
-	Vbe_PMID *pmid;
+	VbePMID *pmid;
 	int i;
 
-	if( (pmid = bios_probe) != NULL )
+	if( (pmid = (VbePMID*)bios_probe()) != NULL )
 	{
 		// found it, inititalize now
 		
+		// First, set up the GDT entries
+		GDT_Pointer gdt;
+		_vbe_getGDT( &gdt );
+
+		void *gdt_base = (void*)gdt.base;
+
+		// print the gdt
+		c_printf("GDT: 0x%08x\n", gdt.base);
+		c_printf("Limit: 0x%08x\n", gdt.limit);
+
+		// edit the GDT entries
+
+		// first the segements for PMBIOS
+		GDT_Entry *entry = (GDT_Entry*)(gdt_base + GDT_VBE_BIOS_DATA);
+		BASE(entry, PMBios);
+
+		entry = (GDT_Entry*)(gdt_base + GDT_VBE_BIOS_CODE);
+		BASE(entry, PMBios);
+
+		// now the segment for BIOS data
+		entry = (GDT_Entry*)(gdt_base + GDT_VBE_DATA);
+		BASE(entry, BIOSDataSeg);
+
+		// now the segment for the BIOS stack
+		entry = (GDT_Entry*)(gdt_base + GDT_VBE_STACK);
+		BASE(entry, BIOSStackSeg);
+
 		// clear the BIOS data area
 		for( i = 0; i < sizeof(BIOSDataSeg); i++ )
 		{
@@ -60,14 +88,56 @@ void _vbe_init()
 		// in protected mode
 		pmid->InProtectMode = 1;
 
+		c_printf("VBE: Calling init 0x%08x\n", pmid->PMInitialize);
+
 		// now call initialize function
-		_vbe_call( pmid->PMInitialize );
+		_vbe_call_init( pmid->PMInitialize );
+
+		c_printf("VBE: Initialized\n");
+
+		// now request info
+		VbeInfoBlock vbe_info;
+		vbe_info.VESASignature[0] = 'V';
+		vbe_info.VESASignature[1] = 'B';
+		vbe_info.VESASignature[2] = 'E';
+		vbe_info.VESASignature[3] = '3';
+
+		if( _vbe_call_func( pmid->EntryPoint, 0x4F00, 0x00, 0x00, &vbe_info, sizeof(VbeInfoBlock) ) != 0x4F00 )
+			c_printf("VBE: error getting VESA info\n");
+
+		// got info
+		c_printf("Got info: Sig = %c%c%c%c\n", vbe_info.VESASignature[0], vbe_info.VESASignature[1], 
+											   vbe_info.VESASignature[2], vbe_info.VESASignature[4] );
+
+		// TODO
+		for(;;);
+		
 	}
 	else
 	{
 		// Failed
 		c_printf("VBE probe failed\n");
 	}
+}
+
+void _vbe_call_init( Uint offset )
+{
+	_vbe_call_func( offset, 0, 0, 0, NULL, 0 );
+}
+
+int _vbe_call_func(	Uint offset, Uint16 ax, Uint16 bx, Uint16 cx, void *data, Uint data_size )
+{
+	// setup the gdt
+	GDT_Pointer gdt;
+	_vbe_getGDT( &gdt );
+
+	void *gdt_base = (void*)gdt.base;
+
+	GDT_Entry *entry = (GDT_Entry*)(gdt_base+GDT_VBE_PARAM);
+	BASE(entry, data);
+	LIMIT(entry, data_size);
+
+	return __vbe_call_func_(offset, ax, bx, cx, GDT_VBE_PARAM);
 }
 
 /*

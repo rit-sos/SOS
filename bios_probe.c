@@ -21,34 +21,33 @@ void* bios_probe(void)
 {
 	// pointer to video bios
 	char *bios = (char*)BIOS_START;
-	char *new_bios = PMBios;
 	int i;
+	int idx;
 	char checksum;
 
 	// copy bios
-	while(bios < (char*)BIOS_END)
+	for( idx = 0; idx < BIOS_SIZE; idx++ )
 	{
-		*new_bios++ = *bios;
+		PMBios[idx] = bios[idx];
 	}
 
 	// scan it
-	*new_bios = PMBios;
-	while( new_bios < PMBios + BIOS_SIZE )
+	for( idx = 0; idx < (BIOS_SIZE - 20); idx++ )
 	{
-		if( new_bios[0] == 'P' &&
-			new_bios[1] == 'M' &&
-			new_bios[2] == 'I' &&
-			new_bios[3] == 'D')
+		if( PMBios[idx+0] == 'P' &&
+			PMBios[idx+1] == 'M' &&
+			PMBios[idx+2] == 'I' &&
+			PMBios[idx+3] == 'D')
 		{
 			checksum = 0;
 			for( i = 0; i < 20; i++ )
-				checksum += new_bios[i];
+				checksum += PMBios[idx+i];
+
+			c_printf("\nFound 0x%x\n", checksum);
 
 			if( checksum == 0 )
-				return (void*)new_bios;
+				return (void*)(PMBios + idx);
 		}
-
-		new_bios++;
 	}
 
 	return (void*)NULL;

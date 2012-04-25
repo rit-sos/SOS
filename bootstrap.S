@@ -28,6 +28,7 @@
 */
 	.code16
 
+#include "vbe_boot.h"
 #include "bootstrap.h"
 
 BOOT_SEGMENT	= 0x07C0	/* default BIOS addr to load boot sector */
@@ -36,6 +37,10 @@ START_SEGMENT	= 0x0000	/* where we'll put the startup code */
 START_OFFSET	= 0x00007E00
 SECTOR_SIZE	= 0x200		/* typical sector size for floppy & HD */
 OFFSET_LIMIT	= 65536 - SECTOR_SIZE
+
+.section .bss
+.lcomm _vbe_info,		512		/* 512 bytes for vbe controller info */
+.lcomm _vbe_mode_info,	256		/* 256 bytes for the vbe mode info */
 
 /*
 ** Symbol for locating the beginning of the code.
@@ -95,7 +100,8 @@ diskok:
 	movw	$msg_loading,%si /* Print the Loading message */
 	call	dispMsg
 
-	movw	$1,%ax		/* sector count = 1 */
+	/*movw	$1,%ax	*/	/* sector count = 1 */
+	movw	$2,%ax		/* sector count = 2 */
 	movw	$START_SEGMENT,%bx /* read this into memory that */
 	movw	%bx,%es		/* immediately follows this code. */
 	movw	$START_OFFSET,%bx
@@ -396,6 +402,10 @@ boot_sig:
 */
 
 switch:
+	/* VBE initialization */
+	/* MUST BE DONE BEFORE CLI */
+	call	__vbe_init
+
 	cli
 	movb	$0x80, %al	/* disable NMIs */
 	outb	%al, $0x70
@@ -404,6 +414,7 @@ switch:
 	call	enable_A20
 	call	move_gdt
 	call	check_mem
+
 
 /*
 ** The IDTR and GDTR are loaded relative to this segment, so we must
@@ -511,6 +522,16 @@ wait2_loop:
 wait2_exit:
 	ret
 
+/*					*/
+/* VBE CODE BEGIN	*/
+/*					*/
+
+#include "vbe_boot.S"
+
+/*				*/
+/* VBE CODE END */
+/*				*/
+
 #ifdef USE_TSS
 #define TSS_START	0x300
 
@@ -596,35 +617,35 @@ stack_seg:	/* limit FFFFF, base 0, R/W data seg, 32-bit 4K */
 	.byte	0xCF
 	.byte	0x00
 
-vbe_bios_seg_data:	/* bios_size = 0x8000, base = 0x40000 data seg */
+vbe_bios_seg_data:	/* bios_size = 0x8000, base = 0x???? data seg */
 	.word	0x8000
 	.word	0x0000
-	.byte	0x04
-	.byte	0x92
 	.byte	0x00
+	.byte	0x92
+	.byte	0x40
 	.byte	0x00
 	
-vbe_bios_seg_code:	/* bios_size = 0x8000, base = 0x40000 code seg */
+vbe_bios_seg_code:	/* bios_size = 0x8000, base = 0x???? code seg */
 	.word	0x8000
 	.word	0x0000
-	.byte	0x04
+	.byte	0x00
 	.byte	0x9A
 	.byte	0x00
 	.byte	0x00
 
-vbe_data_seg:	/* data_size = 0x600, base = 0x48000 data seg */
+vbe_data_seg:	/* data_size = 0x600, base = 0x???? data seg */
 	.word	0x600
-	.word	0x8000
-	.byte	0x04
-	.byte	0x92
+	.word	0x0000
 	.byte	0x00
+	.byte	0x92
+	.byte	0x40
 	.byte	0x00
 
-vbe_stack_seg:	/* data_size = 0x400, base = 0x48000 data seg */
+vbe_stack_seg:	/* data_size = 0x400, base = 0x???? data seg, GROW DOWN */
 	.word	0x0258
-	.word	0x8000
-	.byte	0x04
-	.byte	0x92
+	.word	0x0000
+	.byte	0x00
+	.byte	0x96
 	.byte	0x00
 	.byte	0x00
 
@@ -633,7 +654,7 @@ vbe_A0000_seg:	/* data_size = 0x10000, base = 0xA0000 data seg */
 	.word	0x0000
 	.byte	0x0A
 	.byte	0x92
-	.byte	0x01
+	.byte	0x41
 	.byte	0x00
 
 vbe_B0000_seg:	/* data_size = 0x10000, base = 0xB0000 data seg */
@@ -641,15 +662,23 @@ vbe_B0000_seg:	/* data_size = 0x10000, base = 0xB0000 data seg */
 	.word	0x0000
 	.byte	0x0B
 	.byte	0x92
-	.byte	0x01
+	.byte	0x41
 	.byte	0x00
 
-vbe_B8000_seg:	/* data_size = 0x10000, base = 0xB0000 data seg */
+vbe_B8000_seg:	/* data_size = 0x8000, base = 0xB8000 data seg */
 	.word	0x8000
 	.word	0x8000
 	.byte	0x0B
 	.byte	0x92
+	.byte	0x40
 	.byte	0x00
+
+vbe_param_seg:	/* data_size = 0x00000, base = 0x00000 data seg, user specified */
+	.word	0x0000
+	.word	0x0000
+	.byte	0x00
+	.byte	0x92
+	.byte	0x40
 	.byte	0x00
 
 #ifdef USE_TSS
@@ -697,6 +726,8 @@ gdt_len = end_gdt - start_gdt
 ** to be loaded, their values appear just before the previous set.
 */
 
-	.org	1024-2
+	/*.org	1024-2*/
+	.org	1536-2		/* 3 sectors for bootstrap */
 firstcount:
 	.word	0	/* n_sectors for 1st module will go here */
+

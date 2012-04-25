@@ -92,10 +92,10 @@ USER_BASE = 0x400000
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
 	clock.o sio.o stacks.o syscalls.o kmap.o isr_stubs.o support.o c_io.o \
-	mmanc.o mmans.o fd.o bios_probe.o vbe.o vbe_s.o
+	mmanc.o mmans.o fd.o #bios_probe.o vbe.o vbe_s.o
 KERNEL_BASE = 0x10000
 
-BOOT_BITS = bootstrap.o
+BOOT_BITS = bootstrap.o 
 BOOT_BASE = 0x0
 
 INCLUDES = -I. -Iinclude
@@ -108,8 +108,8 @@ CPPFLAGS = $(USER_OPTIONS) -nostdinc $(INCLUDES)
 CC = gcc
 CFLAGS = -m32 -fno-stack-protector -fno-builtin -Wall -Wstrict-prototypes -Wno-main $(CPPFLAGS)
 AS = as --32
-ASFLAGS = -ggdb
-LD = ld -m elf_i386
+ASFLAGS = -ggdb 
+LD = ld -m elf_i386 -ggdb
 LDFLAGS = --oformat binary -s
 
 .DEFAULT_GOAL = all
@@ -142,7 +142,7 @@ all: build list
 #
 build: boot kernel $(USERS) BuildImage
 	./BuildImage -d usb -o usb.image -b boot kernel $(KERNEL_BASE) `cat map`
-	./BuildImage -d floppy -o floppy.image -b boot kernel $(KERNEL_BASE) `cat map`
+	@#./BuildImage -d floppy -o floppy.image -b boot kernel $(KERNEL_BASE) `cat map`
 
 BuildImage: BuildImage.c
 	$(CC) -o BuildImage BuildImage.c
@@ -215,56 +215,63 @@ depend: realclean
 
 # DO NOT DELETE
 
+queues.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+queues.o: clock.h stacks.h klib.h queues.h
+ulibc.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+ulibc.o: clock.h stacks.h klib.h
+support.o: startup.h support.h c_io.h ./include/x86arch.h bootstrap.h
+pcbs.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+pcbs.o: clock.h stacks.h klib.h queues.h
+sio.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+sio.o: clock.h stacks.h klib.h fd.h sio.h queues.h scheduler.h startup.h
+sio.o: ./include/uart.h ./include/x86arch.h
+bios_probe.o: headers.h defs.h types.h c_io.h support.h system.h mman.h
+bios_probe.o: pcbs.h clock.h stacks.h klib.h bios_probe.h
 0.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h clock.h
 0.o: stacks.h klib.h
-BuildImage.o: /usr/include/stdio.h /usr/include/features.h
-BuildImage.o: /usr/include/bits/predefs.h /usr/include/sys/cdefs.h
-BuildImage.o: /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h
-BuildImage.o: /usr/include/gnu/stubs-32.h /usr/include/bits/types.h
-BuildImage.o: /usr/include/bits/typesizes.h /usr/include/libio.h
-BuildImage.o: /usr/include/_G_config.h /usr/include/wchar.h
-BuildImage.o: /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h
-BuildImage.o: /usr/include/stdlib.h /usr/include/sys/types.h
-BuildImage.o: /usr/include/time.h /usr/include/endian.h
-BuildImage.o: /usr/include/bits/endian.h /usr/include/bits/byteswap.h
-BuildImage.o: /usr/include/sys/select.h /usr/include/bits/select.h
-BuildImage.o: /usr/include/bits/sigset.h /usr/include/bits/time.h
-BuildImage.o: /usr/include/sys/sysmacros.h /usr/include/bits/pthreadtypes.h
-BuildImage.o: /usr/include/alloca.h /usr/include/unistd.h
-BuildImage.o: /usr/include/bits/posix_opt.h /usr/include/bits/confname.h
-BuildImage.o: /usr/include/getopt.h /usr/include/string.h
-BuildImage.o: /usr/include/xlocale.h
-c_io.o: c_io.h startup.h support.h ./include/x86arch.h
 clock.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
 clock.o: clock.h stacks.h klib.h ./include/x86arch.h startup.h queues.h
 clock.o: scheduler.h sio.h syscalls.h
-init.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
-init.o: clock.h stacks.h klib.h
 klibc.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
 klibc.o: clock.h stacks.h klib.h
-mmanc.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
-mmanc.o: clock.h stacks.h klib.h ./include/x86arch.h queues.h
 mman_test.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
 mman_test.o: clock.h stacks.h klib.h
-pcbs.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
-pcbs.o: clock.h stacks.h klib.h queues.h
-queues.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
-queues.o: clock.h stacks.h klib.h queues.h
-scheduler.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
-scheduler.o: clock.h stacks.h klib.h scheduler.h queues.h
-sio.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
-sio.o: clock.h stacks.h klib.h sio.h queues.h scheduler.h startup.h
-sio.o: ./include/uart.h ./include/x86arch.h
 stacks.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
 stacks.o: clock.h stacks.h klib.h queues.h
-support.o: startup.h support.h c_io.h ./include/x86arch.h bootstrap.h
-syscalls.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
-syscalls.o: clock.h stacks.h klib.h scheduler.h queues.h sio.h syscalls.h
-syscalls.o: ./include/x86arch.h startup.h
 system.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
 system.o: clock.h stacks.h klib.h bootstrap.h syscalls.h queues.h
-system.o: ./include/x86arch.h sio.h scheduler.h ulib.h
-ulibc.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
-ulibc.o: clock.h stacks.h klib.h
+system.o: ./include/x86arch.h sio.h scheduler.h fd.h vbe.h ulib.h
+vbe.o: vbe.h headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+vbe.o: clock.h stacks.h klib.h vbe_structs.h bios_probe.h bootstrap.h
+fd.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+fd.o: clock.h stacks.h klib.h queues.h fd.h
+init.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+init.o: clock.h stacks.h klib.h
+syscalls.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+syscalls.o: clock.h stacks.h klib.h fd.h scheduler.h queues.h sio.h
+syscalls.o: syscalls.h ./include/x86arch.h startup.h
+scheduler.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+scheduler.o: clock.h stacks.h klib.h scheduler.h queues.h
 user_a.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
 user_a.o: clock.h stacks.h klib.h
+c_io.o: c_io.h startup.h support.h ./include/x86arch.h
+mmanc.o: headers.h defs.h types.h c_io.h support.h system.h mman.h pcbs.h
+mmanc.o: clock.h stacks.h klib.h ./include/x86arch.h queues.h
+BuildImage.o: /usr/include/stdio.h /usr/include/features.h
+BuildImage.o: /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h
+BuildImage.o: /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h
+BuildImage.o: /usr/include/bits/types.h /usr/include/bits/typesizes.h
+BuildImage.o: /usr/include/libio.h /usr/include/_G_config.h
+BuildImage.o: /usr/include/wchar.h /usr/include/bits/wchar.h
+BuildImage.o: /usr/include/xlocale.h /usr/include/bits/stdio_lim.h
+BuildImage.o: /usr/include/bits/sys_errlist.h /usr/include/stdlib.h
+BuildImage.o: /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h
+BuildImage.o: /usr/include/endian.h /usr/include/bits/endian.h
+BuildImage.o: /usr/include/bits/byteswap.h /usr/include/sys/types.h
+BuildImage.o: /usr/include/time.h /usr/include/sys/select.h
+BuildImage.o: /usr/include/bits/select.h /usr/include/bits/sigset.h
+BuildImage.o: /usr/include/bits/time.h /usr/include/sys/sysmacros.h
+BuildImage.o: /usr/include/bits/pthreadtypes.h /usr/include/alloca.h
+BuildImage.o: /usr/include/unistd.h /usr/include/bits/posix_opt.h
+BuildImage.o: /usr/include/bits/confname.h /usr/include/getopt.h
+BuildImage.o: /usr/include/ctype.h /usr/include/string.h

@@ -12,9 +12,9 @@
 
 #include "headers.h"
 
-#define BIOS_START	0xC0000
-#define BIOS_END	0xC8000
-#define BIOS_SIZE	(BIOS_END-BIOS_START)
+#define BIOS_START	((void*)0xC0000)
+#define BIOS_END	((void*)0xC8000)
+#define BIOS_SIZE	(0x8000)
 
 /* protected mode bios */
 extern char PMBios[];

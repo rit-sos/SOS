@@ -83,7 +83,7 @@ Status _fd_dealloc(Fd *toFree);
 ** initializes the file descriptor module
 **
 */
-void _init_fd(void);
+void _fd_init(void);
 
 #endif
 
