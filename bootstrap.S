@@ -404,7 +404,7 @@ boot_sig:
 switch:
 	/* VBE initialization */
 	/* MUST BE DONE BEFORE CLI */
-	call	__vbe_init
+	/*call	__vbe_init */
 
 	cli
 	movb	$0x80, %al	/* disable NMIs */
