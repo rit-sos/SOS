@@ -22,6 +22,7 @@
 #include "sio.h"
 #include "scheduler.h"
 #include "fd.h"
+#include "vbe.h"
 #include "mman.h"
 
 // need init() address
@@ -263,7 +264,9 @@ void _init( void ) {
 	_syscall_init();
 	_sched_init();
 	_clock_init();
+	//_vbe_init();
 	_mman_init();
+
 
 	c_puts( "\n" );
 
