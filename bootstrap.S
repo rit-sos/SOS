@@ -726,7 +726,6 @@ gdt_len = end_gdt - start_gdt
 ** to be loaded, their values appear just before the previous set.
 */
 
-	/*.org	1024-2*/
 	.org	1536-2		/* 3 sectors for bootstrap */
 firstcount:
 	.word	0	/* n_sectors for 1st module will go here */

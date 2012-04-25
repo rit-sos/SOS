@@ -101,15 +101,15 @@ BOOT_BASE = 0x0
 INCLUDES = -I. -Iinclude
 SOURCES = $(wildcard *.c)
 
-USER_OPTIONS = -DCLEAR_BSS_SEGMENT -DSP2_CONFIG -DISR_DEBUGGING_CODE -DUSER_ENTRY="$(USER_BASE)" -ggdb
+USER_OPTIONS = -DCLEAR_BSS_SEGMENT -DSP2_CONFIG -DISR_DEBUGGING_CODE -DUSER_ENTRY="$(USER_BASE)" 
 INCLUDES = -I. -I./include
 CPP = cpp
 CPPFLAGS = $(USER_OPTIONS) -nostdinc $(INCLUDES)
 CC = gcc
 CFLAGS = -m32 -fno-stack-protector -fno-builtin -Wall -Wstrict-prototypes -Wno-main $(CPPFLAGS)
 AS = as --32
-ASFLAGS = -ggdb 
-LD = ld -m elf_i386 -ggdb
+ASFLAGS = 
+LD = ld -m elf_i386
 LDFLAGS = --oformat binary -s
 
 .DEFAULT_GOAL = all
