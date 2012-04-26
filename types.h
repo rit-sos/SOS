@@ -27,6 +27,9 @@ typedef unsigned int	Uint;
 
 // size-specific integer types
 
+typedef long long 		Int64;
+typedef unsigned long long	Uint64;
+
 typedef long		Int32;
 typedef unsigned long	Uint32;
 

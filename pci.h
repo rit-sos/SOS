@@ -26,9 +26,17 @@
 #define PCI_COMMAND_REGISTER        0x04
 #define PCI_STATUS_REGISTER         0x06
 #define PCI_CLASS_REVISION          0x08
+#define PCI_CLASS_CODE		    0x0B
+#define PCI_SUBCLASS		    0x0A
 #define PCI_HEADER_TYPE             0x0e
 
 
+#define PCI_BAR0			0x10
+#define PCI_BAR1			0x14
+#define PCI_BAR2			0x18
+#define PCI_BAR3			0x10
+#define PCI_BAR4			0x10
+#define PCI_BAR5			0x10
 
 
 
@@ -76,12 +84,14 @@ struct pci_func
 
     Uint16  vendor_id;
     Uint16  device_id;
-    Uint32  dev_class;
+    Uint8  dev_class;
+    Uint8  subclass;
+    Uint16  revision;
 
     Uint32  reg_base[6];
     Uint32  reg_size[6];
     Uint8   irq_line;
-};
+    };
 
 void set_pci_conf_addr ( Uint8 bus, Uint8 slot, Uint8 func, Uint8 offset);
 
@@ -92,8 +102,7 @@ Uint8   read_pci_config_byte ( Uint8 bus, Uint8 slot, Uint8 func, Uint8 offset )
 void dump_pci_device( Uint8 bus, Uint8 slot, Uint8 func );
 void dump_pci_devices ( void );
 
-void scan_pci_for ( struct pci_func *f );
-
+void scan_pci_for ( struct pci_func *f, Uint8 bus_start, Uint8 slot_start, Uint8 func_start );
 
 void play (void);
 

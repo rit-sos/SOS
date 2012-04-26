@@ -21,6 +21,7 @@
 #include "syscalls.h"
 #include "sio.h"
 #include "scheduler.h"
+#include "ata.h"
 
 // need init() address
 #include "users.h"
@@ -222,6 +223,7 @@ void _init( void ) {
 	_syscall_init();
 	_sched_init();
 	_clock_init();
+	_ata_init();
 
 	c_puts( "\n" );
 
