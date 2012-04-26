@@ -15,6 +15,12 @@
 
 /* THIS CODE IS #included INTO BOOTSTRAP */
 
+#define _vbe_info		0x8000
+#define _vbe_mode_info	0x8200
+
+#define X_RES	1280
+#define Y_RES	1024
+
 __vbe_init:
 	pushw	%bx
 	pushw	%di
@@ -25,56 +31,94 @@ __vbe_init:
 	movw	$vbe_start_str,	%si
 	call	dispMsg
 
-	/* preset signature to VBE2 */
+	/* preset signature to "VBE2" */
 	movw	$_vbe_info, 	%bx
-	movb	$0x56,	%al
-	movb	%al,	0(%bx)
-	movb	$0x42,	%al
+	movb	$'V',	%al
+	movb	%al,	(%bx)
+	movb	$'B',	%al
 	movb	%al,	1(%bx)
-	movb	$0x45,	%al
+	movb	$'E',	%al
 	movb	%al,	2(%bx)
-	movb	$0x32,	%al
+	movb	$'2',	%al
 	movb	%al,	3(%bx)
 
 	/* get controller info */
 	/* es:di points to _vbe_info */
 	/* ax = 0x4F00 */
 	movw	$_vbe_info,	%di
-	movw	$0x0000,	%ax
+	movw	$0x1000,	%ax
 	movw	%ax,		%es
 	movw	$0x4F00,	%ax
 	/* call BIOS */
-	int	$0x10
+	int		$0x10
 	cmpw	$0x004F,	%ax
 	jne		_error_info
 
-	movw	$vbe_info_str,	%si
+	movw	$vbe_signature_str,	%si
 	call	dispMsg
 
+	xorw	%cx,	%cx
+
+	movb	%es:0(%di),	%cl
+	call	printNum
+	movb	%es:1(%di),	%cl
+	call	printNum
+	movb	%es:2(%di),	%cl
+	call	printNum
+	movb	%es:3(%di),	%cl
+	call	printNum
+
+	movw	$vbe_version_str,	%si
+	call	dispMsg
+
+	movw	%es:VBE_INFO_VERSION(%di),	%cx
+	call	printNum
+
+
 	/* set to the first mode that is 1280x1024x32 */
-	movw	VBE_INFO_VIDEO_MODE_PTR(%bx),	%si
-	movw	VBE_INFO_VIDEO_MODE_PTR+2(%bx),	%gs
-_mode_loop:
+	movw	%es:VBE_INFO_VIDEO_MODE_PTR(%di),	%si
+	movw	%es:VBE_INFO_VIDEO_MODE_PTR+2(%di),	%gs
+
+	/* DEBUG */
 	pushw	%si
-	movw	$vbe_mode_str,	%si
+	movw	$vbe_seg_str,	%si
 	call	dispMsg
 	popw	%si
 
+	movw	%gs,	%cx
+	call	printNum
+	
+	pushw	%si
+	movw	$vbe_off_str,	%si
+	call	dispMsg
+	popw	%si
+	movw	%si,	%cx
+	call	printNum
+
+_mode_loop:
 	movw	%si,	%bx
+
 	/* read next mode number */
 	movw	%gs:(%bx), %cx
+
+	/* display the number */
+	pushw	%si
+	movw	$vbe_mode_str,	%si
+	call	dispMsg
+	call	printNum
+	popw	%si
 
 	/* check that we aren't at the end of the list */
 	cmpw	$0xFFFF, %cx
 	je		_not_found
 
 	/* get the mode info for this mode */
-	movw	_vbe_mode_info,	%di
-	movw	$0x0000,	%ax
+	movw	$_vbe_mode_info,	%di
+	movw	$0x1000,	%ax
 	movw	%ax,		%es
 	movw	$0x4F01,	%ax
 	/* call BIOS */
-	int	$0x10
+	int		$0x10
 	cmpw	$0x004F,	%ax
 	jne		_call_error_mode_get
 	jmp		_check_res
@@ -85,37 +129,43 @@ _call_error_mode_get:
 
 _check_res:
 
-	movw	$_vbe_mode_info,	%bx
+	pushw	%cx
+
 	/* check screen width */
-	movw	VBE_MODE_INFO_X_RES(%bx), %dx
-	cmpw	$1024,	%dx
+	movw	%es:VBE_MODE_INFO_X_RES(%di), %cx
+	cmpw	$X_RES,	%cx
 	jne		_end_loop
 
 	/* check screen height */
-	movw	VBE_MODE_INFO_Y_RES(%bx), %dx
-	cmpw	$1280,	%dx
+	movw	%es:VBE_MODE_INFO_Y_RES(%di), %cx
+	cmpw	$Y_RES,	%cx
 	jne		_end_loop
 
 	/* check bpp */
-	movw	VBE_MODE_INFO_BPP(%bx), %dx
-	cmpw	$32,	%dx
+	xorw	%cx,	%cx
+	movb	%es:VBE_MODE_INFO_BPP(%di), %cl
+	cmpw	$32,	%cx
 	jne		_end_loop
 
 	/* check mode attributes */
 	/* should be supported, graphics, color, and linear */
-	movw	VBE_MODE_INFO_MODE_ATTRIB(%bx), %dx
-	andw	$0x009B,	%dx
-	cmpw	$0x009B,	%dx
+	movw	%es:VBE_MODE_INFO_MODE_ATTRIB(%di), %cx
+	andw	$0x009B,	%cx
+	cmpw	$0x009B,	%cx
 	jne		_end_loop
 
 	/* found a mode thats 1024x1280x32 */
 	/* set it, using linear buffer and clearing memory */
+	popw	%cx
 	orw		$0xC000,	%cx
 	movw	$0x4f02,	%ax
 	/* call BIOS */
-	int	$0x10
+	int		$0x10
+
 	cmpw	$0x004F,	%ax
 	jne		_error_mode_set
+
+	/* clear screen */
 
 	jmp		_success
 
@@ -130,14 +180,21 @@ _not_found:
 
 _error_info:
 	
-	movw	$vbe_err_str,	%si
+	movw	%ax,	%cx
+	movw	$vbe_err_info_str,	%si
 	call	dispMsg
-	movw	$vbe_info_str,	%si
-	call	dispMsg
+	call	printNum
 	jmp		_done
 
 _error_mode_set:
 	
+	pushw	%cx
+	movw	$vbe_err_str,	%si
+	call	dispMsg
+	movw	%ax,	%cx
+	call	printNum
+
+	popw	%cx
 	movw	$vbe_err_set_mode_str,	%si
 	call	dispMsg
 
@@ -160,9 +217,9 @@ _done:
 	popw	%bx
 	ret
 
-.globl _error_mode_get
 _error_mode_get:
 	
+	pushw	%si
 	pushw	%ax
 	pushw 	%cx
 
@@ -174,6 +231,16 @@ _error_mode_get:
 	movw	$vbe_eol_str,	%si
 	call	dispMsg
 
+	call	delay
+
+	popw	%cx
+	popw	%ax
+	popw	%si
+	ret
+
+delay:
+	pushw	%ax
+	pushw	%cx
 	/* delay for a while */
 	
 	movw	$0x8000,	%ax
@@ -194,70 +261,91 @@ _error_delay_loop2:
 
 /* print the value of %cx */
 printNum:
-	pushw	%di
-	pushw	%ax
-	pushw	%bx
 	pushw	%cx
-	pushw	%dx
+	pushw	%si
+	pushw	%di
 
-	/* shift amount */
-	movw	%cx,	%di
-	movw	$12,	%cx	
-_print_loop:
-	cmpw	$0,	%cx
-	jl		_print_done
+	movw	%cx,	%si
+	movw	$'x',	%di
+	call	pnum
 
-	/* print next nibble */
-	movw	%di,	%ax
-	shlw	%cl,	%ax
-	andw	$0xF,	%ax
+	movw	$vbe_eol_str,	%si
+	call	dispMsg
 
-	cmpw	$10,	%ax
-	jge		_print_letter
-
-	/* disp '0' + ax */
-	addw	$48,	%ax
-
-	jmp	_print_end_loop
-
-_print_letter:
-	/* disp 'A' + (ax-10) */
-	addw	$55,	%ax
-	
-_print_end_loop:
-	/* print %ax */
-	movb	$0x0E,	%ah
-	movw	$0x07,	%bx
-
-	int	$0x10
-
-	subw	$4, 	%cx
-	jmp	_print_loop
-
-_print_done:
-
-	popw	%dx
-	popw	%cx
-	popw	%bx
-	popw	%ax
 	popw	%di
+	popw	%si
+	popw	%cx
 
 	ret
+#if 1
+/*
+** Debugging routine.  This lives in the 1st block of the bootstrap
+** so it can be called from there as well as from the 2nd block.
+**
+**	movw	$'x',%di	// a single character to print
+**	movw	value,%si	// a 16-bit value to print in hex
+**	call	pnum
+*/
+pnum:
+	pushw	%ax
+	pushw	%bx
+	movw	%di,%ax
+	movb	$0x0e,%ah
+	movw	$0x0007,%bx
+	int		$0x10
 
+	call	pdigit
+	call	pdigit
+	call	pdigit
+	call	pdigit
+
+	popw	%bx
+	popw	%ax
+	ret
+
+pdigit:	movw	%si,%ax
+	shl	$4,%si
+	shr	$12,%ax
+	cmpw	$9,%ax
+	jle	pdd
+	addw	$'A'-10,%ax
+	jmp	prt
+pdd:	addw	$'0',%ax
+prt:	movb	$0xe,%ah
+	movw	$7,%bx
+	int	$0x10
+	ret
+#endif
 
 vbe_start_str:
-	.asciz	"Init VBE\n\r"
+	.asciz	"\n\rInit VBE\n\r"
 vbe_err_str:
 	.asciz	"Error "
+vbe_err_info_str:
+	.asciz	"Error info\n\r"
+vbe_seg_str:
+	.asciz	"VBE segment: "
+vbe_off_str:
+	.asciz	"VBE offset: "
+vbe_x_res_str:
+	.asciz	"VBE X-res: "
+vbe_y_res_str:
+	.asciz	"VBE Y-res: "
+vbe_bpp_str:
+	.asciz	"VBE BPP: "
+vbe_attrib_str:
+	.asciz	"VBE Mode attributes: "
 vbe_err_get_mode_str:
 	.asciz	"Error getting mode "
 vbe_err_set_mode_str:
-	.asciz	"Error getting mode "
+	.asciz	"Error setting mode "
 vbe_eol_str:
 	.asciz	"\n\r"
-vbe_info_str:
-	.asciz	"info\n\r"
+vbe_version_str:
+	.asciz	"VBE Version: "
+vbe_signature_str:
+	.asciz	"VBE Signature: "
 vbe_mode_str:
-	.asciz	"mode\n\r"
+	.asciz	"mode "
 vbe_none_str:
 	.asciz	"mode not found\n\r"

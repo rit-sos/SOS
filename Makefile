@@ -152,7 +152,7 @@ BuildImage: BuildImage.c
 #
 boot: $(BOOT_BITS)
 	$(LD) $(LDFLAGS) -Ttext $(BOOT_BASE) -o boot $(BOOT_BITS) -e begtext
-
+bootstrap.o: bootstrap.h vbe_boot.S
 #
 # make the kernel
 #

@@ -38,9 +38,6 @@ START_OFFSET	= 0x00007E00
 SECTOR_SIZE	= 0x200		/* typical sector size for floppy & HD */
 OFFSET_LIMIT	= 65536 - SECTOR_SIZE
 
-.section .bss
-.lcomm _vbe_info,		512		/* 512 bytes for vbe controller info */
-.lcomm _vbe_mode_info,	256		/* 256 bytes for the vbe mode info */
 
 /*
 ** Symbol for locating the beginning of the code.
@@ -245,45 +242,6 @@ getOut:				/* we're done, so return */
 	popw	%ax
 	ret
 
-#if 0
-/*
-** Debugging routine.  This lives in the 1st block of the bootstrap
-** so it can be called from there as well as from the 2nd block.
-**
-**	movw	$'x',%di	/* a single character to print */
-**	movw	value,%ax	/* a 16-bit value to print in hex */
-**	call	pnum
-*/
-pnum:
-	pushw	%ax
-	pushw	%bx
-	movw	%di,%ax
-	movb	$0xe,%ah
-	movw	$7,%bx
-	int	$0x10
-
-	call	pdigit
-	call	pdigit
-	call	pdigit
-	call	pdigit
-
-	popw	%bx
-	popw	%ax
-	ret
-
-pdigit:	movw	%si,%ax
-	shl	$4,%si
-	shr	$12,%ax
-	cmpw	$9,%ax
-	jle	pdd
-	addw	$'A'-10,%ax
-	jmp	prt
-pdd:	addw	$'0',%ax
-prt:	movb	$0xe,%ah
-	movw	$7,%bx
-	int	$0x10
-	ret
-#endif
 
 /*
 ** Move the GDT entries from where they are to location 0000:0000
@@ -404,7 +362,7 @@ boot_sig:
 switch:
 	/* VBE initialization */
 	/* MUST BE DONE BEFORE CLI */
-	/*call	__vbe_init */
+	call	__vbe_init 
 
 	cli
 	movb	$0x80, %al	/* disable NMIs */
