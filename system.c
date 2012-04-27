@@ -24,6 +24,7 @@
 #include "fd.h"
 #include "vbe.h"
 #include "mman.h"
+#include "c_io.h"
 
 // need init() address
 #include "kmap.h"

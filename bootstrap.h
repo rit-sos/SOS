@@ -13,6 +13,8 @@
 #ifndef	_BOOTSTRAP_H
 #define	_BOOTSTRAP_H
 
+
+#define BOOT_ADDRESS	0x00007C00
 /*
 ** The target program itself
 */
@@ -31,14 +33,6 @@
 #define	GDT_CODE			0x0010		/* All of memory, R/E */
 #define	GDT_DATA			0x0018		/* All of memory, R/W */
 #define	GDT_STACK			0x0020		/* All of memory, R/W */
-#define GDT_VBE_BIOS_DATA	0x0028
-#define GDT_VBE_BIOS_CODE	0x0030
-#define GDT_VBE_DATA		0x0038
-#define GDT_VBE_STACK		0x0040
-#define GDT_VBE_A0000		0x0048
-#define GDT_VBE_B0000		0x0050
-#define GDT_VBE_B8000		0x0058
-#define GDT_VBE_PARAM		0x0060
 
 /*
 ** The Interrupt Descriptor Table (0000:2500 - 0000:2D00)
@@ -64,5 +58,15 @@
 
 #define	RMTEXT_SEGMENT	0x00000300
 #define	RMTEXT_ADDRESS	0x00003000
+
+/*
+** VBE structs
+*/
+#define VBE_INFO_ORG		1536
+#define VBE_MODE_INFO_ORG	2048
+
+/* actual address of the structures */
+#define VBE_INFO_ADDR		(BOOT_ADDRESS+VBE_INFO_ORG)
+#define VBE_MODE_INFO_ADDR	(BOOT_ADDRESS+VBE_MODE_INFO_ORG)
 
 #endif

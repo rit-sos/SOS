@@ -15,9 +15,6 @@
 
 /* THIS CODE IS #included INTO BOOTSTRAP */
 
-#define _vbe_info		0x8000
-#define _vbe_mode_info	0x8200
-
 #define X_RES	1280
 #define Y_RES	1024
 
@@ -46,27 +43,13 @@ __vbe_init:
 	/* es:di points to _vbe_info */
 	/* ax = 0x4F00 */
 	movw	$_vbe_info,	%di
-	movw	$0x1000,	%ax
+	movw	$BOOT_SEGMENT,	%ax
 	movw	%ax,		%es
 	movw	$0x4F00,	%ax
 	/* call BIOS */
 	int		$0x10
 	cmpw	$0x004F,	%ax
 	jne		_error_info
-
-	movw	$vbe_signature_str,	%si
-	call	dispMsg
-
-	xorw	%cx,	%cx
-
-	movb	%es:0(%di),	%cl
-	call	printNum
-	movb	%es:1(%di),	%cl
-	call	printNum
-	movb	%es:2(%di),	%cl
-	call	printNum
-	movb	%es:3(%di),	%cl
-	call	printNum
 
 	movw	$vbe_version_str,	%si
 	call	dispMsg
@@ -78,22 +61,6 @@ __vbe_init:
 	/* set to the first mode that is 1280x1024x32 */
 	movw	%es:VBE_INFO_VIDEO_MODE_PTR(%di),	%si
 	movw	%es:VBE_INFO_VIDEO_MODE_PTR+2(%di),	%gs
-
-	/* DEBUG */
-	pushw	%si
-	movw	$vbe_seg_str,	%si
-	call	dispMsg
-	popw	%si
-
-	movw	%gs,	%cx
-	call	printNum
-	
-	pushw	%si
-	movw	$vbe_off_str,	%si
-	call	dispMsg
-	popw	%si
-	movw	%si,	%cx
-	call	printNum
 
 _mode_loop:
 	movw	%si,	%bx
@@ -114,7 +81,7 @@ _mode_loop:
 
 	/* get the mode info for this mode */
 	movw	$_vbe_mode_info,	%di
-	movw	$0x1000,	%ax
+	movw	$BOOT_SEGMENT,	%ax
 	movw	%ax,		%es
 	movw	$0x4F01,	%ax
 	/* call BIOS */
@@ -152,7 +119,7 @@ _check_res:
 	movw	%es:VBE_MODE_INFO_MODE_ATTRIB(%di), %cx
 	andw	$0x009B,	%cx
 	cmpw	$0x009B,	%cx
-	jne		_end_loop
+	jnz		_end_loop
 
 	/* found a mode thats 1024x1280x32 */
 	/* set it, using linear buffer and clearing memory */
@@ -231,32 +198,9 @@ _error_mode_get:
 	movw	$vbe_eol_str,	%si
 	call	dispMsg
 
-	call	delay
-
 	popw	%cx
 	popw	%ax
 	popw	%si
-	ret
-
-delay:
-	pushw	%ax
-	pushw	%cx
-	/* delay for a while */
-	
-	movw	$0x8000,	%ax
-	movw	$0xFFFF,	%cx
-_error_delay_loop1:
-	sub		$1,		%ax
-
-_error_delay_loop2:
-	sub		$1,		%cx
-	jnz		_error_delay_loop2
-
-	cmpw	$0,	%ax
-	jne		_error_delay_loop1
-
-	popw	%cx
-	popw	%ax
 	ret
 
 /* print the value of %cx */
@@ -277,7 +221,7 @@ printNum:
 	popw	%cx
 
 	ret
-#if 1
+
 /*
 ** Debugging routine.  This lives in the 1st block of the bootstrap
 ** so it can be called from there as well as from the 2nd block.
@@ -315,7 +259,6 @@ prt:	movb	$0xe,%ah
 	movw	$7,%bx
 	int	$0x10
 	ret
-#endif
 
 vbe_start_str:
 	.asciz	"\n\rInit VBE\n\r"
@@ -323,18 +266,6 @@ vbe_err_str:
 	.asciz	"Error "
 vbe_err_info_str:
 	.asciz	"Error info\n\r"
-vbe_seg_str:
-	.asciz	"VBE segment: "
-vbe_off_str:
-	.asciz	"VBE offset: "
-vbe_x_res_str:
-	.asciz	"VBE X-res: "
-vbe_y_res_str:
-	.asciz	"VBE Y-res: "
-vbe_bpp_str:
-	.asciz	"VBE BPP: "
-vbe_attrib_str:
-	.asciz	"VBE Mode attributes: "
 vbe_err_get_mode_str:
 	.asciz	"Error getting mode "
 vbe_err_set_mode_str:
@@ -343,8 +274,6 @@ vbe_eol_str:
 	.asciz	"\n\r"
 vbe_version_str:
 	.asciz	"VBE Version: "
-vbe_signature_str:
-	.asciz	"VBE Signature: "
 vbe_mode_str:
 	.asciz	"mode "
 vbe_none_str:

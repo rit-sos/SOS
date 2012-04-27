@@ -131,8 +131,7 @@ all: build list
 
 .S.o:
 	$(CPP) $(CPPFLAGS) -o $*.s $*.S
-	$(AS) -o $*.o $*.s -a=$*.lst
-	$(RM) -f $*.s
+	$(AS) -o $*.o $*.s -a=$*.lst; $(RM) -f $*.s
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
