@@ -176,7 +176,6 @@ _success:
 	call	dispMsg
 	
 _done:
-	jmp		.
 	popw	%gs
 	popw	%es
 	popw	%si
