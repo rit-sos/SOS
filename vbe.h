@@ -20,6 +20,15 @@
  */
 void _vbe_init(void);
 
+/*
+ * _vbe_framebuffer_addr
+ * _vbe_framebuffer_size
+ *
+ * Get data about the linear frame buffer
+ */
+void* _vbe_framebuffer_addr(void);
+Uint _vbe_framebuffer_size(void);
+
 /* 
  * _vbe_clear_display(color)
  * 
@@ -47,6 +56,21 @@ void _vbe_write_str(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char* str )
  * Write char at specified position
  */
 void _vbe_write_char(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char c );
+
+/*
+ * _vbe_char_scroll
+ *
+ * Scroll the text display, starting at scroll_min_y up lines number of lines
+ */
+void _vbe_char_scroll(Uint scroll_min_y, Uint scroll_max_y, Uint lines);
+
+/*
+ * _vbe_redraw_lines
+ *
+ * Redraw the characters between the specified lines
+ */
+void _vbe_redraw_lines(Uint min, Uint max);
+
 #endif
 
 

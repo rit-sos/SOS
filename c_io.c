@@ -21,14 +21,16 @@
 #include "startup.h"
 #include "support.h"
 #include "x86arch.h"
+#include "vbe.h"
+#include "graphics_font.h"
 
 /*
 ** Video parameters, and state variables
 */
 #define	SCREEN_MIN_X	0
 #define	SCREEN_MIN_Y	0
-#define	SCREEN_X_SIZE	80
-#define	SCREEN_Y_SIZE	25
+#define	SCREEN_X_SIZE	(1280/12)
+#define	SCREEN_Y_SIZE	(1024/18)
 #define	SCREEN_MAX_X	( SCREEN_X_SIZE - 1 )
 #define	SCREEN_MAX_Y	( SCREEN_Y_SIZE - 1 )
 
@@ -43,9 +45,6 @@ unsigned int	max_x, max_y;
 #define	c_putchar	putchar
 #define	c_puts(x)	fputs( x, stdout )
 #endif
-
-#define	VIDEO_ADDR(x,y)	( unsigned short * ) \
-		( VIDEO_BASE_ADDR + 2 * ( (y) * SCREEN_X_SIZE + (x) ) )
 
 /*
 ** Support routines.
@@ -66,19 +65,7 @@ static unsigned int bound( unsigned int min, unsigned int value, unsigned int ma
 }
 
 static void __c_setcursor( void ){
-	unsigned addr;
-	unsigned int	y = curr_y;
-
-	if( y > scroll_max_y ){
-		y = scroll_max_y;
-	}
-
-	addr = (unsigned)( y * SCREEN_X_SIZE + curr_x );
-
-	__outb( 0x3d4, 0xe );
-	__outb( 0x3d5, ( addr >> 8 ) & 0xff );
-	__outb( 0x3d4, 0xf );
-	__outb( 0x3d5, addr & 0xff );
+	// NOP without an actual cursor on screen
 }
 
 static unsigned int __c_strlen( char const *str ){
@@ -95,19 +82,7 @@ static void __c_putchar_at( unsigned int x, unsigned int y, unsigned int c ){
 	** If x or y is too big or small, don't do any output.
 	*/
 	if( x <= max_x && y <= max_y ){
-		unsigned short *addr = VIDEO_ADDR( x, y );
-
-		if( c > 0xff ) {
-			/*
-			** Use the given attributes
-			*/
-			*addr = (unsigned short)c;
-		} else {
-			/*
-			** Use attributes 0000 0111 (white on black)
-			*/
-			*addr = (unsigned short)c | 0x0700;
-		}
+		_vbe_write_char(x, y, 255, 255, 255, c & 0x7F );
 	}
 }
 
@@ -225,39 +200,22 @@ void c_puts( char *str ){
 #endif
 
 void c_clearscroll( void ){
-	return;
-	unsigned int	nchars = scroll_max_x - scroll_min_x + 1;
-	unsigned int	l;
-	unsigned int	c;
+	unsigned int	x;
+	unsigned int	y;
 
-	for( l = scroll_min_y; l <= scroll_max_y; l += 1 ){
-		unsigned short *to = VIDEO_ADDR( scroll_min_x, l );
-
-		for( c = 0; c < nchars; c += 1 ){
-			*to++ = ' ' | 0x0700;
+	for( y = scroll_min_y; y <= scroll_max_y; y += 1 ){
+		for( x = scroll_min_x; x < scroll_max_x; x += 1 ){
+			_vbe_write_char(x, y, 255, 255, 255, ' ');
 		}
 	}
 }
 
 void c_clearscreen( void ){
-	return;
-	unsigned short *to = VIDEO_ADDR( min_x, min_y );
-	unsigned int	nchars = ( max_y - min_y + 1 ) * ( max_x - min_x + 1 );
-
-	while( nchars > 0 ){
-		*to++ = ' ' | 0x0700;
-		nchars -= 1;
-	}
+	_vbe_clear_display(0, 0, 0);
 }
 
 
 void c_scroll( unsigned int lines ){
-	return;
-	unsigned short *from;
-	unsigned short *to;
-	int	nchars = scroll_max_x - scroll_min_x + 1;
-	int	line, c;
-
 	/*
 	** If # of lines is the whole scrolling region or more, just clear.
 	*/
@@ -272,20 +230,7 @@ void c_scroll( unsigned int lines ){
 	/*
 	** Must copy it line by line.
 	*/
-	for( line = scroll_min_y; line <= scroll_max_y - lines; line += 1 ){
-		from = VIDEO_ADDR( scroll_min_x, line + lines );
-		to = VIDEO_ADDR( scroll_min_x, line );
-		for( c = 0; c < nchars; c += 1 ){
-			*to++ = *from++;
-		}
-	}
-
-	for( ; line <= scroll_max_y; line += 1 ){
-		to = VIDEO_ADDR( scroll_min_x, line );
-		for( c = 0; c < nchars; c += 1 ){
-			*to++ = ' ' | 0x0700;
-		}
-	}
+	_vbe_char_scroll(scroll_min_y, scroll_max_y, lines);
 }
 
 char * cvtdec0( char *buf, int value ){

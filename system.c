@@ -243,6 +243,7 @@ void _init( void ) {
 	** Console I/O system.
 	*/
 
+	_vbe_init();
 	c_io_init();
 	c_setscroll( 0, 7, 99, 99 );
 	c_puts_at( 0, 6, "================================================================================" );
@@ -255,6 +256,7 @@ void _init( void ) {
 	** Initialize various OS modules
 	*/
 
+	c_printf("VBE Framebuffer: 0x%x\n", _vbe_framebuffer_addr());
 	c_puts( "Module init: " );
 
 	_q_init();		// must be first
@@ -265,8 +267,7 @@ void _init( void ) {
 	_syscall_init();
 	_sched_init();
 	_clock_init();
-	_vbe_init();
-	_mman_init();
+	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size());
 
 
 	c_puts( "\n" );
