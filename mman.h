@@ -266,7 +266,7 @@ Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 fla
 Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt);
 
 /* non-internal functions */
-void _mman_init(void);
+void _mman_init(void *videoBuf, Uint size);
 Status _mman_proc_init(struct pcb *pcb);
 Status _mman_proc_exit(struct pcb *pcb);
 Status _mman_alloc(void **ptr, Uint32 size, struct pcb *pcb, Uint32 flags);

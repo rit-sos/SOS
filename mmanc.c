@@ -524,7 +524,27 @@ Cleanup:
 	return ALLOC_FAILED;
 }
 
-void _mman_init() {
+Status _mman_alloc_framebuffer(void *videoBuf, Uint size) {
+	Uint32 i, pages, addr;
+	Status status;
+
+	pages = size >> 12;
+	if (size & 0x0fff) {
+		pages++;
+	}
+
+	addr = ((Uint32)videoBuf) >> 12;
+
+	for (i = 0; i < pages; i++, addr++) {
+		if ((status = _mman_map_page(_kpgdir, addr, addr, MAP_WRITE)) != SUCCESS) {
+			return status;
+		}
+	}
+
+	return SUCCESS;
+}
+
+void _mman_init(void *videoBuf, Uint size) {
 	Uint32 i, addr;
 	Memmap *map;
 	Status status;
@@ -587,6 +607,10 @@ void _mman_init() {
 	for (i = 0; i < 64; i++) {
 		_phys_map[i] = 0xffffffff;
 		_virt_map[i] = 0xffffffff;
+	}
+
+	if ((_mman_alloc_framebuffer(videoBuf, size)) != SUCCESS) {
+		_kpanic("_mman_init", "_mman_alloc_framebuffer", FAILURE);
 	}
 
 	__install_isr(INT_VEC_PAGE_FAULT, _mman_pagefault_isr);

@@ -10,66 +10,64 @@
 #ifndef VBE_STRUCTS_H
 #define VBE_STRUCTS_H
 
-#include "bios_probe.h"
-
-typedef struct vbePMID
-{
-	char	ID[4];
-	short	EntryPoint;
-	short	PMInitialize;
-	short	BIOSDataSel;
-	short	A0000Sel;
-	short	B0000Sel;
-	short	B8000Sel;
-	short	CodeSegSel;
-	char	InProtectMode;
-	char	checksum;
-} VbePMID;
-
 typedef struct vbeInfoBlock
 {
-	char			VESASignature[4];
-	short			VESAVersion;
-	char 			*OEMStringPtr;
-	long			Capabilities;
-	unsigned 		*VideoModePtr;
-	short 			TotalMemory;
-	char 			reserved[236];
-	char			OEMData[256];
+	Uint8			VESASignature[4];
+	Uint16			VESAVersion;
+	Uint32			*OEMStringPtr;
+	Uint32			Capabilities;
+	Uint32	 		*VideoModePtr;
+	Uint16 			TotalMemory;
+	Uint8 			reserved[236];
+	Uint8			OEMData[256];
 } VbeInfoBlock;
 
 typedef struct vbeModeInfoBlock
 {
-	unsigned short	ModeAttributes;
-	unsigned char	WinAAttributes;
-	unsigned char	WinBAttributes;
-	unsigned short	WinGranularity;
-	unsigned short	WinSize;
-	unsigned short	WinASegment;
-	unsigned short	WinBSegment;
-	void	 		(*WinFuncPtr)(void);
-	unsigned short 	ytesPerScanLine;
-	unsigned short	XResolution;
-	unsigned short	YResolution;
-	unsigned char	XCharSize;
-	unsigned char	YCharSize;
-	unsigned char	NumberOfPlanes;
-	unsigned char	BitsPerPixel;
-	unsigned char	NumberOfBanks;
-	unsigned char	MemoryModel;
-	unsigned char	BankSize;
-	unsigned char	NumberOfImagePages;
-	unsigned char	res1;
-	unsigned char	RedMaskSize;
-	unsigned char	RedFieldPosition;
-	unsigned char	GreenMaskSize;
-	unsigned char	GreenFieldPosition;
-	unsigned char	BlueMaskSize;
-	unsigned char	BlueFieldPosition;
-	unsigned char	RsvdMaskSize;
-	unsigned char	RsvdFieldPosition;
-	unsigned char	DirectColorModeInfo;
-	unsigned char	res2[216];
+	Uint16	ModeAttributes;
+	Uint8	WinAAttributes;
+	Uint8	WinBAttributes;
+	Uint16	WinGranularity;
+	Uint16	WinSize;
+	Uint16	WinASegment;
+	Uint16	WinBSegment;
+	Uint32	WinFncPtr;
+	Uint16 	BytesPerScanLine;
+	Uint16	XResolution;
+	Uint16	YResolution;
+	Uint8	XCharSize;
+	Uint8	YCharSize;
+	Uint8	NumberOfPlanes;
+	Uint8	BitsPerPixel;
+	Uint8	NumberOfBanks;
+	Uint8	MemoryModel;
+	Uint8	BankSize;
+	Uint8	NumberOfImagePages;
+	Uint8	res1;
+	Uint8	RedMaskSize;
+	Uint8	RedFieldPosition;
+	Uint8	GreenMaskSize;
+	Uint8	GreenFieldPosition;
+	Uint8	BlueMaskSize;
+	Uint8	BlueFieldPosition;
+	Uint8	RsvdMaskSize;
+	Uint8	RsvdFieldPosition;
+	Uint8	DirectColorModeInfo;
+	Uint32	PhysBasePtr;
+	Uint8	res2[6];
+	Uint16	LinBytesPerScanLine;
+	Uint8	BnkNumberOfImagePages;
+	Uint8	LinNumberOfImagePages;
+	Uint8	LinRedMaskSize;
+	Uint8	LinRedFieldPosition;
+	Uint8	LinGreenMaskSize;
+	Uint8	LinGreenFieldPosition;
+	Uint8	LinBlueMaskSize;
+	Uint8	LinBlueFieldPosition;
+	Uint8	LinRsvdMaskSize;
+	Uint8	LinRsvdFieldPosition;
+	Uint32	MaxPixelClock;
+	Uint8	res3[189];
 } VbeModeInfoBlock;
 
 typedef enum vbeMemModels

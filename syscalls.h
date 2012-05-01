@@ -38,15 +38,13 @@
 #define	SYS_get_time		11
 #define	SYS_set_priority	12
 #define	SYS_set_time		13
-
-// these are syscalls we elected not to implement
-// #define	SYS_set_pid		?
-// #define	SYS_set_ppid		?
-// #define	SYS_set_status		?
+#define	SYS_vbe_print		14
+#define	SYS_vbe_print_char	15
+#define	SYS_vbe_clearscreen	16
 
 // number of "real" system calls
 
-#define	N_SYSCALLS	14
+#define	N_SYSCALLS	17
 
 // dummy system call code to test the syscall ISR
 
