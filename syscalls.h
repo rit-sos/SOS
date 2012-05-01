@@ -38,6 +38,8 @@
 #define	SYS_get_time		11
 #define	SYS_set_priority	12
 #define	SYS_set_time		13
+#define	SYS_vbe_print		14
+#define	SYS_vbe_print_char	15
 
 // these are syscalls we elected not to implement
 // #define	SYS_set_pid		?

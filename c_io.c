@@ -225,6 +225,7 @@ void c_puts( char *str ){
 #endif
 
 void c_clearscroll( void ){
+	return;
 	unsigned int	nchars = scroll_max_x - scroll_min_x + 1;
 	unsigned int	l;
 	unsigned int	c;
@@ -239,6 +240,7 @@ void c_clearscroll( void ){
 }
 
 void c_clearscreen( void ){
+	return;
 	unsigned short *to = VIDEO_ADDR( min_x, min_y );
 	unsigned int	nchars = ( max_y - min_y + 1 ) * ( max_x - min_x + 1 );
 
@@ -250,6 +252,7 @@ void c_clearscreen( void ){
 
 
 void c_scroll( unsigned int lines ){
+	return;
 	unsigned short *from;
 	unsigned short *to;
 	int	nchars = scroll_max_x - scroll_min_x + 1;

@@ -15,8 +15,15 @@
 
 /* THIS CODE IS #included INTO BOOTSTRAP */
 
+
 #define X_RES	1280
 #define Y_RES	1024
+
+/*
+#define X_RES	800
+#define Y_RES	600
+*/
+
 
 __vbe_init:
 	pushw	%bx
@@ -63,10 +70,8 @@ __vbe_init:
 	movw	%es:VBE_INFO_VIDEO_MODE_PTR+2(%di),	%gs
 
 _mode_loop:
-	movw	%si,	%bx
-
 	/* read next mode number */
-	movw	%gs:(%bx), %cx
+	movw	%gs:(%si), %cx
 
 	/* display the number */
 	pushw	%si
@@ -96,35 +101,33 @@ _call_error_mode_get:
 
 _check_res:
 
-	pushw	%cx
-
 	/* check screen width */
-	movw	%es:VBE_MODE_INFO_X_RES(%di), %cx
-	cmpw	$X_RES,	%cx
+	movw	%es:VBE_MODE_INFO_X_RES(%di), %bx
+	cmpw	$X_RES,	%bx
 	jne		_end_loop
 
 	/* check screen height */
-	movw	%es:VBE_MODE_INFO_Y_RES(%di), %cx
-	cmpw	$Y_RES,	%cx
+	movw	%es:VBE_MODE_INFO_Y_RES(%di), %bx
+	cmpw	$Y_RES,	%bx
 	jne		_end_loop
 
 	/* check bpp */
-	xorw	%cx,	%cx
-	movb	%es:VBE_MODE_INFO_BPP(%di), %cl
-	cmpw	$32,	%cx
+	xorw	%bx,	%bx
+	movb	%es:VBE_MODE_INFO_BPP(%di), %bl
+	cmpw	$32,	%bx
 	jne		_end_loop
 
 	/* check mode attributes */
 	/* should be supported, graphics, color, and linear */
-	movw	%es:VBE_MODE_INFO_MODE_ATTRIB(%di), %cx
-	andw	$0x009B,	%cx
-	cmpw	$0x009B,	%cx
+	movw	%es:VBE_MODE_INFO_MODE_ATTRIB(%di), %bx
+	andw	$0x009B,	%bx
+	cmpw	$0x009B,	%bx
 	jnz		_end_loop
 
-	/* found a mode thats 1024x1280x32 */
+	/* found a mode thats 1280x1024x32 */
 	/* set it, using linear buffer and clearing memory */
-	popw	%cx
-	orw		$0xC000,	%cx
+	orw		$0x4000,	%cx
+	movw	%cx,		%bx
 	movw	$0x4f02,	%ax
 	/* call BIOS */
 	int		$0x10
@@ -132,8 +135,7 @@ _check_res:
 	cmpw	$0x004F,	%ax
 	jne		_error_mode_set
 
-	/* clear screen */
-
+	/* mode set successfully */
 	jmp		_success
 
 _end_loop:
@@ -169,14 +171,15 @@ _error_mode_set:
 
 	movw	$vbe_eol_str,	%si
 	call	dispMsg
+
 	jmp		_done
 
 _success:
+	
 	movw	$msg_go,	%si
 	call	dispMsg
 	
 _done:
-	jmp		.
 	popw	%gs
 	popw	%es
 	popw	%si

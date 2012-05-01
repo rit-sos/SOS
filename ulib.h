@@ -224,6 +224,20 @@ Status set_time(Time time);
 Status exec(Uint32 entry_id);
 
 /*
+** vbe_print	- display a string on the monitor
+**
+** returns:	SUCCESS
+*/
+Status vbe_print(int x, int y, const char *str);
+
+/*
+** vbe_print_char	- display a character on the monitor
+**
+** returns:	SUCCESS
+*/
+Status vbe_print_char(int x, int y, const char c);
+
+/*
 ** bogus - a bogus system call, for testing our syscall ISR
 **
 ** usage:	bogus();

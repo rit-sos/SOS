@@ -21,6 +21,8 @@
 #include "syscalls.h"
 #include "system.h"
 #include "kmap.h"
+#include "c_io.h"
+#include "vbe.h"
 
 #include "startup.h"
 
@@ -547,6 +549,34 @@ static void _sys_exec( Pcb *pcb ) {
 
 }
 
+/*
+** _sys_vbe_print - display a string on the monitor
+**
+** implements:	Status vbe_print(int x, int y, const char *);
+**
+** returns:
+**		SUCCESS
+*/
+static void _sys_vbe_print( Pcb *pcb ) {
+	/* ARG(pcb)[3] is a pointer */
+	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, ARG(pcb)[3] );
+
+	RET(pcb) = SUCCESS;
+}
+
+/*
+** _sys_vbe_print_char - display a character on the monitor
+**
+** implements:	Status vbe_print_char(int x, int y, const char);
+**
+** returns:
+**		SUCCESS
+*/
+static void _sys_vbe_print_char( Pcb *pcb ) {
+	_vbe_write_char( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, ARG(pcb)[3] );
+
+	RET(pcb) = SUCCESS;
+}
 
 /*
 ** PUBLIC FUNCTIONS
@@ -594,6 +624,8 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_get_time ]      = _sys_get_time;
 	_syscall_tbl[ SYS_set_priority ]  = _sys_set_priority;
 	_syscall_tbl[ SYS_set_time ]      = _sys_set_time;
+	_syscall_tbl[ SYS_vbe_print ]     = _sys_vbe_print;
+	_syscall_tbl[ SYS_vbe_print_char ]= _sys_vbe_print_char;
 
 //	these are syscalls we elected not to implement
 //	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;
