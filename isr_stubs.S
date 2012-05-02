@@ -227,7 +227,7 @@ __isr_restore:
 */
 spfmt:	.string "RESTORING ESP 0x%08x\n"
 
-fmt:	.ascii	"time %08x pids %08x\n\0"
+fmt:	.ascii	"time %08x pids %08x\n"
 	.ascii	" ss=%08x  gs=%08x  fs=%08x  es=%08x  ds=%08x\n"
 /*
 ** END MOD for 20113 SP2

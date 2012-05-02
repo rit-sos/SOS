@@ -217,49 +217,51 @@ void _vbe_write_str(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char *str)
  */
 void _vbe_write_char(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char c )
 {
+	// First, lets only draw if needed
+	if( _vbe_screen_text[x + y*_vbe_char_res_x] == c )
+		return;
+
 	// store this character in the screen map
 	_vbe_screen_text[x + y*_vbe_char_res_x] = c;
 
 	// move char position into screen coords
+	y++;
 	x *= (CHAR_WIDTH+1)*_vbe_font_scale;
 	y *= (CHAR_HEIGHT+1)*_vbe_font_scale;
 
 	if( vbe_mode_info )
 	{
-		Uint8 *display = (Uint8*)(vbe_mode_info->PhysBasePtr);
-		if( display != NULL )
-		{	
-			Uint8 *c_map = GET_CHAR_FONT_PTR(c);
+		Uint8 *c_map = GET_CHAR_FONT_PTR(c);
 
-			/* mode settings */
-			Uint16 bytesPerLine = vbe_mode_info->LinBytesPerScanLine;
-			Uint16 x_res = vbe_mode_info->XResolution;
-			Uint16 y_res = vbe_mode_info->YResolution;
+		/* mode settings */
+		Uint16 x_res = vbe_mode_info->XResolution;
+		Uint16 y_res = vbe_mode_info->YResolution;
 
-			int i, j;
-			int kx, ky;
-			// For each pixel in the character
-			for( i = 0; i < _vbe_font_scale * CHAR_WIDTH; i+=_vbe_font_scale )
+		int i, j;
+		int kx, ky;
+		// For each pixel in the character
+		for( i = 0; i < _vbe_font_scale * CHAR_WIDTH; i+=_vbe_font_scale )
+		{
+			for( j = 0; j < _vbe_font_scale * CHAR_HEIGHT; j+=_vbe_font_scale )
 			{
-				for( j = 0; j < _vbe_font_scale * CHAR_HEIGHT; j+=_vbe_font_scale )
+				// make sure its a valid pixel location
+				if( x+i+_vbe_font_scale <= x_res && y+j+_vbe_font_scale <= y_res )
 				{
-					// make sure its a valid pixel location
-					if( x+i+_vbe_font_scale-1 < x_res && y+j+_vbe_font_scale-1 < y_res )
+					// scale it to the set scale factor
+					for( kx = 0; kx < _vbe_font_scale; kx++ )
 					{
-						for( kx = 0; kx < _vbe_font_scale; kx++ )
+						for( ky = 0; ky < _vbe_font_scale; ky++ )
 						{
-							for( ky = 0; ky < _vbe_font_scale; ky++ )
+							// draw
+							if( c_map[i / _vbe_font_scale] & BIT(j / _vbe_font_scale) )
 							{
-								if( c_map[i / _vbe_font_scale] & BIT(j / _vbe_font_scale) )
-								{
-									// if this pixel is part of the character, draw it
-									_vbe_draw_pixel(x+i+kx, y+(CHAR_HEIGHT-(j+ky)), r, g, b);
-								}
-								else
-								{
-									// else clear to black
-									_vbe_draw_pixel(x+i+kx, y+(CHAR_HEIGHT-(j+ky)), 0, 0, 0);
-								}
+								// if this pixel is part of the character, draw it
+								_vbe_draw_pixel(x+i+kx, y+(CHAR_HEIGHT-(j-ky)), r, g, b);
+							}
+							else
+							{
+								// else clear to black
+								_vbe_draw_pixel(x+i+kx, y+(CHAR_HEIGHT-(j-ky)), 0, 0, 0);
 							}
 						}
 					}
@@ -283,7 +285,7 @@ void _vbe_char_scroll(Uint min_y, Uint max_y, Uint lines)
 	{
 		for( i = 0; i < _vbe_char_res_x; i++ )
 		{
-			_vbe_screen_text[i + j*_vbe_char_res_x] = _vbe_screen_text[i+(j+lines)*_vbe_char_res_x];
+			_vbe_write_char(i, j, 255, 255, 255, _vbe_screen_text[i + (j+lines)*_vbe_char_res_x]);
 		}
 	}
 
@@ -292,26 +294,7 @@ void _vbe_char_scroll(Uint min_y, Uint max_y, Uint lines)
 	{
 		for( i = 0; i < _vbe_char_res_x; i++ )
 		{
-			_vbe_screen_text[i + j*_vbe_char_res_x] = ' ';
-		}
-	}
-
-	_vbe_redraw_lines(min_y, max_y);
-}
-
-/*
- * _vbe_redraw_lines
- *
- * Redraw the characters between the specified lines
- */
-void _vbe_redraw_lines(Uint min, Uint max)
-{
-	int i, j;
-	for( j = min; j <= max; j++ )
-	{
-		for( i = 0; i < _vbe_char_res_x; i++ )
-		{
-			_vbe_write_char(i, j, 255, 255, 255, _vbe_screen_text[i + j*_vbe_char_res_x]);
+			_vbe_write_char(i, j, 255, 255, 255, ' ');
 		}
 	}
 }

@@ -64,13 +64,6 @@ void _vbe_write_char(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char c );
  */
 void _vbe_char_scroll(Uint scroll_min_y, Uint scroll_max_y, Uint lines);
 
-/*
- * _vbe_redraw_lines
- *
- * Redraw the characters between the specified lines
- */
-void _vbe_redraw_lines(Uint min, Uint max);
-
 #endif
 
 
