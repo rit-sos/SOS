@@ -90,6 +90,30 @@ void _vbe_init(void)
 }
 
 /*
+ * _vbe_get_height()
+ * _vbe_get_width()
+ *
+ * Get the screen size
+ */
+Uint16 _vbe_get_height(void)
+{
+	if( vbe_mode_info )
+	{
+		return vbe_mode_info->YResolution;
+	}
+	return 0;
+}
+
+Uint16 _vbe_get_width(void)
+{
+	if( vbe_mode_info )
+	{
+		return vbe_mode_info->XResolution;
+	}
+	return 0;
+}
+
+/*
  * _vbe_framebuffer_addr
  * _vbe_framebuffer_size
  *
@@ -99,7 +123,7 @@ void* _vbe_framebuffer_addr(void)
 {
 	if( vbe_mode_info )
 	{
-		return vbe_mode_info->PhysBasePtr;
+		return (void*)vbe_mode_info->PhysBasePtr;
 	}
 	return NULL;
 }
@@ -156,10 +180,8 @@ void _vbe_draw_pixel(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b)
 
 			if( x < x_res && y < y_res )
 			{
-				Uint8 *pixel = (&display[4*x + bytesPerLine*y]);
-				pixel[0] = r;
-				pixel[1] = b;
-				pixel[2] = g;
+				Uint32 *pixel = (Uint32*)(&display[4*x + bytesPerLine*y]);
+				*pixel = b | g<<8 | r<<16;
 			}
 
 		}
@@ -225,9 +247,11 @@ void _vbe_write_char(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char c )
 	_vbe_screen_text[x + y*_vbe_char_res_x] = c;
 
 	// move char position into screen coords
-	y++;
 	x *= (CHAR_WIDTH+1)*_vbe_font_scale;
 	y *= (CHAR_HEIGHT+1)*_vbe_font_scale;
+
+	// adjust position to compensate for starting just off screen for some reason
+	y += (CHAR_HEIGHT+1)*_vbe_font_scale/2;
 
 	if( vbe_mode_info )
 	{

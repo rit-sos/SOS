@@ -251,12 +251,40 @@ void _init( void ) {
 	/*
 	** 20113-SPECIFIC CODE STARTS HERE
 	*/
+	
+	/* now lets divide the screen into its 4 parts */
+	int i, j;
+	// since width should always be greater than height
+	for( i = 0; i < _vbe_get_width(); i++ )
+	{
+		_vbe_draw_pixel(_vbe_get_width()/2, i, 128, 128, 128);
+		_vbe_draw_pixel(i, _vbe_get_height()/2, 128, 128, 128);
+	}
+
+	int r = 0, g = 0, b = 0;
+	for( i = _vbe_get_width()/2; i < _vbe_get_width(); i++ )
+	{
+		for( j = 0; j < _vbe_get_height()/2; j++ )
+		{
+			_vbe_draw_pixel(i, j, r, g, b);
+
+			r++;
+			g+=r/127;
+			b+=r/255;
+
+			r %= 255;
+			g %= 255;
+			b %= 255;
+		}
+	}
+
+	_vbe_write_str(0, 40, 255, 0, 0, "This is a RED string\n");
+	_vbe_write_str(0, 41, 0, 255, 0, "This is a GREEN string\n");
+	_vbe_write_str(0, 42, 0, 0, 255, "This is a BLUE string\n");
 
 	/*
 	** Initialize various OS modules
 	*/
-
-	c_printf("VBE Framebuffer: 0x%x\n", _vbe_framebuffer_addr());
 	c_puts( "Module init: " );
 
 	_q_init();		// must be first

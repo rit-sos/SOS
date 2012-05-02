@@ -183,7 +183,7 @@ __isr_restore:
 */
 
 	pushl	$fmt
-	pushl	$1
+	pushl	$0
 	pushl	$0
 	call	c_printf_at
 /*

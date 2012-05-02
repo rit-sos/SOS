@@ -29,6 +29,15 @@ void _vbe_init(void);
 void* _vbe_framebuffer_addr(void);
 Uint _vbe_framebuffer_size(void);
 
+/*
+ * _vbe_get_height()
+ * _vbe_get_width()
+ *
+ * Get the screen size
+ */
+Uint16 _vbe_get_height(void);
+Uint16 _vbe_get_width(void);
+
 /* 
  * _vbe_clear_display(color)
  * 
