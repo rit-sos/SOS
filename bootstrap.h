@@ -13,6 +13,8 @@
 #ifndef	_BOOTSTRAP_H
 #define	_BOOTSTRAP_H
 
+#define BOOT_ADDRESS 	0x00007C00
+
 /*
 ** The target program itself
 */
@@ -26,11 +28,14 @@
 #define	GDT_SEGMENT	0x00000050
 #define	GDT_ADDRESS	0x00000500
 
+#define ACCESS_RING3		3
+
 	/* segment register values */
-#define	GDT_LINEAR	0x0008		/* All of memory, R/W */
-#define	GDT_CODE	0x0010		/* All of memory, R/E */
-#define	GDT_DATA	0x0018		/* All of memory, R/W */
-#define	GDT_STACK	0x0020		/* All of memory, R/W */
+#define	GDT_CODE	0x0008		/* All of memory, R/E */
+#define	GDT_DATA	0x0010		/* All of memory, R/W */
+#define GDT_USER_CODE	(0x0018 | ACCESS_RING3)
+#define GDT_USER_DATA	(0x0020 | ACCESS_RING3)
+#define GDT_TSS		0x0028
 
 /*
 ** The Interrupt Descriptor Table (0000:2500 - 0000:2D00)
@@ -56,5 +61,8 @@
 
 #define	RMTEXT_SEGMENT	0x00000300
 #define	RMTEXT_ADDRESS	0x00003000
+
+#define TSS_START		0x300
+#define TSS_ESP0		(TSS_START + BOOT_ADDRESS + 4)
 
 #endif

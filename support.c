@@ -161,8 +161,9 @@ static void set_idt_entry( int entry, void ( *handler )( void ) ){
 	IDT_Gate *g = (IDT_Gate *)IDT_ADDRESS + entry;
 
 	g->offset_15_0 = (int)handler & 0xffff;
-	g->segment_selector = 0x0010;
-	g->flags = IDT_PRESENT | IDT_DPL_0 | IDT_INT32_GATE;
+	g->segment_selector = GDT_CODE;
+//	g->flags = IDT_PRESENT | IDT_DPL_0 | IDT_INT32_GATE;
+	g->flags = IDT_PRESENT | IDT_DPL_3 | IDT_INT32_GATE;
 	g->offset_31_16 = (int)handler >> 16 & 0xffff;
 }
 
@@ -245,4 +246,9 @@ void __delay( int tenths ){
 		for( i = 0; i < 10000000; i += 1 )
 			;
 	}
+}
+
+void __gp_isr(int vector, int code) {
+	c_printf("*** GENERAL PROTECTION FAULT ***\n vec=0x%08x code=0x%08x\n", vector, code);
+	_kpanic("(#GP)", "", 0);
 }

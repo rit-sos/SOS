@@ -53,6 +53,47 @@ Queue *_sleeping;
 */
 
 /*
+** The following convenience functions are used to validate and move
+** int-sized values into and out of user buffers. This is a surprisingly
+** difficult thing to do, for a few reasons. The user's passed-in pointer
+** might not be on the user stack. We have to make sure that the pointer
+** is valid in the user's address space, that the user can write to that
+** memory (if necessary), and that the read/write is aligned. Buffers
+** that are larger or smaller than sizeof(int) or are not aligned should
+** go through _mman_set_user_data() and _mman_get_user_data().
+*/
+
+Status _in_param(Pcb *pcb, Int32 index, /*out */ Uint32 *ret) {
+	Uint32 *ptr = ((Uint32*)(pcb->context.esp)) + index;
+//	c_printf("[%04d] _in_param: esp=%08x ptr=%08x\n", pcb->pid, pcb->context.esp, ptr);
+
+	if (((Uint32)ptr) % 4 == 0) {
+		return _mman_get_user_data(pcb, ret, ptr, sizeof(Uint32));
+	} else {
+		c_printf("[%04d] _in_param: unaligned ptr %08x\n", pcb->pid, ptr);
+		return BAD_PARAM;
+	}
+}
+
+Status _out_param(Pcb *pcb, Int32 index, Uint32 val) {
+	Status status;
+	void *ptr;
+
+	// first get the pointer from the user stack
+	if ((status = _in_param(pcb, index, (Uint32*)&ptr)) == SUCCESS) {
+		if (((Uint32)ptr) % 4 == 0) {
+			// then try to write to the pointed-to buffer
+			status = _mman_set_user_data(pcb, ptr, &val, sizeof(Uint32));
+		} else {
+			c_printf("[%04d] _out_param: unaligned ptr %08x\n", pcb->pid, ptr);
+			status = BAD_PARAM;
+		}
+	}
+
+	return status;
+}
+
+/*
 ** Second-level syscall handlers
 **
 ** All have this prototype:
@@ -63,7 +104,14 @@ Queue *_sleeping;
 ** Those which return additional information from the system have as
 ** their first user-level argument a pointer (called the "info pointer"
 ** below) to a variable into which the information is to be placed.
+**
+** When stack and info pointers are accessed by the syscalls, a bad pointer
+** (i.e. not in user address space, not writable, etc.) is tantamount to a
+** segmentation violation, and the offending process is killed.
 */
+
+// forward declare exit, since others use it
+static void _sys_exit(Pcb*);
 
 /*
 ** _sys_fork - create a new process
@@ -78,90 +126,78 @@ Queue *_sleeping;
 
 static void _sys_fork( Pcb *pcb ) {
 	Pcb *new;
-	Uint32 *ptr;
-	Uint32 diff;
 	Status status;
 
-	// allocate a pcb for the new process
+	c_printf("[%d] _sys_fork\n", pcb->pid);
 
+	// get a new pcb
 	new = _pcb_alloc();
-	if( new == NULL ) {
+	if (!new) {
 		RET(pcb) = FAILURE;
 		return;
 	}
 
-	// duplicate the parent's pcb
+	status = FAILURE;
+	new->stack = NULL;
+	new->pgdir = NULL;
+	new->virt_map = NULL;
 
-	_kmemcpy( (void *)new, (void *)pcb, sizeof(Pcb) );
+	// copy parent
+	_kmemcpy((void*)new, (void*)pcb, sizeof(Pcb));
 
-	// allocate a stack for the new process
-
+	// get a new stack
 	new->stack = _stack_alloc();
-	if( new->stack == NULL ) {
-		RET(pcb) = FAILURE;
-		_cleanup( new );
-		return;
+	if (!new->stack) {
+		goto Cleanup;
 	}
 
-	// duplicate the parent's stack
+	//copy parent
+	_kmemcpy((void*)new->stack, (void*)pcb->stack, sizeof(Stack));
 
-	_kmemcpy( (void *)new->stack, (void *)pcb->stack, sizeof(Stack));
+	status = _mman_proc_copy(new, pcb);
+	if (status != SUCCESS) {
+		goto Cleanup;
+	}
 
-	// fix the pcb fields that should be unique to this process
-
-	diff = (Uint32)new->stack - (Uint32)pcb->stack;
-
-	new->context = (Context*)((Uint32)new->context + diff);
-	new->context->esp += diff;
-	ARG(new)[1] += diff;
-
+	// fix unique fields
 	new->pid = _next_pid++;
 	new->ppid = pcb->pid;
 	new->state = NEW;
 
-	c_printf("fork: old: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", pcb, pcb->stack, pcb->context, pcb->context->esp, ARG(pcb)[1]);
-
-	c_printf("fork: new: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", new, new->stack, new->context, new->context->esp, ARG(new)[1]);
-
-	c_printf("***\n");
-
-	if ((status = _mman_proc_init(new)) != SUCCESS) {
-		_kpanic("_sys_fork", "_mman_proc_init: %s", status);
+	// return values
+	// parent gets pid of child
+	if ((status = _out_param(pcb, 1, new->pid)) != SUCCESS) {
+		// if the parent can't get its return value then it's a segfault
+		_cleanup(new);
+		_sys_exit(pcb);
+		return;
 	}
 
-	// assign the PID return values for the two processes
-
-	ptr = (Uint32 *) (ARG(pcb)[1]);
-	*ptr = new->pid;
-
-	ptr = (Uint32 *) (ARG(new)[1]);
-	*ptr = 0;
-
-	c_printf("fork: old: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", pcb, pcb->stack, pcb->context, pcb->context->esp, ARG(pcb)[1]);
-
-	c_printf("fork: new: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", new, new->stack, new->context, new->context->esp, ARG(new)[1]);
-
-//	_kpanic("asdf", "asdf", 0);
-
-	/*
-	** Philosophical issue:  should the child run immediately, or
-	** should the parent continue?
-	**
-	** We take the path of least resistance (work), and opt for the
-	** latter; we schedule the child, and let the parent continue.
-	*/
-
-	status = _sched( new );
-	if( status != SUCCESS ) {
-		// couldn't schedule the child, so deallocate it
-		RET(pcb) = FAILURE;
-		_cleanup( new );
-	} else {
-		// indicate success for both processes
-		RET(pcb) = SUCCESS;
-		RET(new) = SUCCESS;
+	// child gets 0
+	if ((status = _out_param(new, 1, 0)) != SUCCESS) {
+		// if the child can't get its return value then either our memory
+		// management is broken or the parent's stack was already wrong,
+		// in which case we shouldn't be here...
+		goto Cleanup;
 	}
 
+	// schedule the new process and return
+	if ((status = _sched(new)) != SUCCESS) {
+		goto Cleanup;
+	}
+
+	c_printf("_sys_fork: _sched(new) OK\n");
+	//_pcb_dump(new);
+	RET(pcb) = SUCCESS;
+	RET(new) = SUCCESS;
+
+	return;
+
+Cleanup:
+	c_printf("_sys_fork: cleanup: 0x%08x\n", status);
+	_cleanup(new);
+	RET(pcb) = status;
+	return;
 }
 
 /*
@@ -173,6 +209,10 @@ static void _sys_fork( Pcb *pcb ) {
 */
 
 static void _sys_exit( Pcb *pcb ) {
+
+	c_printf("*** _sys_exit : %d exiting ***\n", pcb->pid);
+
+	c_printf("caller = %08x\n", *(Uint32*)(_get_ebp() + 4));
 
 	// deallocate all the OS data structures
 
@@ -199,8 +239,13 @@ static void _sys_exit( Pcb *pcb ) {
 static void _sys_read( Pcb *pcb ) {
 	Key key;
 	int ch;
-	int *ptr;
 	Status status;
+
+	// do a test write to see if everything is valid
+	if ((status = _out_param(pcb, 1, 0)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// try to get the next character
 
@@ -212,9 +257,13 @@ static void _sys_read( Pcb *pcb ) {
 
 	if( ch >= 0 ) {
 
-		ptr = (int *) (ARG(pcb)[1]);
-		*ptr = ch;
-		RET(pcb) = SUCCESS;
+		if ((status = _out_param(pcb, 1, ch)) == SUCCESS) {
+			RET(pcb) = SUCCESS;
+		} else {
+			_sys_exit(pcb);
+		}
+
+		return;
 
 	} else {
 
@@ -248,15 +297,24 @@ static void _sys_read( Pcb *pcb ) {
 */
 
 static void _sys_write( Pcb *pcb ) {
-	int ch = ARG(pcb)[1];
+	int ch;
+	Status status;
+
+	//c_printf("[%04d] _sys_write\n", pcb->pid);
 
 	// this is almost insanely simple, but it does separate
 	// the low-level device access fromm the higher-level
 	// syscall implementation
 
+	if ((status = _in_param(pcb, 1, (Uint32*)&ch)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	//c_printf("[%04d] got ch %02x\n", pcb->pid, ch);
+
 	//_sio_writec( ch );
 	_fds[SIO_FD].putc(ch);
-
 	RET(pcb) = SUCCESS;
 
 }
@@ -281,7 +339,10 @@ static void _sys_msleep( Pcb *pcb ) {
 
 	// retrieve the sleep time from the user
 
-	time = ARG(pcb)[1];
+	if ((status = _in_param(pcb, 1, &time)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// if the user says "sleep for no seconds", we just preempt it;
 	// otherwise, we put it on the sleep queue
@@ -333,10 +394,14 @@ static void _sys_msleep( Pcb *pcb ) {
 static void _sys_kill( Pcb *pcb ) {
 	int i;
 	Uint32 pid;
+	Status status;
 
 	// figure out who we are going to kill
 
-	pid = ARG(pcb)[1];
+	if ((status = _in_param(pcb, 1, &pid)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// locate the victim by brute-force scan of the PCB array
 
@@ -373,9 +438,14 @@ static void _sys_kill( Pcb *pcb ) {
 */
 
 static void _sys_get_priority( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, pcb->priority)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = pcb->priority;
 
 }
 
@@ -390,9 +460,14 @@ static void _sys_get_priority( Pcb *pcb ) {
 */
 
 static void _sys_get_pid( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, pcb->pid)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = pcb->pid;
 
 }
 
@@ -407,9 +482,14 @@ static void _sys_get_pid( Pcb *pcb ) {
 */
 
 static void _sys_get_ppid( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, pcb->ppid)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = pcb->ppid;
 
 }
 
@@ -424,9 +504,15 @@ static void _sys_get_ppid( Pcb *pcb ) {
 */
 
 static void _sys_get_time( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, _system_time)) != SUCCESS) {
+		c_printf("[%04x] _sys_get_time: _out_param: %08x (%s)\n", pcb->pid, status, _kstatus_strings[status]);
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = _system_time;
 
 }
 
@@ -441,9 +527,14 @@ static void _sys_get_time( Pcb *pcb ) {
 */
 
 static void _sys_get_state( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, pcb->state)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = pcb->state;
 
 }
 
@@ -457,17 +548,20 @@ static void _sys_get_state( Pcb *pcb ) {
 */
 
 static void _sys_set_priority( Pcb *pcb ) {
-	Prio prio;
+	Uint32 prio;
+	Status status;
 
 	// retrieve the desired priority
-
-	prio = (Prio) ARG(pcb)[1];
+	if ((status = _in_param(pcb, 1, &prio)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// if the priority is valid, do the change;
 	// otherwise, report the failure
 
 	if( prio < N_PRIOS ) {
-		pcb->priority = prio;
+		pcb->priority = (Prio)prio;
 		RET(pcb) = SUCCESS;
 	} else {
 		RET(pcb) = BAD_PARAM;
@@ -485,10 +579,17 @@ static void _sys_set_priority( Pcb *pcb ) {
 */
 
 static void _sys_set_time( Pcb *pcb ) {
+	Time time;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, &time)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// this is extremely simple, but disturbingly powerful
 
-	_system_time = (Time) ARG(pcb)[1];
+	_system_time = time;
 	RET(pcb) = SUCCESS;
 
 }
@@ -504,14 +605,21 @@ static void _sys_set_time( Pcb *pcb ) {
 */
 
 static void _sys_exec( Pcb *pcb ) {
+	Uint32 program;
 	Status status;
+
+	if ((status = _in_param(pcb, 1, &program)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// invoke the common code for process creation
 
-	if (ARG(pcb)[1] < PROC_NUM_ENTRY) {
+	if (program < PROC_NUM_ENTRY) {
+		// memory management cleanup
 		status = _mman_proc_exit(pcb);
 		if (status == SUCCESS) {
-			status = _create_process( pcb, ARG(pcb)[1] );
+			status = _create_process( pcb, (Program)program );
 		}
 	} else {
 		status = BAD_PARAM;
@@ -604,12 +712,6 @@ void _isr_syscall( int vector, int code ) {
 
 	if( _current == NULL ) {
 		_kpanic( "_isr_syscall", "null _current", FAILURE );
-	}
-
-	// also, make sure it actually has a context
-
-	if( _current->context == NULL ) {
-		_kpanic( "_isr_syscall", "null _current context", FAILURE );
 	}
 
 	// retrieve the syscall code from the process

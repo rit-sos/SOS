@@ -88,7 +88,7 @@ MAPS = umap.h kmap.h kmap.c
 
 USER_BITS = ulibc.o ulibs.o
 USER_SRC = $(patsubst %,%.c,$(USERS))
-USER_BASE = 0xc0000000
+USER_BASE = 0x10000000
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
 	clock.o sio.o stacks.o syscalls.o kmap.o isr_stubs.o support.o c_io.o \
@@ -201,7 +201,7 @@ list: boot kernel $(USERS)
 # etcetera
 #
 clean:
-	-rm -f *.o $(MAPS) *.nl *.lst
+	-rm -f *.o $(MAPS) *.nl *.lst *.s
 
 realclean: clean
 	-rm -f boot kernel $(USERS) usb.image floppy.image 

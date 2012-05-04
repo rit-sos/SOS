@@ -25,7 +25,7 @@
 //
 // need one per PCB, one per Stack, and a whole bunch for page tables
 
-#define	N_QNODES	(500)
+#define	N_QNODES	(2000)
 
 // Number of queues to allocate
 

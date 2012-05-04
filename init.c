@@ -17,7 +17,7 @@
 
 #define DELAY_LONG 100000000
 #define SPAWN_A
-#define SPAWN_MMAN
+//#define SPAWN_MMAN
 
 /*
 ** USER PROCESSES
@@ -68,9 +68,16 @@
 //void init( void ) {
 void main(void) {
 	int i;
-	Pid pid;
+	int pid;
 	Time time;
 	Status status;
+
+//	void (*c_printf)(const char*,...) = (void(*)(const char*,...))0x13f39;
+
+//	c_printf("Hello from ring 3!\n");
+
+	// (#GP)
+	//asm("cli");
 
 	//c_puts( "Init started\n" );
 	puts("init: my main lives at ");
@@ -86,13 +93,14 @@ void main(void) {
 	status = fork( &pid );
 	if( status != SUCCESS ) {
 		//prt_status( "init: can't fork() user A, status %s\n", status );
+		puts("fork failed\n");
 	} else if( pid == 0 ) {
-		puts("CHILD");
+		puts("I'm the child\n");
 		status = exec( user_a_ID );
 		//prt_status( "init: can't exec() user A, status %s\n", status );
 		exit();
 	}
-	puts("PARENT");
+	puts("I'm the parent\n");
 #endif
 
 #ifdef SPAWN_MMAN

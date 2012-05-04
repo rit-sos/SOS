@@ -111,12 +111,14 @@ Queue *_reading;
 ** _isr_sio - serial i/o ISR
 */
 
+// forward declare syscall helper
+Status _out_param(Pcb*,Int32,Uint32);
+
 void _isr_sio( int vector, int code ) {
 	Pcb *pcb;
 	int eir, lsr, msr;
 	int ch;
 	int stat;
-	int *ptr;
 
 	//
 	// Must process all pending events; loop until the EIR
@@ -150,7 +152,7 @@ void _isr_sio( int vector, int code ) {
 			// process and awaken the process.
 			//
 
-			if( !_q_empty(_reading) ) {
+			while( !_q_empty(_reading) ) {
 
 				stat = _q_remove( _reading, (void **) &pcb );
 				if( stat != SUCCESS ) {
@@ -158,12 +160,20 @@ void _isr_sio( int vector, int code ) {
 						 "serial wakeup status %s",
 						 stat );
 				}
-				ptr = (int *) (ARG(pcb)[1]);
-				*ptr = ch & 0xff;
-				RET(pcb) = SUCCESS;
-				_sched( pcb );
 
-			} else {
+				if ((stat = _out_param(pcb, 1, ch & 0xff)) != SUCCESS) {
+					_cleanup(pcb);
+					pcb = NULL;
+					continue;
+				} else {
+					RET(pcb) = SUCCESS;
+					_sched( pcb );
+					break;
+				}
+
+			}
+
+			if (!pcb) {
 
 				//
 				// Nobody waiting - add to the input buffer

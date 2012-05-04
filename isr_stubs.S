@@ -17,7 +17,11 @@
 **	interrupted occurred.
 */
 
+#define __KERNEL__20113__
+#define __ASM__20113__
+
 #include "bootstrap.h"
+#include "offsets.h"
 
 /*
 ** Configuration options - define in Makefile
@@ -65,154 +69,171 @@ __isr_##vector:				; \
 */
 
 isr_save:
-
-/*
-** Begin by saving the state
-**
-** At this point, the stack looks like this:
-**
-**  esp ->  vector #		saved by the entry macro
-**	    error code, or 0	saved by the hardware, or the entry macro
-**	    saved EIP		saved by the hardware
-**	    saved CS		saved by the hardware
-**	    saved EFLAGS	saved by the hardware
-*/
-	pusha			// save E*X, ESP, EBP, ESI, EDI
-	pushl	%ds		// save segment registers
-	pushl	%es
-	pushl	%fs
-	pushl	%gs
-	pushl	%ss
-
-/*
-** Stack contents (all 32-bit longwords) and offsets from ESP:
-**
-**   SS GS FS ES DS EDI ESI EBP ESP EBX EDX ECX EAX vec cod EIP CS EFL
-**   0  4  8  12 16 20  24  28  32  36  40  44  48  52  56  60  64 68
-**
-** Note that the saved ESP is the contents before the PUSHA.
-**
-** Set up parameters for the ISR call.
-*/
-
-// temporary hack - switch to kernel address space
-	pusha
-	call	_mman_kernel_mode
-	popa
-
-	movl	52(%esp),%eax	// get vector number and error code
-	movl	56(%esp),%ebx
-
-/*
-** MOD for 20113 SP2
-*/
-
-	.globl	_current
-	.globl	_system_esp
-	.globl	_system_time
-
-	movl	_current, %edx	// save context pointer for the current proc
-	movl	%esp, (%edx)	// (must be the first PCB field)
-
-	movl	_system_esp, %esp	// switch to OS stack
-
-/*
-** END MOD for 20113 SP2
-*/
-
-	pushl	%ebx		// put vector & code on top of the stack ...
-	pushl	%eax		// ... as parameters for the ISR
-
-/*
-** Call the ISR
-*/
-	movl	__isr_table(,%eax,4),%ebx
-	call	*%ebx
-	addl	$8,%esp		// pop the two parameters
-
-/*
-** Context restore begins here
-*/
-
-__isr_restore:
-
-/*
-** MOD for 20113 SP2
-*/
-
-	movl	_current, %ebx
-	movl	(%ebx), %esp
-
-/*
-** END MOD for 20113 SP2
-*/
-
-#ifdef ISR_DEBUGGING_CODE
-/*
-** DEBUGGING CODE PART 1
-**
-** This code will execute during each context restore, and 
-** should be modified to print out whatever debugging information
-** is desired.
-**
-** By default, it prints out the CPU context being restored; it
-** relies on the standard save sequence (see above).
-*/
-
-/*
-** MOD for 20113 SP2
-*/
+	/*
+	** By this point %esp = tss->esp0 but we're still in the user
+	** process's address space. At this point, the stack should look
+	** like:
+	**
+	**  Saved by stub  Saved by CPU
+	**	vec cod        EIP CS EFL ESP SS
+	**	0   4          8   12 16  20  24
+	**
+	** First things first, let's save the context to the system stack.
+	*/
+	
+	pushal	// E*X, ESP, EBP, ESI, EDI
 
 	/*
-	** In addition to the basic context information, print
-	** the current system time and the PID and PPID of the
-	** process whose context is being restored.
+	** Now our stack looks something like:
 	**
-	** THE CONSTANT IN THIS movl INSTRUCTION MUST BE CHANGED
-	** IF THE LOCATION OF EITHER FIELD IN THE PCB CHANGES!
+	** EDI ESI EBP ESP EBX EDX ECX EAX vec cod EIP CS EFL ESP SS
+	** 0   4   8   12  16  20  24  28  32  36  40  44 48  52  56
+	**
+	** Next, switch to our own segments and address space.
+	** cs and ss should already be set.
+	*/
+	movl	$GDT_DATA, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %fs
+	movl	%eax, %gs
+
+#if 0
+	pushl	%gs
+	pushl	%fs
+	pushl	%es
+	pushl	%ds
+	pushl	%cs
+	pushl	%ss
+	pushl	$segfmt
+	call	c_printf
+	jmp		.
+#endif
+
+	call	_mman_kernel_mode
+
+	/*
+	** Now get a pointer to the process context. The context struct
+	** is the first field in the pcb, so it's the same as the pointer
+	** to the pcb.
+	*/
+	movl	_current, %edx
+
+	/*
+	** Pop off everything from the stack into the context.
+	** We need everything up through SS, for a total of 60 bytes (15 dwords).
+	*/
+	xorl	%ecx, %ecx
+copy_ctx:
+	popl	%ebx
+	movl	%ebx, (%edx,%ecx,4)
+	incl	%ecx
+	cmpl	$15, %ecx
+	jne		copy_ctx
+
+	/*
+	** The current stack, if I've been right about things so far, is empty.
+	** Obviously we'll have to put one back together on the way out.
+	** For now, set up the isr handler.
 	*/
 
-	movl	20(%ebx), %eax	// get PID and PPID of this process
-	pushl	%eax
-	pushl	_system_time	// and the current system time
+	/* push vector and code onto the stack */
+	movl	CTX_VECTOR(%edx), %ebx
+	movl	CTX_CODE(%edx), %ecx
+	pushl	%ecx
+	pushl	%ebx
 
-/*
-** END MOD for 20113 SP2
-*/
+	/* now we can finally call the C handler function */
+	movl	__isr_table(,%ebx,4), %ebx
+	call	*%ebx
+
+	/* pop off vector and code */
+	addl	$8, %esp
+
+__isr_restore:
+	/*
+	** Oh boy, now we have to do a context restore.
+	** First of all, the "current" process might have changed.
+	*/
+	movl	_current, %edx
+
+	/*
+	** Now we need to get the context out of _current and onto the
+	** system stack to print debug stuff and do a full restore.
+	*/
+	movl	$14, %ecx
+restore_ctx:
+	movl	(%edx,%ecx,4), %eax
+	pushl	%eax
+	decl	%ecx
+	jge		restore_ctx
+
+#ifdef ISR_DEBUGGING_CODE
+	/*
+	** Let's print out our debugging stuff now.
+	** This will print out information about the process we're restoring.
+	*/
+
+	/* PID, PPID, system time */
+	movl	PCB_PID(%edx), %ecx
+	pushl	%ecx
+	pushl	_system_time
 
 	pushl	$fmt
 	pushl	$1
 	pushl	$0
 	call	c_printf_at
-/*
-** MOD for 20113 SP2
-*/
-	addl	$20, %esp	// now five things to remove
-/*
-** END MOD for 20113 SP2
-*/
 
-/*
-** END OF DEBUGGING CODE PART 1
-*/
+	/* get rid of pid/ppid/time/fmt/etc */
+	addl	$20, %esp
+
+#if 0
+	movl	$1, %ebx
+delay_outer:
+	movl	$0x00ffffff, %eax
+delay_inner:
+	decl	%eax
+	jne		delay_inner
+	decl	%ebx
+	jne		delay_outer
 #endif
 
-// hack to get around not having a ring0-ring3 switch
-	pusha
-	call	_mman_restore_pgdir
-	popa
+#endif
 
-/*
-** Restore the context.
-*/
-	popl	%ss		// restore the segment registers
-	popl	%gs
-	popl	%fs
-	popl	%es
-	popl	%ds
-	popa			// restore others
-	addl	$8, %esp	// discard the error code and vector
-	iret			// and return
+	/* give the process back its address space */
+	call	_mman_restore_pgdir
+
+	/* now restore from the context... */
+	popal
+
+	/* skip vector and code */
+	addl	$8, %esp
+
+#if 0
+	pushl	%esp
+	pushl	$testfmt
+	call	c_printf
+	addl	$4, %esp
+	jmp		.
+#endif
+
+	pushl	%eax
+	movl	$GDT_USER_DATA, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %fs
+	movl	%eax, %gs
+	popl	%eax
+
+	/*
+	** By the way, the system esp is back where it started, so we don't need
+	** to store it back to the TSS. So that means we're done!
+	*/
+
+	iret
+
+scratch:
+	.long	0
 
 #ifdef ISR_DEBUGGING_CODE
 /*
@@ -221,16 +242,21 @@ __isr_restore:
 /*
 ** MOD for 20113 SP2
 */
-spfmt:	.string "RESTORING ESP 0x%08x\n"
+segfmt:
+	.ascii	"System segments on entry:\n"
+	.string	" ss=%08x  cs=%08x  ds=%08x  es=%08x  fs=%08x  gs=%08x\n"
+
+testfmt:
+	.ascii	"System esp on exit is %08x\n"
+	.string	"Restoring eip=%08x  cs=%08x efl=%08x esp=%08x  ss=%08x\n"
 
 fmt:	.ascii	"time %08x pids %08x\n"
-	.ascii	" ss=%08x  gs=%08x  fs=%08x  es=%08x  ds=%08x\n"
 /*
 ** END MOD for 20113 SP2
 */
-	.ascii	"edi=%08x esi=%08x ebp=%08x esp=%08x ebx=%08x\n"
+	.ascii	"edi=%08x esi=%08x ebp=%08x Xsp=%08x ebx=%08x\n"
 	.ascii	"edx=%08x ecx=%08x eax=%08x vec=%08x cod=%08x\n"
-	.string	"eip=%08x  cs=%08x efl=%08x\n"
+	.string	"eip=%08x  cs=%08x efl=%08x esp=%08x  ss=%08x\n"
 
 /*
 ** END OF DEBUGGING CODE PART 2

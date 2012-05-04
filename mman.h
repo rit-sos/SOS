@@ -14,7 +14,7 @@
 #define USER_HEAP	(0x40000000)
 
 /* grow stack down from here */
-#define USER_STACK	(0xfeff0000)
+#define USER_STACK	(0xd0000000)
 
 /*
 ** Core system data structures and defines
@@ -186,6 +186,9 @@ typedef union {
 // RESERVED	(0)			(0x00000080)
 #define PT_GLOBAL		(0x00000100)
 // UNUSED				(0x00000e00)
+#define PT_COW			(0x00000200)
+#define PT_ZERO			(0x00000400)
+#define PT_DISK			(0x00000800)
 #define PT_FRAME		(0xfffff000)
 
 #ifndef __ASM__20113__
@@ -200,7 +203,6 @@ typedef union {
 		Uint32	dirty		:1;
 		Uint32	reserved	:1;
 		Uint32	global		:1;
-//		Uint32	unused		:3;
 		Uint32	cow			:1;
 		Uint32	zero		:1;
 		Uint32	disk		:1;
@@ -251,9 +253,13 @@ typedef Uint32 *Memmap_ptr;
 #ifndef __ASM__20113__
 struct pcb;
 
+#define MAX_TRANSFER_PAGES	16
+
 /* exposed internal functions */
 Uint32 _mman_set_cr3(Pagedir_entry *pgdir);
+Uint32 _mman_get_cr0(void);
 Uint32 _mman_get_cr2(void);
+Uint32 _mman_get_cr3(void);
 Uint32 _mman_enable_paging(void);
 void _mman_pagefault_isr(int vec, int code);
 Status _mman_pgdir_alloc(Pagedir_entry **pgdir);
@@ -261,14 +267,20 @@ Status _mman_map_alloc(Memmap_ptr *map);
 Status _mman_map_free(Memmap_ptr map);
 
 /* exposed semi-internal functions */
-Status _mman_translate_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 *phys);
+Status _mman_translate_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 *phys, Uint32 write);
+Status _mman_translate_addr(Pagedir_entry *pgdir, void *virt, void **phys, Uint32 write);
 Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 flags);
 Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt);
+Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *src, Memmap_ptr srcmap);
+void _mman_info(void);
 
 /* non-internal functions */
 void _mman_init(void);
 Status _mman_proc_init(struct pcb *pcb);
+Status _mman_proc_copy(struct pcb *new, struct pcb *old);
 Status _mman_proc_exit(struct pcb *pcb);
+Status _mman_get_user_data(struct pcb *pcb, void *buf, void *virt, Uint32 size);
+Status _mman_set_user_data(struct pcb *pcb, void *virt, void *buf, Uint32 size);
 Status _mman_alloc(void **ptr, Uint32 size, struct pcb *pcb, Uint32 flags);
 Status _mman_free(void *ptr, Uint32 size, struct pcb *pcb);
 
