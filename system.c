@@ -27,9 +27,6 @@
 // need init() address
 #include "kmap.h"
 
-// need the exit() prototype
-#include "ulib.h"
-
 /*
 ** PUBLIC FUNCTIONS
 */
@@ -212,15 +209,15 @@ Status _create_process( Pcb *pcb, Program entry ) {
 
 }
 
-static void tss_info(void) {
-	c_printf("TSS info: esp0=%08x  test=%08x  (%08x)\n"
-	         "          ss0=%04x (%04x) cs=%04x (%04x) ds=%04x (%04x) ss=%04x (%04x)\n",
-	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[1], ((Uint32*)(TSS_ESP0))[0], TARGET_STACK,
-	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[2], GDT_DATA,
-	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[19], GDT_CODE | 3,
-	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[21], GDT_DATA | 3,
-	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[20], GDT_DATA | 3);
-}
+//static void tss_info(void) {
+//	c_printf("TSS info: esp0=%08x  test=%08x  (%08x)\n"
+//	         "          ss0=%04x (%04x) cs=%04x (%04x) ds=%04x (%04x) ss=%04x (%04x)\n",
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[1], ((Uint32*)(TSS_ESP0))[0], TARGET_STACK,
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[2], GDT_DATA,
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[19], GDT_CODE | 3,
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[21], GDT_DATA | 3,
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[20], GDT_DATA | 3);
+//}
 
 /*
 ** _init - system initialization routine
@@ -278,7 +275,7 @@ void _init( void ) {
 	** longword in the system stack.
 	*/
 
-	*((Uint32*)(TSS_ESP0)) = ((Uint32 *) ( (&_system_stack) + 1)) - 2;
+	*((Uint32*)(TSS_ESP0)) = (Uint32)(((Uint32 *) ( (&_system_stack) + 1)) - 2);
 
 	//tss_info();
 

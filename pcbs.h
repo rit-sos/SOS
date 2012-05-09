@@ -48,6 +48,8 @@
 
 #define	PID_INIT	1
 
+#ifdef __KERNEL__20113__
+
 // RET(p) - access return value register in process context
 
 #define RET(p)  ((p)->context.eax)
@@ -57,7 +59,6 @@
 /*
 ** Start of C-only definitions
 */
-
 #include "clock.h"
 #include "stacks.h"
 #include "mman.h"
@@ -106,9 +107,12 @@ typedef struct context {
 // members are ordered by size
 
 typedef struct pcb {
-	// four-byte fields
+	// structures
 	Context		context;	// kernel-mode process context
 							// (this also contains the user esp)
+	Heapinfo	heapinfo;	// heap allocation information
+//	Shminfo		shminfo;	// shared memory information
+	// four-byte fields
 	Stack		*stack;		// kernel-mode address of stack
 	Memmap_ptr	virt_map;	// kernel-mode address of process VM usage map
 	Pagedir_ptr	pgdir;		// kernel-mode address of process page directory
@@ -163,6 +167,8 @@ Status _pcb_dealloc( Pcb *pcb );
 void _pcb_init( void );
 
 void _pcb_dump (Pcb *pcb);
+
+#endif
 
 #endif
 

@@ -11,9 +11,8 @@
 */
 
 #include "headers.h"
-
-//#include "users.h"
 #include "umap.h"
+#include "pcbs.h"
 
 #define DELAY_LONG 100000000
 #define SPAWN_A
@@ -68,8 +67,8 @@
 //void init( void ) {
 void main(void) {
 	int i;
-	int pid;
-	Time time;
+	unsigned int pid;
+	unsigned int time;
 	Status status;
 
 //	void (*c_printf)(const char*,...) = (void(*)(const char*,...))0x13f39;

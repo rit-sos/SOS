@@ -110,9 +110,6 @@ Status _out_param(Pcb *pcb, Int32 index, Uint32 val) {
 ** segmentation violation, and the offending process is killed.
 */
 
-// forward declare exit, since others use it
-static void _sys_exit(Pcb*);
-
 /*
 ** _sys_fork - create a new process
 **
@@ -208,7 +205,7 @@ Cleanup:
 ** does not return
 */
 
-static void _sys_exit( Pcb *pcb ) {
+void _sys_exit( Pcb *pcb ) {
 
 	c_printf("*** _sys_exit : %d exiting ***\n", pcb->pid);
 
@@ -634,6 +631,45 @@ static void _sys_exec( Pcb *pcb ) {
 
 }
 
+/*
+** Kernel entry point for user heap manager
+*/
+static void _sys_grow_heap(Pcb*);
+static void _sys_get_heap_size(Pcb*);
+static void _sys_get_heap_base(Pcb*);
+
+static void _sys_grow_heap(Pcb *pcb) {
+	Status status;
+
+	if((status = _heap_grow(pcb)) != SUCCESS) {
+		RET(pcb) = status;
+	} else {
+		_sys_get_heap_size(pcb);
+		return;
+	}
+}
+
+static void _sys_get_heap_size(Pcb *pcb) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, HEAP_CHUNK_SIZE * pcb->heapinfo.count)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	RET(pcb) = SUCCESS;
+}
+
+static void _sys_get_heap_base(Pcb *pcb) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, USER_HEAP_BASE)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	RET(pcb) = SUCCESS;
+}
 
 /*
 ** PUBLIC FUNCTIONS
@@ -681,6 +717,9 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_get_time ]      = _sys_get_time;
 	_syscall_tbl[ SYS_set_priority ]  = _sys_set_priority;
 	_syscall_tbl[ SYS_set_time ]      = _sys_set_time;
+	_syscall_tbl[ SYS_grow_heap ]     = _sys_grow_heap;
+	_syscall_tbl[ SYS_get_heap_size ] = _sys_get_heap_size;
+	_syscall_tbl[ SYS_get_heap_base ] = _sys_get_heap_base;
 
 //	these are syscalls we elected not to implement
 //	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;

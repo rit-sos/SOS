@@ -6,5 +6,6 @@
 	.text
 	.globl _start
 _start:
+	call	heap_init
 	movl	$exit, (%esp)
 	jmp		main

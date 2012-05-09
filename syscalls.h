@@ -38,6 +38,9 @@
 #define	SYS_get_time		11
 #define	SYS_set_priority	12
 #define	SYS_set_time		13
+#define SYS_grow_heap		14
+#define SYS_get_heap_size	15
+#define SYS_get_heap_base	16
 
 // these are syscalls we elected not to implement
 // #define	SYS_set_pid		?
@@ -46,7 +49,7 @@
 
 // number of "real" system calls
 
-#define	N_SYSCALLS	14
+#define	N_SYSCALLS	17
 
 // dummy system call code to test the syscall ISR
 
@@ -97,6 +100,11 @@ void _isr_syscall( int vector, int code );
 */
 
 void _syscall_init( void );
+
+/*
+** Export _sys_exit() for use in other ISRs
+*/
+void _sys_exit(Pcb*);
 
 #endif
 

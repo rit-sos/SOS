@@ -86,20 +86,20 @@ USERS = init user_a mman_test
 
 MAPS = umap.h kmap.h kmap.c
 
-USER_BITS = ulibc.o ulibs.o
+USER_BITS = ulibc.o ulibs.o umem.o
 USER_SRC = $(patsubst %,%.c,$(USERS))
 USER_BASE = 0x10000000
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
 	clock.o sio.o stacks.o syscalls.o kmap.o isr_stubs.o support.o c_io.o \
-	mmanc.o mmans.o fd.o
+	mmanc.o mmans.o fd.o heaps.o
 KERNEL_BASE = 0x10000
 
 BOOT_BITS = bootstrap.o
 BOOT_BASE = 0x0
 
 INCLUDES = -I. -Iinclude
-SOURCES = $(wildcard *.c)
+SOURCES = $(wildcard *.c) $(wildcard *.S)
 
 USER_OPTIONS = -DCLEAR_BSS_SEGMENT -DSP2_CONFIG -DISR_DEBUGGING_CODE -DUSER_ENTRY="$(USER_BASE)" -ggdb -DUSE_TSS
 INCLUDES = -I. -I./include

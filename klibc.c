@@ -31,7 +31,8 @@ const char *_kstatus_strings[] = {
 	"allocation failed",	/* ALLOC_FAILED */
 	"not found",		/* NOT_FOUND */
 	"no queues",		/* NO_QUEUES */
-	"bad priority"		/* BAD_PRIO */
+	"bad priority",		/* BAD_PRIO */
+	"already exists"	/* ALREADY_EXISTS */
 };
 
 /*

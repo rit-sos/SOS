@@ -64,6 +64,9 @@ SYSCALL(get_state)
 SYSCALL(set_priority)
 SYSCALL(set_time)
 SYSCALL(exec)
+SYSCALL(grow_heap)
+SYSCALL(get_heap_size)
+SYSCALL(get_heap_base)
 
 // This is a bogus system call; it's here so that we can test
 // our handling of out-of-range syscall codes in the syscall ISR.
