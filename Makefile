@@ -190,3 +190,27 @@ depend:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
+bootstrap.o: bootstrap.h
+startup.o: bootstrap.h
+isr_stubs.o: bootstrap.h
+ulibs.o: syscalls.h headers.h queues.h ./include/x86arch.h
+c_io.o: c_io.h startup.h support.h ./include/x86arch.h
+support.o: startup.h support.h c_io.h ./include/x86arch.h bootstrap.h
+clock.o: headers.h ./include/x86arch.h startup.h clock.h pcbs.h stacks.h
+clock.o: queues.h scheduler.h sio.h syscalls.h
+klibc.o: headers.h
+pcbs.o: headers.h queues.h pcbs.h clock.h stacks.h
+queues.o: headers.h pcbs.h clock.h stacks.h queues.h
+scheduler.o: headers.h scheduler.h pcbs.h clock.h stacks.h queues.h
+sio.o: headers.h sio.h queues.h pcbs.h clock.h stacks.h scheduler.h system.h
+sio.o: startup.h ./include/uart.h ./include/x86arch.h
+stacks.o: headers.h queues.h stacks.h
+syscalls.o: headers.h pcbs.h clock.h stacks.h scheduler.h queues.h sio.h
+syscalls.o: syscalls.h ./include/x86arch.h system.h startup.h
+system.o: headers.h system.h pcbs.h clock.h stacks.h bootstrap.h syscalls.h
+system.o: queues.h ./include/x86arch.h sio.h scheduler.h ata.h users.h ulib.h
+system.o: types.h
+ulibc.o: headers.h
+users.o: headers.h users.h
+ata.o: headers.h pci.h ata.h startup.h sio.h queues.h
+pci.o: pci.h headers.h startup.h
