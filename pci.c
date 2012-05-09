@@ -187,7 +187,7 @@ dump_pci_devices (void)
 	return;
 }       /* -----  end of function dump_pci_devices  ----- */
 
-void scan_pci_for ( struct pci_func *f, Uint8 bus_start, Uint8 slot_start, Uint8 func_start )
+void _pci_scan_for ( struct pci_func *f, Uint8 bus_start, Uint8 slot_start, Uint8 func_start )
 {
 
 	Uint8   bus;
@@ -200,11 +200,11 @@ void scan_pci_for ( struct pci_func *f, Uint8 bus_start, Uint8 slot_start, Uint8
 	Uint8  subclass;
 	Uint16  revision;
 
-	for (bus = bus_start; bus < 3; bus++)
+	for (bus = bus_start; bus < PCI_MAX_BUSSES; bus++)
 	{
-		for (slot = slot_start; slot < 32; slot++) 
+		for (slot = slot_start; slot < PCI_MAX_SLOTS; slot++) 
 		{
-			for (func = func_start; func < 8; func++)
+			for (func = func_start; func < PCI_MAX_FUNCS; func++)
 			{
 				
 				dev_class = read_pci_conf_byte (bus, slot, func, PCI_CLASS_CODE);

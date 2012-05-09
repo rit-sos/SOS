@@ -18,6 +18,15 @@
 
 #include "headers.h"
 
+
+
+
+#define PCI_MAX_BUSSES	3
+#define PCI_MAX_SLOTS	32	
+#define PCI_MAX_FUNCS	8
+
+
+
 #define PCI_CONF_ADDR_IOPORT        0x0cf8
 #define PCI_CONF_DATA_IOPORT        0x0cfc
 
@@ -26,19 +35,20 @@
 #define PCI_COMMAND_REGISTER        0x04
 #define PCI_STATUS_REGISTER         0x06
 #define PCI_CLASS_REVISION          0x08
-#define PCI_CLASS_CODE		    0x0B
 #define PCI_SUBCLASS		    0x0A
-#define PCI_HEADER_TYPE             0x0e
+#define PCI_CLASS_CODE		    0x0B
+#define PCI_HEADER_TYPE             0x0E
 
 
 #define PCI_BAR0			0x10
 #define PCI_BAR1			0x14
 #define PCI_BAR2			0x18
-#define PCI_BAR3			0x10
-#define PCI_BAR4			0x10
-#define PCI_BAR5			0x10
+#define PCI_BAR3			0x1C
+#define PCI_BAR4			0x20
+#define PCI_BAR5			0x24
 
-
+#define PCI_INTERRUPT_LINE		0x3C
+#define PCI_INTERRUPT_PIN		0x3D
 
 
 #define PCI_COMMAND_STATUS_REG          0x04
@@ -96,13 +106,14 @@ struct pci_func
 void set_pci_conf_addr ( Uint8 bus, Uint8 slot, Uint8 func, Uint8 offset);
 
 
-Uint16  read_pci_config_word ( Uint8 bus, Uint8 slot, Uint8 func, Uint8 offset ); 
-Uint8   read_pci_config_byte ( Uint8 bus, Uint8 slot, Uint8 func, Uint8 offset );
+Uint32 read_pci_conf_long ( Uint8 bus, Uint8 slot, Uint8 func, Uint8 offset );
+Uint16  read_pci_conf_word ( Uint8 bus, Uint8 slot, Uint8 func, Uint8 offset ); 
+Uint8   read_pci_conf_byte ( Uint8 bus, Uint8 slot, Uint8 func, Uint8 offset );
 
 void dump_pci_device( Uint8 bus, Uint8 slot, Uint8 func );
 void dump_pci_devices ( void );
 
-void scan_pci_for ( struct pci_func *f, Uint8 bus_start, Uint8 slot_start, Uint8 func_start );
+void _pci_scan_for( struct pci_func *f, Uint8 bus_start, Uint8 slot_start, Uint8 func_start );
 
 void play (void);
 
