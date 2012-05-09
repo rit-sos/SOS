@@ -44,6 +44,7 @@ typedef struct Drive{
 	Uint64 sectors;
 	Uint32 base; //base IO port address
 	Uint32 control; //control register IO port address
+	char model[44]; //44 bytes for model name
 	Uint8 master; //true if master, false if slave		
 }Drive;	
 

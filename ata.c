@@ -87,15 +87,43 @@
 #define WRITE_SECTORS_EXT 	0x34
 #define FLUSH_CACHE		0xE7
 
-Uint16 block[255];
+/*
+**Identify packet fields
+**
+*/
 
+#define ATA_IDENT_DEVICETYPE   0
+#define ATA_IDENT_CYLINDERS    2
+#define ATA_IDENT_HEADS        6
+#define ATA_IDENT_SECTORS      12
+#define ATA_IDENT_SERIAL       20
+#define ATA_IDENT_MODEL        54
+#define ATA_IDENT_CAPABILITIES 98
+#define ATA_IDENT_FIELDVALID   106
+#define ATA_IDENT_MAX_LBA      120
+#define ATA_IDENT_COMMANDSETS  164
+#define ATA_IDENT_MAX_LBA_EXT  200
+typedef struct Identify_packet{
+	char devtype[2];
+	char cylinders[(6-2)];
+	char heads[(12-6)];
+	char sectors[(20-12)];
+	char serial[(54-20)];
+	char model[(98-54)];
+	char capabilities[(106-98)];
+	char fieldvalid[(120-106)];
+	char max_lba[(164-120)];
+	char commandsets[(200-164)];
+	char max_lba_ext[(256-200)];
+}Identify_packet;
+
+Uint16 block[255];
 
 typedef struct Iorequest{
 	Drive	d;
 	Uint64	LBA;
 	Uint16	sectors;
 }Iorequest;
-
 
 void delay(Uint32 control){
 	Uint8 i;
@@ -105,8 +133,6 @@ void delay(Uint32 control){
 
 	}
 }
-
-
 
 void _ata_debug(char *fmt, ...){
 #ifdef DEBUG_ATA
@@ -129,14 +155,15 @@ void disableIRQ(Bus *b){
 	Uint8 i;
 	for(i=0;i<4;i++){
 		Drive *d = & b->drives[i];
-		selectDrive(d,LBA_MODE);
-		__outb(b->primary_control,0);
-		__outb(b->secondary_control,0);
-		__outb(b->primary_control,NIEN);
-		__outb(b->secondary_control,NIEN);
+		if(d->type != INVALID_DRIVE){
+			selectDrive(d,LBA_MODE);
+			__outb(d->control,0);
+			__outb(d->control,NIEN);
+		}
 	}	
 
 }
+
 void _ata_reset(Uint32 control){
 	__outb(control, SRST | NIEN );
 	__outb(control, 0x00 | NIEN);
@@ -145,12 +172,27 @@ void _ata_reset(Uint32 control){
 	__outb(control,NIEN);
 }
 
-//read sector into buffer and return number of sectors read 
-int _ata_read(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
-	volatile unsigned char status = 0;
-	Uint16 i,j;
+
+void lba_set_sectors(Drive *d, Uint64 sector, Uint16 sectorcount){
+
 	Uint8 *sector_b= (Uint8 *)&sector;
 	Uint8 *sectorcount_b = (Uint8 *)&sectorcount;
+
+	selectDrive(d,LBA_MODE);
+	__outb (d->base+SECTOR_COUNT, sectorcount_b[1]);//sectorcount high byte
+	__outb (d->base+LBA_LOW, sector_b[3]);
+	__outb (d->base+LBA_MID, sector_b[4]);
+	__outb (d->base+LBA_HIGH,sector_b[5]);
+	__outb (d->base+SECTOR_COUNT, sectorcount_b[0]);//sectorcount low byte
+	__outb (d->base+LBA_LOW, sector_b[0]);
+	__outb (d->base+LBA_MID, sector_b[1]);
+	__outb (d->base+LBA_HIGH, sector_b[2]);
+
+}
+
+int _ata_write_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
+	volatile unsigned char status = 0;
+	Uint16 i,j;
 
 	if(d->type== INVALID_DRIVE){
 		return -1;
@@ -165,39 +207,81 @@ int _ata_read(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
 
 	switch(d->type){
 		case LBA48:
-			selectDrive(d,LBA_MODE);
-
-			__outb (d->base+SECTOR_COUNT, sectorcount_b[1]);//sectorcount high byte
-			__outb (d->base+LBA_LOW, sector_b[3]);
-			__outb (d->base+LBA_MID, sector_b[4]);
-			__outb (d->base+LBA_HIGH,sector_b[5]);
-			__outb (d->base+SECTOR_COUNT, sectorcount_b[0]);//sectorcount low byte
-			__outb (d->base+LBA_LOW, sector_b[0]);
-			__outb (d->base+LBA_MID, sector_b[1]);
-			__outb (d->base+LBA_HIGH, sector_b[2]);
-
+			lba_set_sectors(d, sector, sectorcount);
 			//Send the "READ SECTORS EXT" command (0x24) to port base+COMMAND:
-			__outb (d->base+COMMAND, READ_SECTORS_EXT);
-
-			c_printf("Reading from %x sector %d count %d",d->base+COMMAND,sector_b[0],sectorcount_b[0]);
+			__outb (d->base+COMMAND, WRITE_SECTORS_EXT);
 
 			for(i=0;i<sectorcount;i++){
-				status = __inb(d->base+REGULAR_STATUS);
-
 				//read status until error or DRQ
-				while(status & BSY){
+				do {
 					status = __inb(d->base+REGULAR_STATUS);
-				}
+				}while(status & BSY);
 
-				if(status & ERR || status & DF){
+				if(status & (ERR | DF) || !(status & DRQ) ){
 					//there was an error requesting
-					c_printf("read error. status: %x\n",status);
+					c_printf("write error. status: %x\n",status);
 					return -1;
 				}
 
-				if(!(status & DRQ)){
-					c_printf("read failed!\n");
-					return -1; 
+				for(j =0; j < 256; j++){
+					__outw(d->base+DATA, buf[i*256+j]);
+				}
+				c_printf(".");
+			}
+			c_printf("done!\n");
+			break;
+
+		case LBA28:
+			//selectDrive(d,LBA_MODE);
+
+			break;
+
+		case CHS:
+			break;
+
+		default:
+			//invalid drive
+			return -1;
+
+	}
+
+	//disable interrupts
+	__outb(d->control,NIEN);
+	return i;	
+
+}
+//read sector into buffer and return number of sectors read 
+int _ata_read_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
+	volatile unsigned char status = 0;
+	Uint16 i,j;
+
+	if(d->type== INVALID_DRIVE){
+		return -1;
+	}
+
+	if (sector > d->sectors){
+		//tried to read off the end of disk. 
+		return -1;	
+	}
+
+	while (__inb(d->base+REGULAR_STATUS) & (BSY | DRQ)); //spin until not busy. TODO:add to blocked queue
+
+	switch(d->type){
+		case LBA48:
+			lba_set_sectors(d, sector, sectorcount);
+			//Send the "READ SECTORS EXT" command (0x24) to port base+COMMAND:
+			__outb (d->base+COMMAND, READ_SECTORS_EXT);
+			//for each sector
+			for(i=0;i<sectorcount;i++){
+				//read status until error or DRQ
+				do {
+					status = __inb(d->base+REGULAR_STATUS);
+				}while(status & BSY);
+
+				if(status & (ERR | DF) || !(status & DRQ) ){
+					//there was an error requesting
+					c_printf("read error. status: %x\n",status);
+					return -1;
 				}
 
 				for(j =0; j < 256; j++){
@@ -205,13 +289,11 @@ int _ata_read(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
 				}
 				c_printf(".");
 			}
-
 			c_printf("done!\n");
-
 			break;
 
 		case LBA28:
-			selectDrive(d,LBA_MODE);
+			//selectDrive(d,LBA_MODE);
 
 			break;
 
@@ -257,15 +339,12 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 
 		//send the identify command	
 		__outb(base+COMMAND,IDENTIFY);
-
-
 		delay(control);
-
 		status =__inb(base+REGULAR_STATUS);
-
 		if (status == 0){
 			return -1;
 		}
+
 		if( status & ERR || status & DF){
 			c_printf("identify error.. SATA drive?\n");
 			_ata_reset(control);
@@ -278,18 +357,16 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 
 		if (__inb(base+LBA_MID) || __inb(base+LBA_HIGH)){
 			//check if the drive is non ATA. If so, end
-			c_printf("Non ata!");
 			Uint8 cl = __inb(base+CYLINDER_LOW);
 			Uint8 ch = __inb(base+CYLINDER_HIGH);
-			c_printf(" status %x cl: %x ch:%x\n",status, cl, ch);
+			if (cl == 0x14 && ch == 0xEB)
+				c_printf("ATAPI drive detected but not supported\n");
 			return -1;
 		}
-		while(1){
+		do{
 			status = __inb(base+REGULAR_STATUS); //read status until error or DRQ
-			if (status & DRQ) break;
-			if (status & ERR) break;
-			if (status & DF) break;
-		}
+		}while(!(status & (DRQ | ERR | DF)));
+
 		if(status & ERR || status &DF){
 			//there was an error requesting
 			c_printf("error reading the identify block");
@@ -298,10 +375,22 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 		if(!(status & DRQ)){
 			return -1;
 		}
-
+		//read in the identify block
 		for(i =0; i < 256; i++){
 			block[i] = __inw(base+DATA);
 		}
+
+		Identify_packet *ip=(Identify_packet *) block;
+	
+		for (i=0;i<40;i+=2){
+			d->model[i]=ip->model[i+1];
+			d->model[i+1]=ip->model[i];
+			if(d->model[i] < ' ' || d->model[i] > '~')
+				break;
+		}
+		c_printf("%s",d->model);	
+		
+		//check sector count
 		if (block[83] & (1<<10) ){
 			d->type=LBA48;
 			d->sectors=*(Uint64* ) &block[100];
@@ -320,7 +409,6 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 
 
 void _ata_init(void){
-
 	struct pci_func f;
 	f.bus = 0;
 	f.slot = 0;
@@ -328,6 +416,7 @@ void _ata_init(void){
 
 	int currentBus=0;
 	int i,j;
+
 	for(i =0; i< ATA_MAX_BUSSES;i++){
 		for (j=0;j<ATA_DRIVES_PER_BUS;j++){
 			busses[i].drives[j].type=INVALID_DRIVE;
@@ -354,37 +443,20 @@ void _ata_init(void){
 
 			busses[currentBus].interrupt_line = read_pci_conf_byte(f.bus,f.slot,f.func,PCI_INTERRUPT_LINE);
 
-
 			Uint8 i;
-			for(i =0;i<5;i++){
-				c_printf("BAR%d %x ", i, BAR[i]);
-			}
-			c_printf("irq: 0x%x\n",busses[currentBus].interrupt_line);			
 
-			//check if this is an ATA drive
+			//check if this is an ATA drive (not supported for now)
 			if (BAR[0] == 0x01 || BAR[0]==0x00){
 				BAR[0]=0x1F0;
-				//BAR[1]=0x3F4;
-				//BAR[2]=0x170;
-				//BAR[3]=0x374;
-			}
-			if (BAR[1] == 0x01 || BAR[1]==0x00){
 				BAR[1]=0x3F4;
+				BAR[3]=0x170;
+				BAR[4]=0x374;
+				
 			}
-			if (BAR[2] == 0x01 || BAR[2]==0x00){
-				BAR[2]=0x170;
-			}
-			if (BAR[3] == 0x01 || BAR[3]==0x00){
-				BAR[3]=0x374;
-			}
-			if (BAR[4] == 0x01 || BAR[4]==0x00){
-				//no busmaster on this device
-			}
-
+			
 			for(i =0;i<5;i++){
 				c_printf("BAR%d %x ", i, BAR[i]);
 			}
-
 			c_printf("irq: 0x%x\n",busses[currentBus].interrupt_line);			
 
 			busses[currentBus].primary_base=BAR[0];
@@ -392,35 +464,29 @@ void _ata_init(void){
 			busses[currentBus].secondary_base=BAR[2];
 			busses[currentBus].secondary_control=BAR[3]+2;
 
-			if (BAR[0] != 0x1f0){
+			//TODO: figure out why regular PATA drives aren't working
+			if (1 || BAR[0] != 0x1f0){
 				_ata_identify(0, BAR[0],BAR[1]+2,&busses[currentBus].drives[0]);
 				_ata_identify(1, BAR[0],BAR[1]+2,&busses[currentBus].drives[1]);
 				_ata_identify(0, BAR[2],BAR[3]+2,&busses[currentBus].drives[2]);
 				_ata_identify(1, BAR[2],BAR[3]+2,&busses[currentBus].drives[3]);
 				disableIRQ(&busses[currentBus]);
 
-
-
-				for(i=0;i<4;i++){
-					if (busses[currentBus].drives[i].type!=INVALID_DRIVE){
-						_ata_read(&busses[currentBus].drives[i],0,1,block);
-						for (j=200;j<256;j++){
-							c_printf("%x ",block[j]);
-						}
-						_ata_read(&busses[currentBus].drives[i],0,1,block);
-						for (j=200;j<256;j++){
-							c_printf("%x ",block[j]);
-						}
-
-					}	
-				}
-			}	
-
+			}
 			currentBus++;
 		}
-
-
 	}
+
+	_ata_read_blocking(&busses[0].drives[0],0,1,block);
+	for (j=200;j<256;j++){
+		c_printf("%x ",block[j]);
+		block[j]^=0xFF00;
+	}
+	_ata_write_blocking(&busses[0].drives[0],0,1,block);
+	_ata_read_blocking(&busses[0].drives[0],0,1,block);
+	for (j=200;j<256;j++){
+		c_printf("%x ",block[j]);
+	}
+
 	c_puts( " ATA" );
 }
-
