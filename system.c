@@ -25,6 +25,7 @@
 #include "vbe.h"
 #include "mman.h"
 #include "c_io.h"
+#include "ata.h"
 
 // need init() address
 #include "kmap.h"
@@ -268,7 +269,7 @@ void _init( void ) {
 	_sched_init();
 	_clock_init();
 	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size());
-
+	_ata_init();
 
 	c_puts( "\n" );
 

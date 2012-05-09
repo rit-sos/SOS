@@ -27,6 +27,9 @@ typedef unsigned int	Uint;
 
 // size-specific integer types
 
+typedef long long 		Int64;
+typedef unsigned long long	Uint64;
+
 typedef long		Int32;
 typedef unsigned long	Uint32;
 
@@ -45,7 +48,7 @@ typedef unsigned char	Uint8;
 typedef enum stat {
 	SUCCESS=0, FAILURE, BAD_PARAM, EMPTY_QUEUE, NOT_EMPTY_QUEUE,
 	ALLOC_FAILED, NOT_FOUND, NO_QUEUES, BAD_PRIO,
-	STATUS_SENTINEL
+	STATUS_SENTINEL, OUT_OF_BOUNDS
 } Status;
 
 // Key type (used for ordering things)
