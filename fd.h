@@ -132,6 +132,20 @@ Status _fd_write(Fd *fd, char c);
 int _fd_available(Fd *fd);
 
 /*
+ ** _fd_flush_rx(file)
+ **
+ ** Flush the rx buffer 
+ **
+ */
+void _fd_flush_rx(Fd *fd);
+/*
+ ** _fd_flush_tx(file)
+ **
+ ** Flush the tx buffer 
+ **
+ */
+void _fd_flush_tx(Fd *fd);
+/*
  ***************************************
  ** Functions for device to supply data
  **************************************

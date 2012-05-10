@@ -289,11 +289,8 @@ Status _ata_fclose(Fd *fd){
 	}
 	
 	_ata_flush(fd);
-	c_puts("flushed!");
 	fd_dat_dealloc(fd->device_data);
-	c_puts("dat dealloced!");
 	_fd_dealloc (fd);
-	c_puts("fd dealloced!");
 	return SUCCESS;	
 
 }
@@ -327,7 +324,6 @@ Status _ata_flush(Fd *fd){
 			c_puts("error writing block on writeback");
 			return FAILURE;
 		}		
-		
 	}
 	return SUCCESS;
 }
@@ -383,8 +379,17 @@ Status _ata_write_blocking(Fd* fd){
 			block);
 
 	if (blocks_wrote < 0) blocks_wrote=0;
+	
+	//if we just wrote to the sector we last read from, we made our FD dirty
+	if(dev_data->write_sector == dev_data->read_sector-1 && fd->write_index > fd->read_index){	
+		//we just overwrote the sector we are reading from. Update said data
+		_fd_flush_rx(fd);
+		for (i=fd->read_index % SECTOR_SIZE; i < SECTOR_SIZE; i++){
+			_fd_readBack(fd,data[i]);
+		}
+	}		
+	
 	dev_data->write_sector+=blocks_wrote;
-
 	_fd_writeDone(fd);
 	return SUCCESS;
 }
@@ -426,7 +431,6 @@ int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf 
 				for(j =0; j < 256; j++){
 					__outw(d->base+DATA, buf[i*256+j]);
 				}
-				c_printf(".");
 			}
 			break;
 
@@ -453,6 +457,7 @@ int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf 
 int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
 	volatile unsigned char status = 0;
 	Uint16 i,j;
+	
 
 	if(d->type== INVALID_DRIVE){
 		c_printf("Invalid drive\n");
@@ -488,9 +493,7 @@ int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf )
 				for(j =0; j < 256; j++){
 					buf[i*256+j] = __inw(d->base+DATA);
 				}
-				c_printf(".");
 			}
-			c_printf("done!\n");
 			break;
 
 		case LBA28:

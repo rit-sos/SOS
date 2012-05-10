@@ -215,7 +215,6 @@ int _fd_read(Fd *fd){
 
 	Status status;
 	if (fd->startRead!= NULL && _fd_available(fd) <= fd->rxwatermark){ //if we need to request a read
-		c_printf("only %d bytes left in fd %d\n", _fd_available(fd), fd-_fds);
 		status = fd->startRead(fd);
 	}
 
@@ -243,6 +242,32 @@ int _fd_read(Fd *fd){
 int _fd_available(Fd *fd){
 	return buffer_size(&fd->inbuffer);
 }
+/*
+ ** _fd_flush_rx(file)
+ **
+ ** Flush the rx buffer 
+ **
+ */
+void _fd_flush_rx(Fd *fd){
+	int i, chars;
+	while(! buffer_empty(&fd->inbuffer)){
+		buffer_get(&fd->inbuffer);	
+	}
+}
+/*
+ ** _fd_flush_tx(file)
+ **
+ ** Flush the tx buffer 
+ **
+ */
+void _fd_flush_tx(Fd *fd){
+	int i, chars;
+	chars = buffer_size(&fd->outbuffer);
+	for (i=0;i< chars; i++){
+		buffer_get(&fd->outbuffer);	
+	}
+}
+
 
 /*
  ****************************************************************************
