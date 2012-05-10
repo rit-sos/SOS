@@ -1,4 +1,3 @@
-
 /*
 **
 ** File:	fd.c
@@ -87,7 +86,7 @@ inline int buffer_size(Buffer *b){
  ** returns new fd on success, NULL on failure
  */
 
-Fd *_fd_alloc(Rwflags flags){
+Fd *_fd_alloc(Flags flags){
 	Fd *fd;
 
 	if( _q_remove( _fd_free_queue, (void **) &fd ) != SUCCESS ) {
@@ -105,6 +104,8 @@ Fd *_fd_alloc(Rwflags flags){
 		}
 
 	}
+	fd->read_index=0;	
+	fd->write_index=0;	
 	fd->inbuffer.in=0;	
 	fd->inbuffer.out=0;	
 
@@ -118,6 +119,7 @@ Status _fd_dealloc(Fd *toFree){
 	if(toFree == NULL){
 		return( BAD_PARAM ); 
 	}
+	toFree->flags = FD_UNUSED;
 
 	key.i = 0;
 	return( _q_insert( _fd_free_queue, (void *) toFree, key) );
@@ -174,15 +176,24 @@ void _fd_init(void){
  ** returns status 
  */
 Status _fd_write(Fd *fd, char c){
+	Status status;
 	//if outbuffer is not full
+	status = SUCCESS;
+
 	if(!buffer_full(&fd->outbuffer)){
 		
 		buffer_put(&fd->outbuffer,c);
+		fd->write_index++;
 		
 		if (fd->startWrite!= NULL && buffer_size(&fd->outbuffer) >= fd->txwatermark){ //if we need to request a write
 			//start the write
-			fd->startWrite(fd);
+			status = fd->startWrite(fd);
+		}	
+
+		if(fd->flags & FD_EOF || status == EOF){
+			return EOF;
 		}
+
 		return SUCCESS;
 	}else{
 		return FAILURE;
@@ -198,12 +209,24 @@ Status _fd_write(Fd *fd, char c){
  ** returns the read character, or -1 if none was read. 
  */
 int _fd_read(Fd *fd){
+	if (fd->flags & FD_UNUSED){
+		return -1;
+	}	
+
+	Status status;
 	if (fd->startRead!= NULL && _fd_available(fd) <= fd->rxwatermark){ //if we need to request a read
 		c_printf("only %d bytes left in fd %d\n", _fd_available(fd), fd-_fds);
-		fd->startRead(fd);
+		status = fd->startRead(fd);
 	}
+
+	if(status == EOF){
+		fd->flags |= FD_EOF;
+		return -1;
+	}
+
 	//if inbuffer is not empty
 	if(!buffer_empty(&fd->inbuffer)){
+		fd->read_index++;
 		return (int) buffer_get(&fd->inbuffer);
 	}else{
 		return -1;
@@ -305,11 +328,10 @@ int _fd_writeDone(Fd *fd){
 	if(!_q_empty(_writing)){
 		status = _q_remove_by_key( _writing, (void **) &pcb, key );
 		if (status==SUCCESS){
-			Status stat;
 			//attempt to put the blocked process's character into the queue
-			stat=_fd_write(fd,ARG(pcb)[2]);
+			status=_fd_write(fd,ARG(pcb)[2]);
 
-			if (stat != SUCCESS){
+			if (status != SUCCESS){
 				c_puts("Second chance write failed!");
 			}
 
@@ -317,8 +339,7 @@ int _fd_writeDone(Fd *fd){
 			//schedule process
 			_sched(pcb);
 
-		}
-		if (status==NOT_FOUND){
+		}else if (status==NOT_FOUND){
 			//this just means that the thing in the queue wasn't blocking on this FD.	
 		}
 	}
@@ -334,6 +355,7 @@ int _fd_writeDone(Fd *fd){
  */
 int _fd_getTx(Fd *fd){
 	int c;
+	c=-1;
 	//if outbuffer is not empty
 	if(!buffer_empty(&fd->outbuffer)){
 		c = buffer_get(&fd->outbuffer);

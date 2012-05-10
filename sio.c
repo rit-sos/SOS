@@ -103,11 +103,11 @@ static Uint8 _ier;
 /*
 **PRIVATE FUNCTIONS
 */
-void _sio_startWrite(Fd *fd){
+Status _sio_startWrite(Fd *fd){
 	int ch;
 
 	if( _sending ) {
-		return;
+		return SUCCESS;
 	}
 	//
 	// Not sending - must prime the pump
@@ -122,16 +122,16 @@ void _sio_startWrite(Fd *fd){
 	// Also must enable transmitter interrupts
 
 	_sio_enable( SIO_TX );
-
+	return SUCCESS;
 }
 
 /*
-** PUBLIC FUNCTIONS
-*/
+ ** PUBLIC FUNCTIONS
+ */
 
 /*
-** _isr_sio - serial i/o ISR
-*/
+ ** _isr_sio - serial i/o ISR
+ */
 
 void _isr_sio( int vector, int code ) {
 	int eir, lsr, msr;
@@ -150,67 +150,67 @@ void _isr_sio( int vector, int code ) {
 		// process this event
 		switch( eir ) {
 
-		   case UA4_EIR_LINE_STATUS_INT_PENDING:
-			// shouldn't happen, but just in case....
-			lsr = __inb( UA4_LSR );
-			c_printf( "** SIO line status, LSR = %02x\n", lsr );
-			break;
+			case UA4_EIR_LINE_STATUS_INT_PENDING:
+				// shouldn't happen, but just in case....
+				lsr = __inb( UA4_LSR );
+				c_printf( "** SIO line status, LSR = %02x\n", lsr );
+				break;
 
-		   case UA4_EIR_RX_INT_PENDING:
-			// get the character
-			ch = __inb( UA4_RXD );
-			if( ch == '\r' ) {	// map CR to LF
-				ch = '\n';
-			}
-			//run the callback for getting data
-			_fd_readBack(&_fds[SIO_FD],ch);
-			_fd_readDone(&_fds[SIO_FD]);
-			break;
-
-		   case UA5_EIR_RX_FIFO_TIMEOUT_INT_PENDING:
-			// shouldn't happen, but just in case....
-			ch = __inb( UA4_RXD );
-			c_printf( "** SIO FIFO timeout, RXD = %02x\n", ch );
-			break;
-
-		   case UA4_EIR_TX_INT_PENDING:
-			// if there is another character, send it
-			if( _sending && _outcount > 0 ) {
-				__outb( UA4_TXD, *_outnext );
-				++_outnext;
-				// wrap around if necessary
-				if( _outnext >= (_outbuffer + BUF_SIZE) ) {
-					_outnext = _outbuffer;
+			case UA4_EIR_RX_INT_PENDING:
+				// get the character
+				ch = __inb( UA4_RXD );
+				if( ch == '\r' ) {	// map CR to LF
+					ch = '\n';
 				}
-				--_outcount;
-			} else {
-				// no more data - reset the output vars
-				_outcount = 0;
-				_outlast = _outnext = _outbuffer;
-				_sending = 0;
-				// disable TX interrupts
-				_sio_disable( SIO_TX );
-			}
-			break;
+				//run the callback for getting data
+				_fd_readBack(&_fds[SIO_FD],ch);
+				_fd_readDone(&_fds[SIO_FD]);
+				break;
 
-		   case UA4_EIR_NO_INT:
-			// nothing to do - tell the PIC we're done
-			__outb( PIC_MASTER_CMD_PORT, PIC_EOI );
-			return;
+			case UA5_EIR_RX_FIFO_TIMEOUT_INT_PENDING:
+				// shouldn't happen, but just in case....
+				ch = __inb( UA4_RXD );
+				c_printf( "** SIO FIFO timeout, RXD = %02x\n", ch );
+				break;
 
-		   case UA4_EIR_MODEM_STATUS_INT_PENDING:
-			// shouldn't happen, but just in case....
-			msr = __inb( UA4_MSR );
-			c_printf( "** SIO modem status, MSR = %02x\n", msr );
-			break;
+			case UA4_EIR_TX_INT_PENDING:
+				// if there is another character, send it
+				if( _sending && _outcount > 0 ) {
+					__outb( UA4_TXD, *_outnext );
+					++_outnext;
+					// wrap around if necessary
+					if( _outnext >= (_outbuffer + BUF_SIZE) ) {
+						_outnext = _outbuffer;
+					}
+					--_outcount;
+				} else {
+					// no more data - reset the output vars
+					_outcount = 0;
+					_outlast = _outnext = _outbuffer;
+					_sending = 0;
+					// disable TX interrupts
+					_sio_disable( SIO_TX );
+				}
+				break;
 
-		   default:
-			// make sure the code prints
-			_kpanic( "_isr_sio", "unknown device status (+100k)",
-				 eir + 100000 );
+			case UA4_EIR_NO_INT:
+				// nothing to do - tell the PIC we're done
+				__outb( PIC_MASTER_CMD_PORT, PIC_EOI );
+				return;
+
+			case UA4_EIR_MODEM_STATUS_INT_PENDING:
+				// shouldn't happen, but just in case....
+				msr = __inb( UA4_MSR );
+				c_printf( "** SIO modem status, MSR = %02x\n", msr );
+				break;
+
+			default:
+				// make sure the code prints
+				_kpanic( "_isr_sio", "unknown device status (+100k)",
+						eir + 100000 );
 
 		}
-	
+
 	}
 
 	// should never reach this point!
@@ -220,15 +220,15 @@ void _isr_sio( int vector, int code ) {
 }
 
 /*
-** _sio_init()
-**
-** Initialize the UART chip.
-*/
+ ** _sio_init()
+ **
+ ** Initialize the UART chip.
+ */
 void _sio_init( void ) {
 
 	/*
-	** Initialize SIO variables.
-	*/
+	 ** Initialize SIO variables.
+	 */
 
 	_kmemclr( (void *) _inbuffer, sizeof(_inbuffer) );
 	_inlast = _innext = _inbuffer;
@@ -242,62 +242,62 @@ void _sio_init( void ) {
 
 
 	/*
-	** Next, initialize the UART.
-	*/
+	 ** Next, initialize the UART.
+	 */
 
 	/*
-	** Initialize the FIFOs
-	**
-	** this is a bizarre little sequence of operations
-	*/
+	 ** Initialize the FIFOs
+	 **
+	 ** this is a bizarre little sequence of operations
+	 */
 
 	__outb( UA4_FCR, 0x20 );
 	__outb( UA4_FCR, UA5_FCR_FIFO_RESET );	// 0x00
 	__outb( UA4_FCR, UA5_FCR_FIFO_EN );	// 0x01
 	__outb( UA4_FCR, UA5_FCR_FIFO_EN |
-			 UA5_FCR_RXSR );	// 0x03
+			UA5_FCR_RXSR );	// 0x03
 	__outb( UA4_FCR, UA5_FCR_FIFO_EN |
-			 UA5_FCR_RXSR |
-			 UA5_FCR_TXSR );	// 0x07
+			UA5_FCR_RXSR |
+			UA5_FCR_TXSR );	// 0x07
 
 	/*
-	** disable interrupts
-	**
-	** note that we leave them disabled; _sio_enable() must be
-	** called to switch them back on
-	*/
+	 ** disable interrupts
+	 **
+	 ** note that we leave them disabled; _sio_enable() must be
+	 ** called to switch them back on
+	 */
 
 	__outb( UA4_IER, 0 );
 	_ier = 0;
 
 	/*
-	** select bank 1 and set the data rate
-	*/
+	 ** select bank 1 and set the data rate
+	 */
 
 	__outb( UA4_LCR, UA4_LCR_BANK1 );
 	__outb( UA4_LBGD_L, BAUD_LOW_BYTE( BAUD_9600 ) );
 	__outb( UA4_LBGD_H, BAUD_HIGH_BYTE( BAUD_9600 ) );
 
 	/*
-	** Select bank 0, and at the same time set the LCR for our
-	** data characteristics.
-	*/
+	 ** Select bank 0, and at the same time set the LCR for our
+	 ** data characteristics.
+	 */
 
 	__outb( UA4_LCR, UA4_LCR_BANK0 |
-			 UA4_LCR_BITS_8 |
-			 UA4_LCR_1_STOP_BIT |
-			 UA4_LCR_NO_PARITY );
-	
+			UA4_LCR_BITS_8 |
+			UA4_LCR_1_STOP_BIT |
+			UA4_LCR_NO_PARITY );
+
 	/*
-	** Set the ISEN bit to enable the interrupt request signal.
-	*/
+	 ** Set the ISEN bit to enable the interrupt request signal.
+	 */
 
 	__outb( UA4_MCR, UA4_MCR_ISEN | UA4_MCR_DTR | UA4_MCR_RTS );
 
 
 	/*
-	** Set up our file descriptor.
-	*/
+	 ** Set up our file descriptor.
+	 */
 	_fds[SIO_FD].startRead=NULL;
 	_fds[SIO_FD].startWrite=&_sio_startWrite;
 	_fds[SIO_FD].flags= FD_RW;
@@ -306,23 +306,23 @@ void _sio_init( void ) {
 
 
 	/*
-	** Report that we're done.
-	*/
+	 ** Report that we're done.
+	 */
 	c_puts( " sio" );
 
 }
 
 /*
-** _sio_enable()
-**
-** enable SIO interrupts
-**
-** usage:	old = _sio_enable( which )
-**
-** enables interrupts according to the 'which' parameter
-**
-** returns the prior settings
-*/
+ ** _sio_enable()
+ **
+ ** enable SIO interrupts
+ **
+ ** usage:	old = _sio_enable( which )
+ **
+ ** enables interrupts according to the 'which' parameter
+ **
+ ** returns the prior settings
+ */
 
 Uint8 _sio_enable( Uint8 which ) {
 	Uint8 old;
@@ -353,16 +353,16 @@ Uint8 _sio_enable( Uint8 which ) {
 }
 
 /*
-** _sio_disable()
-**
-** disable SIO interrupts
-**
-** usage:	old = _sio_disable( which )
-**
-** disables interrupts according to the 'which' parameter
-**
-** returns the prior settings
-*/
+ ** _sio_disable()
+ **
+ ** disable SIO interrupts
+ **
+ ** usage:	old = _sio_disable( which )
+ **
+ ** disables interrupts according to the 'which' parameter
+ **
+ ** returns the prior settings
+ */
 
 Uint8 _sio_disable( Uint8 which ) {
 	Uint8 old;
@@ -394,14 +394,14 @@ Uint8 _sio_disable( Uint8 which ) {
 
 
 /*
-** _sio_readc()
-**
-** get the next input character
-**
-** usage:	ch = _sio_readc()
-**
-** returns the next character, or -1 if no character is available
-*/
+ ** _sio_readc()
+ **
+ ** get the next input character
+ **
+ ** usage:	ch = _sio_readc()
+ **
+ ** returns the next character, or -1 if no character is available
+ */
 
 int _sio_readc( void ) {
 	int ch;
@@ -431,12 +431,12 @@ int _sio_readc( void ) {
 }
 
 /*
-** _sio_reads(buf,length)
-**
-** read the entire input buffer into a user buffer of a specified size
-**
-** returns the number of bytes copied, or 0 if no characters were available
-*/
+ ** _sio_reads(buf,length)
+ **
+ ** read the entire input buffer into a user buffer of a specified size
+ **
+ ** returns the number of bytes copied, or 0 if no characters were available
+ */
 
 int _sio_reads( char *buf, int length ) {
 	char *ptr = buf;
@@ -475,12 +475,12 @@ int _sio_reads( char *buf, int length ) {
 
 
 /*
-** _sio_writec( ch )
-**
-** write a character to the serial output
-**
-** usage:	_sio_writec( ch )
-*/
+ ** _sio_writec( ch )
+ **
+ ** write a character to the serial output
+ **
+ ** usage:	_sio_writec( ch )
+ */
 
 void _sio_writec( int ch ){
 
@@ -516,12 +516,12 @@ void _sio_writec( int ch ){
 }
 
 /*
-** _sio_writes( buffer, length )
-**
-** write a buffer of characters to the serial output
-**
-** returns the number of characters copied into the buffer
-*/
+ ** _sio_writes( buffer, length )
+ **
+ ** write a buffer of characters to the serial output
+ **
+ ** returns the number of characters copied into the buffer
+ */
 
 int _sio_writes( char *buffer, int length ) {
 	int first = *buffer;
@@ -567,10 +567,10 @@ int _sio_writes( char *buffer, int length ) {
 }
 
 /*
-** _sio_dump()
-**
-** dump the contents of the SIO buffers
-*/
+ ** _sio_dump()
+ **
+ ** dump the contents of the SIO buffers
+ */
 
 void _sio_dump( void ) {
 

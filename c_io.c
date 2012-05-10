@@ -579,10 +579,10 @@ static void __c_keyboard_isr( int vector, int code ){
 }
 
 
-void c_startWrite(Fd *fd){
+Status c_startWrite(Fd *fd){
 	int c=_fd_getTx(fd);
 	c_putchar(c);
-
+	return SUCCESS;
 }	
 
 

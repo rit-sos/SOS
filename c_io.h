@@ -60,7 +60,7 @@
 
 #ifndef __ASM__20113__
 
-void c_startWrite(Fd *fd);
+Status c_startWrite(Fd *fd);
 /*
 ** Name:	c_io_init
 **

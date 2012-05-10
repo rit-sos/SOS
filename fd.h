@@ -37,8 +37,10 @@
 typedef enum rwflags{
 	FD_R=0x01,
 	FD_W=0x02,
-	FD_RW=0x03
-}Rwflags;
+	FD_RW=0x03,
+	FD_EOF=0x04,
+	FD_UNUSED=0x08
+}Flags;
 
 typedef struct buffer{
 	char buff[FD_BUF_SIZE];
@@ -48,11 +50,13 @@ typedef struct buffer{
 
 
 typedef struct Fd{
-	Buffer inbuffer;
-	Buffer outbuffer;
-	Rwflags flags;
-	void (*startRead)(struct Fd *fd);	//request more data from the driver.. If we can't, then NULL
-	void (*startWrite)(struct Fd *fd);	//request that the device start writing. If we can't, then NULL
+	Buffer	inbuffer;
+	Buffer	outbuffer;
+	Flags flags;
+	Uint	read_index;
+	Uint	write_index;
+	Status (*startRead)(struct Fd *fd);	//request more data from the driver.. If we can't, then NULL
+	Status (*startWrite)(struct Fd *fd);	//request that the device start writing. If we can't, then NULL
 	void *device_data;			//pointer to device specific data assocaited with this filestream
 	Uint16 txwatermark,rxwatermark;		//watermarks to trigger flushes
 }Fd;
@@ -81,7 +85,7 @@ extern Fd _next_fd;		// next free fd
 **
 ** returns new fd on success, NULL on failure
 */
-Fd *_fd_alloc(Rwflags flags);
+Fd *_fd_alloc(Flags flags);
 
 /*
 ** _fd_dealloc(toFree)
