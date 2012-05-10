@@ -42,7 +42,10 @@ const char *ustatus_strings[] = {
 	"allocation failed",	/* ALLOC_FAILED */
 	"not found",		/* NOT_FOUND */
 	"no queues",		/* NO_QUEUES */
-	"bad priority"		/* BAD_PRIO */
+	"bad priority",		/* BAD_PRIO */
+	"status sentinel",	/* STATUS_SENTINEL*/
+	"out of bounds",	/* OUT_OF_BOUNDS*/
+	"end of file",		/* EOF */
 };
 
 /*

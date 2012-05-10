@@ -80,11 +80,13 @@ void _ata_init(void);
 ** sectorcount -- the number of sectors to read. Note: buffer must be 256 words * this size
 ** buf -- the word buffer that will hold the data
 */
-Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Rwflags flags);
+Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Flags flags);
+Status _ata_fclose(Fd *fd);
+Status _ata_flush(Fd *fd);
+Status _ata_read_blocking(Fd* fd);
+Status _ata_write_blocking(Fd* fd);
 int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );
 int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );
-void _ata_read_blocking(Fd* fd);
-void _ata_write_blocking(Fd* fd);
 
 #endif
 

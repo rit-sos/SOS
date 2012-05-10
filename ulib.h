@@ -79,7 +79,7 @@ Status exit(void);
 /*
 ** fopen- open a file 
 **
-** usage:	status = fopen(sectorstart, length, );
+** usage:	status = fopen(sectorstart, length, int *fd);
 **
 **
 ** returns:
@@ -88,6 +88,16 @@ Status exit(void);
 */
 Status fopen(Uint64 sectorstart, Uint16 length, int *fd);
 
+/*
+** fclose- close an open file 
+**
+** usage:	status = fopen(int *fd);
+**
+**
+** returns:
+**      status of the operation
+*/
+Status fclose(int fd);
 /*
 ** read - read a single character from the SIO
 **

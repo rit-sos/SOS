@@ -26,7 +26,8 @@
  */
 
 
-#define ATA_MAX_FILES 16
+#define ATA_MAX_FILES 	16
+#define SECTOR_SIZE	512
 
 /*
  *PCI device codes
@@ -113,8 +114,8 @@ typedef struct ata_fd_data{
 	Drive *d;
 	Uint64 sector_start;
 	Uint64 sector_end;
-	Uint64 read_index;
-	Uint64 write_index;
+	Uint64 read_sector;
+	Uint64 write_sector;
 }Ata_fd_data;
 
 typedef struct Identify_packet{
@@ -241,7 +242,7 @@ void lba_set_sectors(Drive *d, Uint64 sector, Uint16 sectorcount){
  ** PUBLIC FUNCTIONS
  */
 
-Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Rwflags flags){
+Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Flags flags){
 	Fd* fd;
 	Ata_fd_data *dev_data;
 	if(d->type == INVALID_DRIVE){
@@ -261,8 +262,8 @@ Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Rwflags flags){
 	dev_data->d=d;
 	dev_data->sector_start=sector;	
 	dev_data->sector_end=sector+len;
-	dev_data->read_index=sector;
-	dev_data->write_index=sector;
+	dev_data->read_sector=sector;
+	dev_data->write_sector=sector;
 	fd->device_data=dev_data;
 	
 	if (flags & FD_R){
@@ -275,65 +276,117 @@ Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Rwflags flags){
 	}else{
 		fd->startWrite=NULL;
 	}
-
 	
 	fd->rxwatermark = 1;
-	fd->txwatermark = 512;
+	fd->txwatermark = SECTOR_SIZE;
 	
 	return fd;
 }
 
-void _ata_read_blocking(Fd* fd){
+Status _ata_fclose(Fd *fd){
+	if(fd->flags == FD_UNUSED){
+		return FAILURE;
+	}
+	
+	_ata_flush(fd);
+	c_puts("flushed!");
+	fd_dat_dealloc(fd->device_data);
+	c_puts("dat dealloced!");
+	_fd_dealloc (fd);
+	c_puts("fd dealloced!");
+	return SUCCESS;	
+
+}
+
+Status _ata_flush(Fd *fd){
+	int i;
+	char *data;
+	int blocks_rw;
+	Ata_fd_data *dev_data;
+	
+	dev_data=(Ata_fd_data *)fd->device_data;
+	data=(char *)block;
+	
+	if(fd->write_index % SECTOR_SIZE){
+		//read in the sector we need to write to.
+		blocks_rw = read_raw_blocking(dev_data->d,
+				dev_data->write_sector,
+				1, block);
+		if(blocks_rw != 1){
+			c_puts("error reading back block on writeback");
+			return FAILURE;
+		}		
+		for(i = 0 ; i < fd->write_index % SECTOR_SIZE;i++){
+			data[i]= _fd_getTx(fd);
+		}
+		blocks_rw = write_raw_blocking(dev_data->d,
+				dev_data->write_sector,
+				1, block);
+		c_puts("wrote 1 block");
+		if(blocks_rw != 1){
+			c_puts("error writing block on writeback");
+			return FAILURE;
+		}		
+		
+	}
+	return SUCCESS;
+}
+
+
+Status _ata_read_blocking(Fd* fd){
 	Ata_fd_data *dev_data;
 	int blocks_read,i;
 	char *data;
 	dev_data=(Ata_fd_data *)fd->device_data;
-	
-	if(dev_data->read_index > dev_data->sector_end){
-		return;
+
+	if(dev_data->read_sector >= dev_data->sector_end){
+		fd->flags |= FD_EOF;
+		return EOF;
 	}
-	
-	blocks_read = read_raw_blocking(	dev_data->d,
-					dev_data->read_index,
-					1,
-					block);
+
+	blocks_read = read_raw_blocking(dev_data->d,
+			dev_data->read_sector,
+			1,
+			block);
 	data=(char *)block;
-	
+
 	if (blocks_read < 0) blocks_read=0;
-	dev_data->read_index+=blocks_read;
-	for(i =0;i<blocks_read*512;i++){
+	dev_data->read_sector+=blocks_read;
+	for(i =0;i<blocks_read*SECTOR_SIZE;i++){
 		_fd_readBack(fd,data[i]);
 	}
 	_fd_readDone(fd);
+	return SUCCESS;
 }
 
-void _ata_write_blocking(Fd* fd){
-	
+Status _ata_write_blocking(Fd* fd){
+
 	Ata_fd_data *dev_data;
 	int blocks_wrote,i;
 	char *data;
 	dev_data=(Ata_fd_data *)fd->device_data;
-	
-	if(dev_data->read_index > dev_data->sector_end){
-		return;
+
+	if(dev_data->write_sector >= dev_data->sector_end){
+		fd->flags |= FD_EOF;
+		return EOF;
 	}
-	
+
 	data=(char *)block;
-	
-	for(i =0;i<512;i++){
+
+	for(i =0;i<SECTOR_SIZE;i++){
 		data[i]= _fd_getTx(fd);
 	}
-	
+
 	blocks_wrote = write_raw_blocking(dev_data->d,
-					dev_data->write_index,
-					1,
-					block);
-	
+			dev_data->write_sector,
+			1,
+			block);
+
 	if (blocks_wrote < 0) blocks_wrote=0;
-	dev_data->write_index+=blocks_wrote;
+	dev_data->write_sector+=blocks_wrote;
 
-	_fd_readDone(fd);
-
+	_fd_writeDone(fd);
+	return SUCCESS;
 }
 
 
@@ -613,10 +666,10 @@ void _ata_init(void){
 
 			}
 			/*
-			for(i =0;i<5;i++){
-				c_printf("BAR%d %x ", i, BAR[i]);
-			}
-			c_printf("irq: 0x%x\n",_busses[currentBus].interrupt_line);*/
+			   for(i =0;i<5;i++){
+			   c_printf("BAR%d %x ", i, BAR[i]);
+			   }
+			   c_printf("irq: 0x%x\n",_busses[currentBus].interrupt_line);*/
 
 			_busses[currentBus].primary_base=BAR[0];
 			_busses[currentBus].primary_control=BAR[1]+2;

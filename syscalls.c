@@ -202,19 +202,35 @@ static void _sys_fopen( Pcb *pcb ) {
 	Uint16 length;
 	Fd *fd;
 	int *ptr;
+	fd = NULL;
 
 	sectorstart=((Uint64) ARG(pcb)[2])<<32 | ARG(pcb)[1];//64 bits passed as one arg. No idea if endianness is right
 	length=ARG(pcb)[3];
 	ptr = (int *) (ARG(pcb)[4]);
 
 	fd=_ata_fopen(&_busses[0].drives[0],sectorstart,length,FD_RW);
-
+	
 	if(fd!=NULL){
 		RET(pcb) = SUCCESS;
 		*ptr=fd-_fds;
 	}else{
 		RET(pcb) = FAILURE;
 	}
+}
+/*
+ ** _sys_fclose- close an open file 
+ **
+ ** implements:	Status fclose(int *fd);
+ **
+ ** returns:
+ **	status of the operation
+ */
+
+static void _sys_fclose( Pcb *pcb ) {
+	Status status;
+
+	status = _ata_fclose(&_fds[ARG(pcb)[1]]);
+	RET(pcb)=status;
 }
 /*
  ** _sys_read - read a single character from the supplied FD 
@@ -239,6 +255,12 @@ static void _sys_read( Pcb *pcb ) {
 
 
 	fd=ARG(pcb)[1];
+	
+	if (_fds[fd].flags & FD_UNUSED){
+		RET(pcb) = FAILURE;
+		return;
+	}
+
 	ch =_fd_read(&_fds[fd]);
 
 	// if there was a character, return it to the process;
@@ -251,6 +273,8 @@ static void _sys_read( Pcb *pcb ) {
 		*ptr = ch & 0xFF;
 		RET(pcb) = SUCCESS;
 
+	} else if (_fds[fd].flags & FD_EOF){
+		RET(pcb) = EOF;
 	} else {
 
 		// no character; put this process on the
@@ -268,8 +292,6 @@ static void _sys_read( Pcb *pcb ) {
 		_dispatch();
 
 	}
-
-
 }
 
 /*
@@ -293,7 +315,7 @@ static void _sys_write( Pcb *pcb ) {
 	// syscall implementation
 
 	status = _fd_write(&_fds[fd], ch);
-	if (status != SUCCESS){
+	if (status != SUCCESS && status != EOF){
 
 		// no character; block this process on the fd
 
@@ -310,7 +332,7 @@ static void _sys_write( Pcb *pcb ) {
 	}
 
 
-	RET(pcb) = SUCCESS;
+	RET(pcb) = status; 
 
 }
 
@@ -672,6 +694,7 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_vbe_print_char ]= _sys_vbe_print_char;
 	_syscall_tbl[ SYS_vbe_clearscreen ]= _sys_vbe_clearscreen;
 	_syscall_tbl[ SYS_fopen]          = _sys_fopen;
+	_syscall_tbl[ SYS_fclose]         = _sys_fclose;
 
 	//	these are syscalls we elected not to implement
 	//	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;

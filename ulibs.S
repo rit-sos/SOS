@@ -68,6 +68,7 @@ SYSCALL(vbe_print)
 SYSCALL(vbe_print_char)
 SYSCALL(vbe_clearscreen)
 SYSCALL(fopen)
+SYSCALL(fclose)
 // This is a bogus system call; it's here so that we can test
 // our handling of out-of-range syscall codes in the syscall ISR.
 
