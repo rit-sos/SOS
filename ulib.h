@@ -76,6 +76,17 @@ Status fork(Pid *pid);
 */
 
 Status exit(void);
+/*
+** fopen- open a file 
+**
+** usage:	status = fopen(sectorstart, length, );
+**
+**
+** returns:
+**      file descriptor refering to file
+**      status of the operation
+*/
+Status fopen(Uint64 sectorstart, Uint16 length, int *fd);
 
 /*
 ** read - read a single character from the SIO

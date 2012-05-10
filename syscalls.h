@@ -41,10 +41,11 @@
 #define	SYS_vbe_print		14
 #define	SYS_vbe_print_char	15
 #define	SYS_vbe_clearscreen	16
+#define	SYS_fopen		17	
 
 // number of "real" system calls
 
-#define	N_SYSCALLS	17
+#define	N_SYSCALLS	18
 
 // dummy system call code to test the syscall ISR
 

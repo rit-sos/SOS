@@ -13,7 +13,7 @@
 #define	__KERNEL__20113__
 
 #include "headers.h"
-
+#include "c_io.h"
 #include "scheduler.h"
 
 /*

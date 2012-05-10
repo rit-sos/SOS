@@ -17,6 +17,7 @@
 #include <x86arch.h>
 #include "startup.h"
 
+#include "c_io.h"
 #include "clock.h"
 #include "pcbs.h"
 #include "queues.h"

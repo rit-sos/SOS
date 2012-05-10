@@ -558,7 +558,8 @@ static void __c_input_scan_code( int code ){
 			if( code != '\377' ){
 				volatile char	*next = __c_increment( __c_next_space );
 				
-				_fd_readDone(&_fds[CIO_FD], code & ctrl_mask & 0xff);
+				_fd_readBack(&_fds[CIO_FD], code & ctrl_mask & 0xff);
+				_fd_readDone(&_fds[CIO_FD]);
 				
 				/*
 				** Store character only if there's room

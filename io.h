@@ -20,7 +20,6 @@
 #define SIO_FD 		1	//define default file descriptors for serial I/O 
 #define CIO_FD	 	0	//define default file descriptors for console I/O
 
-#define	FD_BUF_SIZE	512
 
 #ifdef __KERNEL__20113__
 

@@ -31,6 +31,9 @@
 /*
 ** Types
 */
+
+//forward declarations
+
 typedef enum ata_type{
 	INVALID_DRIVE,
 	CHS,
@@ -38,17 +41,16 @@ typedef enum ata_type{
 	LBA28
 }ata_type;
 
-
-typedef struct Drive{
-	ata_type type;
+typedef struct drive{
 	Uint64 sectors;
+	ata_type type;
 	Uint32 base; //base IO port address
 	Uint32 control; //control register IO port address
 	char model[44]; //44 bytes for model name
-	Uint8 master; //true if master, false if slave		
+	Uint8 master; //true if master, false if slave			
 }Drive;	
 
-typedef struct Bus{
+typedef struct bus{
 	Drive drives[ATA_DRIVES_PER_BUS];
 	Uint32 primary_base; 
 	Uint32 primary_control; 
@@ -56,16 +58,16 @@ typedef struct Bus{
 	Uint32 secondary_control;
 	Uint8 interrupt_line; 
 }Bus;
-
 /*
 ** Globals
 */
 
-Bus busses[ATA_MAX_BUSSES];
+Bus _busses[ATA_MAX_BUSSES];
 
 /*
 ** prototypes
 */
+
 
 
 void _ata_init(void);
@@ -78,7 +80,11 @@ void _ata_init(void);
 ** sectorcount -- the number of sectors to read. Note: buffer must be 256 words * this size
 ** buf -- the word buffer that will hold the data
 */
-int _ata_read(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );
+Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Rwflags flags);
+int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );
+int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );
+void _ata_read_blocking(Fd* fd);
+void _ata_write_blocking(Fd* fd);
 
 #endif
 

@@ -163,7 +163,8 @@ void _isr_sio( int vector, int code ) {
 				ch = '\n';
 			}
 			//run the callback for getting data
-			_fd_readDone(&_fds[SIO_FD],ch);
+			_fd_readBack(&_fds[SIO_FD],ch);
+			_fd_readDone(&_fds[SIO_FD]);
 			break;
 
 		   case UA5_EIR_RX_FIFO_TIMEOUT_INT_PENDING:
@@ -224,7 +225,6 @@ void _isr_sio( int vector, int code ) {
 ** Initialize the UART chip.
 */
 void _sio_init( void ) {
-	Status status;
 
 	/*
 	** Initialize SIO variables.
@@ -300,7 +300,10 @@ void _sio_init( void ) {
 	*/
 	_fds[SIO_FD].startRead=NULL;
 	_fds[SIO_FD].startWrite=&_sio_startWrite;
-	_fds[SIO_FD].flags= RW;
+	_fds[SIO_FD].flags= FD_RW;
+	_fds[SIO_FD].rxwatermark=1;
+	_fds[SIO_FD].txwatermark=1;
+
 
 	/*
 	** Report that we're done.
@@ -570,8 +573,6 @@ int _sio_writes( char *buffer, int length ) {
 */
 
 void _sio_dump( void ) {
-	int n;
-	char *ptr;
 
 	c_printf( "SIO characters available: %d\n",  _fd_available(&_fds[SIO_FD]) );
 }

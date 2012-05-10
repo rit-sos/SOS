@@ -58,19 +58,20 @@ inline int buffer_full(Buffer *b){
 	return (b->in+1)%FD_BUF_SIZE == b->out;
 }
 
-inline void buffer_put(Buffer *b,char c){
+inline void buffer_put(Buffer *b,unsigned char c){
 	b->buff[b->in++]=c;
 	b->in %=FD_BUF_SIZE;
 }
-inline int buffer_get(Buffer *b){
-	int c =  b->buff[b->out++];
+inline unsigned char buffer_get(Buffer *b){
+	unsigned char c =  b->buff[b->out++];
 	b->out %= FD_BUF_SIZE;
 	return c;
 }
 
 inline int buffer_size(Buffer *b){
-	int c = (b->in - b->out)%FD_BUF_SIZE;
-	return c;
+	int sz = (b->in - b->out);
+	if (sz < 0 ) sz+= FD_BUF_SIZE;
+	return sz;
 }
 
 
@@ -95,15 +96,17 @@ Fd *_fd_alloc(Rwflags flags){
 		//set up the file descriptor queues and buffers	
 		fd->flags=flags;
 
-		if (flags != W){
+		if (flags != FD_W){
 			//TODO: dynamically allocate read
 
 		}
-		if (flags != R){
+		if (flags != FD_R){
 			//TODO: dynamically allocate write
 		}
 
-	}	
+	}
+	fd->inbuffer.in=0;	
+	fd->inbuffer.out=0;	
 
 	return fd;
 
@@ -112,14 +115,12 @@ Fd *_fd_alloc(Rwflags flags){
 
 Status _fd_dealloc(Fd *toFree){
 	Key key;
-
 	if(toFree == NULL){
 		return( BAD_PARAM ); 
 	}
 
 	key.i = 0;
 	return( _q_insert( _fd_free_queue, (void *) toFree, key) );
-
 }
 
 
@@ -142,11 +143,13 @@ void _fd_init(void){
 		}
 	}
 
-	//set up sio and cio	
+	//set up cio	
 
 	_fds[CIO_FD].startRead=NULL;
 	_fds[CIO_FD].startWrite=&c_startWrite;
-	_fds[CIO_FD].flags= RW;
+	_fds[CIO_FD].flags= FD_RW;
+	_fds[CIO_FD].rxwatermark= 1;
+	_fds[CIO_FD].txwatermark= 1;
 
 	status = _q_alloc(&_reading,&_comp_ascend_uint);
 	if( status != SUCCESS ) {
@@ -170,13 +173,13 @@ void _fd_init(void){
  **
  ** returns status 
  */
-Status _fd_write(Fd *fd, int c){
+Status _fd_write(Fd *fd, char c){
 	//if outbuffer is not full
 	if(!buffer_full(&fd->outbuffer)){
 		
 		buffer_put(&fd->outbuffer,c);
 		
-		if (fd->startWrite!= NULL){ //if we need to request a write
+		if (fd->startWrite!= NULL && buffer_size(&fd->outbuffer) >= fd->txwatermark){ //if we need to request a write
 			//start the write
 			fd->startWrite(fd);
 		}
@@ -186,22 +189,6 @@ Status _fd_write(Fd *fd, int c){
 	}
 }
 
-/*
- ** _fd_getTx(file)
- **
- ** get the next character to be transmitted.
- **
- ** returns status 
- */
-int _fd_getTx(Fd *fd){
-	int c;
-	//if outbuffer is not empty
-	if(!buffer_empty(&fd->outbuffer)){
-		c = buffer_get(&fd->outbuffer);
-	}
-	return c;
-
-}
 
 /*
  ** _fd_read(file)
@@ -211,12 +198,13 @@ int _fd_getTx(Fd *fd){
  ** returns the read character, or -1 if none was read. 
  */
 int _fd_read(Fd *fd){
-	if (fd->startRead!= NULL){ //if we need to request a read
+	if (fd->startRead!= NULL && _fd_available(fd) <= fd->rxwatermark){ //if we need to request a read
+		c_printf("only %d bytes left in fd %d\n", _fd_available(fd), fd-_fds);
 		fd->startRead(fd);
 	}
 	//if inbuffer is not empty
 	if(!buffer_empty(&fd->inbuffer)){
-		return buffer_get(&fd->inbuffer);
+		return (int) buffer_get(&fd->inbuffer);
 	}else{
 		return -1;
 	}
@@ -233,7 +221,6 @@ int _fd_available(Fd *fd){
 	return buffer_size(&fd->inbuffer);
 }
 
-
 /*
  ****************************************************************************
  *			Callbacks
@@ -248,12 +235,13 @@ int _fd_available(Fd *fd){
  ** To be called from the device
  **
  */
-void _fd_readDone(Fd *fd, int c){
+void _fd_readDone(Fd *fd){
 
 	Pcb *pcb;
 	Key key;
 	Status status;
 	int *ptr;
+	char c;
 
 	key.u = fd-_fds;
 	//unblock process waiting on reading 
@@ -262,8 +250,9 @@ void _fd_readDone(Fd *fd, int c){
 		status = _q_remove_by_key( _reading, (void **) &pcb, key );
 		if (status==SUCCESS){
 			pcb->state=READY;
-			//put the new char into the blocked process
+			//put the newest char into the blocked process
 			ptr = (int *) (ARG(pcb)[2]);
+			c=buffer_get(&fd->inbuffer);
 			*ptr = c & 0xff;
 			RET(pcb) = SUCCESS;
 			//schedule the previously blocked process
@@ -275,14 +264,17 @@ void _fd_readDone(Fd *fd, int c){
 			break;
 		}
 	}
-	//if inbuffer is not full
+}
+
+void _fd_readBack(Fd *fd, char c){
 	if(!buffer_full(&fd->inbuffer)){
 		buffer_put(&fd->inbuffer,c);
 	}else{
 		//uh.. Crap. We're not reading fast enough.
-		c_puts("Dropped a character");
+		c_printf("Dropped from %x ",fd-_fds); 
 	}
 }
+
 
 /*
  ** _fd_writeDone(file)
@@ -331,5 +323,20 @@ int _fd_writeDone(Fd *fd){
 		}
 	}
 
+	return c;
+}
+/*
+ ** _fd_getTx(file)
+ **
+ ** get the next character to be transmitted.
+ **
+ ** returns status 
+ */
+int _fd_getTx(Fd *fd){
+	int c;
+	//if outbuffer is not empty
+	if(!buffer_empty(&fd->outbuffer)){
+		c = buffer_get(&fd->outbuffer);
+	}
 	return c;
 }

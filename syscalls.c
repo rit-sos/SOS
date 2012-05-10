@@ -1,20 +1,19 @@
 /*
-** SCCS ID:	@(#)syscalls.c	1.1	4/5/12
-**
-** File:	syscalls.c
-**
-** Author:	4003-506 class of 20113
-**
-** Contributor:
-**
-** Description:	System call module
-*/
+ ** SCCS ID:	@(#)syscalls.c	1.1	4/5/12
+ **
+ ** File:	syscalls.c
+ **
+ ** Author:	4003-506 class of 20113
+ **
+ ** Contributor:
+ **
+ ** Description:	System call module
+ */
 
 #define	__KERNEL__20113__
 
 #include "headers.h"
 
-#include "fd.h"
 #include "pcbs.h"
 #include "scheduler.h"
 #include "sio.h"
@@ -23,60 +22,62 @@
 #include "kmap.h"
 #include "c_io.h"
 #include "vbe.h"
+#include "fd.h"
+#include "ata.h"
 
 #include "startup.h"
 
 /*
-** PRIVATE DEFINITIONS
-*/
+ ** PRIVATE DEFINITIONS
+ */
 
 /*
-** PRIVATE DATA TYPES
-*/
+ ** PRIVATE DATA TYPES
+ */
 
 /*
-** PRIVATE GLOBAL VARIABLES
-*/
+ ** PRIVATE GLOBAL VARIABLES
+ */
 
 // system call jump table
 
 static void (*_syscall_tbl[ N_SYSCALLS ])(Pcb *);
 
 /*
-** PUBLIC GLOBAL VARIABLES
-*/
+ ** PUBLIC GLOBAL VARIABLES
+ */
 
 // queue of sleeping processes
 
 Queue *_sleeping;
 
 /*
-** PRIVATE FUNCTIONS
-*/
+ ** PRIVATE FUNCTIONS
+ */
 
 /*
-** Second-level syscall handlers
-**
-** All have this prototype:
-**
-**	static void _sys_NAME( Pcb * );
-**
-** Most syscalls return a Status value to the user calling function.
-** Those which return additional information from the system have as
-** their first user-level argument a pointer (called the "info pointer"
-** below) to a variable into which the information is to be placed.
-*/
+ ** Second-level syscall handlers
+ **
+ ** All have this prototype:
+ **
+ **	static void _sys_NAME( Pcb * );
+ **
+ ** Most syscalls return a Status value to the user calling function.
+ ** Those which return additional information from the system have as
+ ** their first user-level argument a pointer (called the "info pointer"
+ ** below) to a variable into which the information is to be placed.
+ */
 
 /*
-** _sys_fork - create a new process
-**
-** implements:	Status fork(Pid *pid);
-**
-** returns:
-**	PID of new process via the info pointer (in parent)
-**	0 via the info pointer (in child)
-**	status of the creation attempt
-*/
+ ** _sys_fork - create a new process
+ **
+ ** implements:	Status fork(Pid *pid);
+ **
+ ** returns:
+ **	PID of new process via the info pointer (in parent)
+ **	0 via the info pointer (in child)
+ **	status of the creation attempt
+ */
 
 static void _sys_fork( Pcb *pcb ) {
 	Pcb *new;
@@ -143,15 +144,15 @@ static void _sys_fork( Pcb *pcb ) {
 
 	c_printf("fork: new: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", new, new->stack, new->context, new->context->esp, ARG(new)[1]);
 
-//	_kpanic("asdf", "asdf", 0);
+	//	_kpanic("asdf", "asdf", 0);
 
 	/*
-	** Philosophical issue:  should the child run immediately, or
-	** should the parent continue?
-	**
-	** We take the path of least resistance (work), and opt for the
-	** latter; we schedule the child, and let the parent continue.
-	*/
+	 ** Philosophical issue:  should the child run immediately, or
+	 ** should the parent continue?
+	 **
+	 ** We take the path of least resistance (work), and opt for the
+	 ** latter; we schedule the child, and let the parent continue.
+	 */
 
 	status = _sched( new );
 	if( status != SUCCESS ) {
@@ -167,12 +168,12 @@ static void _sys_fork( Pcb *pcb ) {
 }
 
 /*
-** _sys_exit - terminate the calling process
-**
-** implements:	void exit();
-**
-** does not return
-*/
+ ** _sys_exit - terminate the calling process
+ **
+ ** implements:	void exit();
+ **
+ ** does not return
+ */
 
 static void _sys_exit( Pcb *pcb ) {
 
@@ -187,16 +188,45 @@ static void _sys_exit( Pcb *pcb ) {
 }
 
 /*
-** _sys_read - read a single character from the SIO
-**
-** implements:	Status read(int *buf);
-**
-** blocks the calling routine if there is no character to return
-**
-** returns:
-**	the character via the info pointer
-**	status of the operation
-*/
+ ** _sys_fopen- opens a new file 
+ **
+ ** implements:	Status fopen(Uint64 sectorstart, Uint16 length, int *fd);
+ **
+ ** returns:
+ **	the character via the info pointer
+ **	status of the operation
+ */
+
+static void _sys_fopen( Pcb *pcb ) {
+	Uint64 sectorstart;
+	Uint16 length;
+	Fd *fd;
+	int *ptr;
+
+	sectorstart=((Uint64) ARG(pcb)[2])<<32 | ARG(pcb)[1];//64 bits passed as one arg. No idea if endianness is right
+	length=ARG(pcb)[3];
+	ptr = (int *) (ARG(pcb)[4]);
+
+	fd=_ata_fopen(&_busses[0].drives[0],sectorstart,length,FD_RW);
+
+	if(fd!=NULL){
+		RET(pcb) = SUCCESS;
+		*ptr=fd-_fds;
+	}else{
+		RET(pcb) = FAILURE;
+	}
+}
+/*
+ ** _sys_read - read a single character from the supplied FD 
+ **
+ ** implements:	Status read(int *buf);
+ **
+ ** blocks the calling routine if there is no character to return
+ **
+ ** returns:
+ **	the character via the info pointer
+ **	status of the operation
+ */
 
 static void _sys_read( Pcb *pcb ) {
 	Key key;
@@ -214,11 +244,11 @@ static void _sys_read( Pcb *pcb ) {
 	// if there was a character, return it to the process;
 	// otherwise, block the process until one comes in
 
-	
+
 	if( ch >= 0 ) {
 
 		ptr = (int *) (ARG(pcb)[2]);
-		*ptr = ch;
+		*ptr = ch & 0xFF;
 		RET(pcb) = SUCCESS;
 
 	} else {
@@ -228,7 +258,7 @@ static void _sys_read( Pcb *pcb ) {
 
 		_current->state = BLOCKED;
 		key.u = fd;
-	
+
 		status = _q_insert( _reading, (void *) _current, key );
 		if( status != SUCCESS ) {
 			_kpanic( "_sys_read", "insert status %s", status );
@@ -243,19 +273,19 @@ static void _sys_read( Pcb *pcb ) {
 }
 
 /*
-** _sys_write - write a single character to the SIO
-**
-** implements:	Status write(char buf);
-**
-** returns:
-**	status of the operation
-*/
+ ** _sys_write - write a single character to the SIO
+ **
+ ** implements:	Status write(char buf);
+ **
+ ** returns:
+ **	status of the operation
+ */
 
 static void _sys_write( Pcb *pcb ) {
 	Status status;
 	Key key;
 	int fd = ARG(pcb)[1];
-	int ch = ARG(pcb)[2];
+	char ch = ARG(pcb)[2];
 
 
 	// this is almost insanely simple, but it does separate
@@ -264,12 +294,12 @@ static void _sys_write( Pcb *pcb ) {
 
 	status = _fd_write(&_fds[fd], ch);
 	if (status != SUCCESS){
-		
+
 		// no character; block this process on the fd
 
 		_current->state = BLOCKED;
 		key.u = fd;
-	
+
 		status = _q_insert( _writing, (void *) _current, key );
 		if( status != SUCCESS ) {
 			_kpanic( "_sys_write", "insert status %s", status );
@@ -285,17 +315,17 @@ static void _sys_write( Pcb *pcb ) {
 }
 
 /*
-** _sys_msleep - put the current process to sleep for some length of time
-**
-** implements:	Status msleep(Uint32 ms);
-**
-** if the sleep time (in milliseconds) is 0, just preempts the process;
-** otherwise, puts it onto the sleep queue for the specified length of
-** time
-**
-** returns:
-**	status of the sleep attempt
-*/
+ ** _sys_msleep - put the current process to sleep for some length of time
+ **
+ ** implements:	Status msleep(Uint32 ms);
+ **
+ ** if the sleep time (in milliseconds) is 0, just preempts the process;
+ ** otherwise, puts it onto the sleep queue for the specified length of
+ ** time
+ **
+ ** returns:
+ **	status of the sleep attempt
+ */
 
 static void _sys_msleep( Pcb *pcb ) {
 	Key wakeup;
@@ -315,7 +345,7 @@ static void _sys_msleep( Pcb *pcb ) {
 		if( status != SUCCESS ) {
 			RET(pcb) = FAILURE;
 			c_printf( "msleep(%u), pid %u: can't schedule, status %s\n",
-				  time, pcb->pid, _kstatus(status) );
+					time, pcb->pid, _kstatus(status) );
 			return;
 		}
 
@@ -329,7 +359,7 @@ static void _sys_msleep( Pcb *pcb ) {
 		if( status != SUCCESS ) {
 			RET(pcb) = FAILURE;
 			c_printf( "msleep(%u), pid %u: can't sleep, status %s\n",
-				  time, pcb->pid, _kstatus(status) );
+					time, pcb->pid, _kstatus(status) );
 			return;
 		}
 
@@ -345,13 +375,13 @@ static void _sys_msleep( Pcb *pcb ) {
 }
 
 /*
-** _sys_kill - terminate a process with extreme prejudice
-**
-** implements:	Status kill(Pid pid);
-**
-** returns:
-**	status of the termination attempt
-*/
+ ** _sys_kill - terminate a process with extreme prejudice
+ **
+ ** implements:	Status kill(Pid pid);
+ **
+ ** returns:
+ **	status of the termination attempt
+ */
 
 static void _sys_kill( Pcb *pcb ) {
 	int i;
@@ -370,9 +400,9 @@ static void _sys_kill( Pcb *pcb ) {
 		//	the PCB is *not* marked as available
 
 		if( _pcbs[i].pid == pid &&
-		    _pcbs[i].state != FREE ) {
+				_pcbs[i].state != FREE ) {
 			// got it!
-		    	_pcbs[i].state = KILLED;
+			_pcbs[i].state = KILLED;
 			RET(pcb) = SUCCESS;
 			return;
 		}
@@ -386,14 +416,14 @@ static void _sys_kill( Pcb *pcb ) {
 }
 
 /*
-** _sys_get_priority - retrieve the priority of the current process
-**
-** implements:	Status get_priority(Prio *prio);
-**
-** returns:
-**	the process' priority via the info pointer
-**	SUCCESS
-*/
+ ** _sys_get_priority - retrieve the priority of the current process
+ **
+ ** implements:	Status get_priority(Prio *prio);
+ **
+ ** returns:
+ **	the process' priority via the info pointer
+ **	SUCCESS
+ */
 
 static void _sys_get_priority( Pcb *pcb ) {
 
@@ -403,14 +433,14 @@ static void _sys_get_priority( Pcb *pcb ) {
 }
 
 /*
-** _sys_get_pid - retrieve the PID of the current process
-**
-** implements:	Status get_pid(Pid *pid);
-**
-** returns:
-**	the process' pid via the info pointer
-**	SUCCESS
-*/
+ ** _sys_get_pid - retrieve the PID of the current process
+ **
+ ** implements:	Status get_pid(Pid *pid);
+ **
+ ** returns:
+ **	the process' pid via the info pointer
+ **	SUCCESS
+ */
 
 static void _sys_get_pid( Pcb *pcb ) {
 
@@ -420,14 +450,14 @@ static void _sys_get_pid( Pcb *pcb ) {
 }
 
 /*
-** _sys_get_ppid - retrieve the parent PID of the current process
-**
-** implements:	Status get_ppid(Pid *pid);
-**
-** returns:
-**	the process' parent's pid via the info pointer
-**	SUCCESS
-*/
+ ** _sys_get_ppid - retrieve the parent PID of the current process
+ **
+ ** implements:	Status get_ppid(Pid *pid);
+ **
+ ** returns:
+ **	the process' parent's pid via the info pointer
+ **	SUCCESS
+ */
 
 static void _sys_get_ppid( Pcb *pcb ) {
 
@@ -437,14 +467,14 @@ static void _sys_get_ppid( Pcb *pcb ) {
 }
 
 /*
-** _sys_get_time - retrieve the current system time
-**
-** implements:	Status get_time(Time *time);
-**
-** returns:
-**	the process' pid via the info pointer
-**	SUCCESS
-*/
+ ** _sys_get_time - retrieve the current system time
+ **
+ ** implements:	Status get_time(Time *time);
+ **
+ ** returns:
+ **	the process' pid via the info pointer
+ **	SUCCESS
+ */
 
 static void _sys_get_time( Pcb *pcb ) {
 
@@ -454,14 +484,14 @@ static void _sys_get_time( Pcb *pcb ) {
 }
 
 /*
-** _sys_get_state - retrieve the state of the current process
-**
-** implements:	Status get_state(State *state);
-**
-** returns:
-**	the process' state via the info pointer
-**	SUCCESS
-*/
+ ** _sys_get_state - retrieve the state of the current process
+ **
+ ** implements:	Status get_state(State *state);
+ **
+ ** returns:
+ **	the process' state via the info pointer
+ **	SUCCESS
+ */
 
 static void _sys_get_state( Pcb *pcb ) {
 
@@ -471,13 +501,13 @@ static void _sys_get_state( Pcb *pcb ) {
 }
 
 /*
-** _sys_set_priority - change the priority of the current process
-**
-** implements:	Status set_priority(Prio prio);
-**
-** returns:
-**	success of the change attempt
-*/
+ ** _sys_set_priority - change the priority of the current process
+ **
+ ** implements:	Status set_priority(Prio prio);
+ **
+ ** returns:
+ **	success of the change attempt
+ */
 
 static void _sys_set_priority( Pcb *pcb ) {
 	Prio prio;
@@ -499,13 +529,13 @@ static void _sys_set_priority( Pcb *pcb ) {
 }
 
 /*
-** _sys_set_time - change the current system time
-**
-** implements:	Status set_time(Time time);
-**
-** returns:
-**	SUCCESS
-*/
+ ** _sys_set_time - change the current system time
+ **
+ ** implements:	Status set_time(Time time);
+ **
+ ** returns:
+ **	SUCCESS
+ */
 
 static void _sys_set_time( Pcb *pcb ) {
 
@@ -517,14 +547,14 @@ static void _sys_set_time( Pcb *pcb ) {
 }
 
 /*
-** _sys_exec - replace a process with a different program
-**
-** implements:	Status exec(void (*entry)(void));
-**
-** returns:
-**	failure status of the replacement attempt
-**		(only if the attempt fails)
-*/
+ ** _sys_exec - replace a process with a different program
+ **
+ ** implements:	Status exec(void (*entry)(void));
+ **
+ ** returns:
+ **	failure status of the replacement attempt
+ **		(only if the attempt fails)
+ */
 
 static void _sys_exec( Pcb *pcb ) {
 	Status status;
@@ -550,13 +580,13 @@ static void _sys_exec( Pcb *pcb ) {
 }
 
 /*
-** _sys_vbe_print - display a string on the monitor
-**
-** implements:	Status vbe_print(int x, int y, const char *);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_vbe_print - display a string on the monitor
+ **
+ ** implements:	Status vbe_print(int x, int y, const char *);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_vbe_print( Pcb *pcb ) {
 	/* ARG(pcb)[3] is a pointer */
 	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char *)ARG(pcb)[3] );
@@ -565,13 +595,13 @@ static void _sys_vbe_print( Pcb *pcb ) {
 }
 
 /*
-** _sys_vbe_print_char - display a character on the monitor
-**
-** implements:	Status vbe_print_char(int x, int y, const char);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_vbe_print_char - display a character on the monitor
+ **
+ ** implements:	Status vbe_print_char(int x, int y, const char);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_vbe_print_char( Pcb *pcb ) {
 	_vbe_write_char( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char)ARG(pcb)[3] );
 
@@ -579,13 +609,13 @@ static void _sys_vbe_print_char( Pcb *pcb ) {
 }
 
 /*
-** _sys_vbe_clearscreen - Clear the display
-**
-** implements:	Status vbe_clearscreen(char r, char g, char b);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_vbe_clearscreen - Clear the display
+ **
+ ** implements:	Status vbe_clearscreen(char r, char g, char b);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_vbe_clearscreen( Pcb *pcb ) {
 	_vbe_clear_display( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3] );
 
@@ -593,24 +623,24 @@ static void _sys_vbe_clearscreen( Pcb *pcb ) {
 }
 
 /*
-** PUBLIC FUNCTIONS
-*/
+ ** PUBLIC FUNCTIONS
+ */
 
 
 /*
-** _syscall_init()
-**
-** initialize the system call module
-*/
+ ** _syscall_init()
+ **
+ ** initialize the system call module
+ */
 
 void _syscall_init( void ) {
 	Status status;
 
 	/*
-	** Create the sleep queue.
-	**
-	** It is sorted in ascending order by wakeup time.
-	*/
+	 ** Create the sleep queue.
+	 **
+	 ** It is sorted in ascending order by wakeup time.
+	 */
 
 	status = _q_alloc( &_sleeping, _comp_ascend_uint );
 	if( status != SUCCESS ) {
@@ -618,11 +648,11 @@ void _syscall_init( void ) {
 	}
 
 	/*
-	** Set up the syscall jump table.  We do this here
-	** to ensure that the association between syscall
-	** code and function address is correct even if the
-	** codes change.
-	*/
+	 ** Set up the syscall jump table.  We do this here
+	 ** to ensure that the association between syscall
+	 ** code and function address is correct even if the
+	 ** codes change.
+	 */
 
 	_syscall_tbl[ SYS_fork ]          = _sys_fork;
 	_syscall_tbl[ SYS_exec ]          = _sys_exec;
@@ -641,11 +671,12 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_vbe_print ]     = _sys_vbe_print;
 	_syscall_tbl[ SYS_vbe_print_char ]= _sys_vbe_print_char;
 	_syscall_tbl[ SYS_vbe_clearscreen ]= _sys_vbe_clearscreen;
+	_syscall_tbl[ SYS_fopen]          = _sys_fopen;
 
-//	these are syscalls we elected not to implement
-//	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;
-//	_syscall_tbl[ SYS_set_ppid ]   = _sys_set_ppid;
-//	_syscall_tbl[ SYS_set_state ]  = _sys_set_state;
+	//	these are syscalls we elected not to implement
+	//	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;
+	//	_syscall_tbl[ SYS_set_ppid ]   = _sys_set_ppid;
+	//	_syscall_tbl[ SYS_set_state ]  = _sys_set_state;
 
 	// report that we're done
 
@@ -654,16 +685,16 @@ void _syscall_init( void ) {
 }
 
 /*
-** _isr_syscall(vector,code)
-**
-** Common handler for the system call module.  Selects
-** the correct second-level routine to invoke based on
-** the contents of EAX.
-**
-** The second-level routine is invoked with a pointer to
-** the PCB for the process.  It is the responsibility of
-** that routine to assign all return values for the call.
-*/
+ ** _isr_syscall(vector,code)
+ **
+ ** Common handler for the system call module.  Selects
+ ** the correct second-level routine to invoke based on
+ ** the contents of EAX.
+ **
+ ** The second-level routine is invoked with a pointer to
+ ** the PCB for the process.  It is the responsibility of
+ ** that routine to assign all return values for the call.
+ */
 
 void _isr_syscall( int vector, int code ) {
 	Uint num;
@@ -688,7 +719,7 @@ void _isr_syscall( int vector, int code ) {
 
 	if( num >= N_SYSCALLS ) {
 		c_printf( "syscall: pid %d called %d\n",
-			  _current->pid, num );
+				_current->pid, num );
 		num = SYS_exit;
 	}
 

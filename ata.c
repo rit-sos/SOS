@@ -17,14 +17,16 @@
 #include "pci.h"
 #include "ata.h"
 #include <startup.h>
-#include "sio.h"
+#include "fd.h"
+#include "c_io.h"
 
 
 /*
- * Parametric definitions
+ * Private definitions
  */
 
 
+#define ATA_MAX_FILES 16
 
 /*
  *PCI device codes
@@ -103,6 +105,18 @@
 #define ATA_IDENT_MAX_LBA      120
 #define ATA_IDENT_COMMANDSETS  164
 #define ATA_IDENT_MAX_LBA_EXT  200
+
+/*
+** PRIVATE DATA TYPES 
+*/
+typedef struct ata_fd_data{
+	Drive *d;
+	Uint64 sector_start;
+	Uint64 sector_end;
+	Uint64 read_index;
+	Uint64 write_index;
+}Ata_fd_data;
+
 typedef struct Identify_packet{
 	char devtype[2];
 	char cylinders[(6-2)];
@@ -117,20 +131,52 @@ typedef struct Identify_packet{
 	char max_lba_ext[(256-200)];
 }Identify_packet;
 
-Uint16 block[255];
-
 typedef struct Iorequest{
 	Drive	d;
 	Uint64	LBA;
 	Uint16	sectors;
 }Iorequest;
 
+/*
+** PRIVATE GLOBAL VARIABLES
+*/
+
+Uint16 block[255];
+Ata_fd_data fd_dat_pool[ATA_MAX_FILES];
+static Queue *free_dat_queue;
+
+/*
+** PUBLIC GLOBAL VARIABLES
+*/
+
+
+/*
+ ** PRIVATE FUNCTIONS
+ */
+
+
+Status fd_dat_dealloc(Ata_fd_data *toFree){
+	Key key;
+	if(toFree == NULL){
+		return( BAD_PARAM ); 
+	}
+
+	key.i = 0;
+	return( _q_insert( free_dat_queue, (void *) toFree, key) );
+}
+Ata_fd_data *fd_dat_alloc(void){
+	Ata_fd_data *fd_dat;
+	if( _q_remove( free_dat_queue, (void **) &fd_dat ) != SUCCESS ) {
+		fd_dat = NULL;
+	}
+	return fd_dat;
+}
+
 void delay(Uint32 control){
 	Uint8 i;
 	for (i = 0 ; i < 5; i++){
 		//read the control register 5 times to give it time to settle
 		__inb(control);
-
 	}
 }
 
@@ -161,7 +207,6 @@ void disableIRQ(Bus *b){
 			__outb(d->control,NIEN);
 		}
 	}	
-
 }
 
 void _ata_reset(Uint32 control){
@@ -190,7 +235,109 @@ void lba_set_sectors(Drive *d, Uint64 sector, Uint16 sectorcount){
 
 }
 
-int _ata_write_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
+
+
+/*
+ ** PUBLIC FUNCTIONS
+ */
+
+Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Rwflags flags){
+	Fd* fd;
+	Ata_fd_data *dev_data;
+	if(d->type == INVALID_DRIVE){
+		c_printf("Invalid drive!");
+		return NULL;
+	}	
+
+
+	fd=_fd_alloc(flags);
+	if(fd==NULL){
+		return NULL;
+	}
+
+	//initialize the device data structure so we know where in the file
+	//to read from
+	dev_data=fd_dat_alloc();
+	dev_data->d=d;
+	dev_data->sector_start=sector;	
+	dev_data->sector_end=sector+len;
+	dev_data->read_index=sector;
+	dev_data->write_index=sector;
+	fd->device_data=dev_data;
+	
+	if (flags & FD_R){
+		fd->startRead=&_ata_read_blocking;
+	}else{
+		fd->startRead=NULL;
+	}
+	if(flags & FD_W){
+		fd->startWrite=&_ata_write_blocking;
+	}else{
+		fd->startWrite=NULL;
+	}
+
+	
+	fd->rxwatermark = 1;
+	fd->txwatermark = 512;
+	
+	return fd;
+}
+
+void _ata_read_blocking(Fd* fd){
+	Ata_fd_data *dev_data;
+	int blocks_read,i;
+	char *data;
+	dev_data=(Ata_fd_data *)fd->device_data;
+	
+	if(dev_data->read_index > dev_data->sector_end){
+		return;
+	}
+	
+	blocks_read = read_raw_blocking(	dev_data->d,
+					dev_data->read_index,
+					1,
+					block);
+	data=(char *)block;
+	
+	if (blocks_read < 0) blocks_read=0;
+	dev_data->read_index+=blocks_read;
+	for(i =0;i<blocks_read*512;i++){
+		_fd_readBack(fd,data[i]);
+	}
+	_fd_readDone(fd);
+}
+
+void _ata_write_blocking(Fd* fd){
+	
+	Ata_fd_data *dev_data;
+	int blocks_wrote,i;
+	char *data;
+	dev_data=(Ata_fd_data *)fd->device_data;
+	
+	if(dev_data->read_index > dev_data->sector_end){
+		return;
+	}
+	
+	data=(char *)block;
+	
+	for(i =0;i<512;i++){
+		data[i]= _fd_getTx(fd);
+	}
+	
+	blocks_wrote = write_raw_blocking(dev_data->d,
+					dev_data->write_index,
+					1,
+					block);
+	
+	if (blocks_wrote < 0) blocks_wrote=0;
+	dev_data->write_index+=blocks_wrote;
+
+	_fd_readDone(fd);
+
+}
+
+
+int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
 	volatile unsigned char status = 0;
 	Uint16 i,j;
 
@@ -228,7 +375,6 @@ int _ata_write_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf
 				}
 				c_printf(".");
 			}
-			c_printf("done!\n");
 			break;
 
 		case LBA28:
@@ -251,15 +397,17 @@ int _ata_write_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf
 
 }
 //read sector into buffer and return number of sectors read 
-int _ata_read_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
+int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
 	volatile unsigned char status = 0;
 	Uint16 i,j;
 
 	if(d->type== INVALID_DRIVE){
+		c_printf("Invalid drive\n");
 		return -1;
 	}
 
 	if (sector > d->sectors){
+		c_printf("Invalid sector\n");
 		//tried to read off the end of disk. 
 		return -1;	
 	}
@@ -381,7 +529,7 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 		}
 
 		Identify_packet *ip=(Identify_packet *) block;
-	
+
 		for (i=0;i<40;i+=2){
 			d->model[i]=ip->model[i+1];
 			d->model[i+1]=ip->model[i];
@@ -389,7 +537,7 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 				break;
 		}
 		c_printf("%s",d->model);	
-		
+
 		//check sector count
 		if (block[83] & (1<<10) ){
 			d->type=LBA48;
@@ -409,6 +557,7 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 
 
 void _ata_init(void){
+	Status status;
 	struct pci_func f;
 	f.bus = 0;
 	f.slot = 0;
@@ -417,9 +566,20 @@ void _ata_init(void){
 	int currentBus=0;
 	int i,j;
 
+	status = _q_alloc( &free_dat_queue, NULL );
+	if( status != SUCCESS ) {
+		_kpanic( "_ata_init", "File data queue alloc status %s", status );
+	}
+	for(i=0;i<ATA_MAX_FILES;i++){
+		status = fd_dat_dealloc(&fd_dat_pool[i]);
+		if( status != SUCCESS ) {
+			_kpanic( "_ata_init", "file data queue insert status %s", status );
+		}
+	}
+
 	for(i =0; i< ATA_MAX_BUSSES;i++){
 		for (j=0;j<ATA_DRIVES_PER_BUS;j++){
-			busses[i].drives[j].type=INVALID_DRIVE;
+			_busses[i].drives[j].type=INVALID_DRIVE;
 		}
 	}
 
@@ -441,9 +601,8 @@ void _ata_init(void){
 			BAR[3]= read_pci_conf_long (f.bus, f.slot, f.func, PCI_BAR3)&0xFFFE;
 			BAR[4]= read_pci_conf_long (f.bus, f.slot, f.func, PCI_BAR4)&0xFFFE;
 
-			busses[currentBus].interrupt_line = read_pci_conf_byte(f.bus,f.slot,f.func,PCI_INTERRUPT_LINE);
+			_busses[currentBus].interrupt_line = read_pci_conf_byte(f.bus,f.slot,f.func,PCI_INTERRUPT_LINE);
 
-			Uint8 i;
 
 			//check if this is an ATA drive (not supported for now)
 			if (BAR[0] == 0x01 || BAR[0]==0x00){
@@ -451,40 +610,30 @@ void _ata_init(void){
 				BAR[1]=0x3F4;
 				BAR[3]=0x170;
 				BAR[4]=0x374;
-				
+
 			}
-			
+			/*
 			for(i =0;i<5;i++){
 				c_printf("BAR%d %x ", i, BAR[i]);
 			}
-			c_printf("irq: 0x%x\n",busses[currentBus].interrupt_line);			
+			c_printf("irq: 0x%x\n",_busses[currentBus].interrupt_line);*/
 
-			busses[currentBus].primary_base=BAR[0];
-			busses[currentBus].primary_control=BAR[1]+2;
-			busses[currentBus].secondary_base=BAR[2];
-			busses[currentBus].secondary_control=BAR[3]+2;
+			_busses[currentBus].primary_base=BAR[0];
+			_busses[currentBus].primary_control=BAR[1]+2;
+			_busses[currentBus].secondary_base=BAR[2];
+			_busses[currentBus].secondary_control=BAR[3]+2;
 
 			//TODO: figure out why regular PATA drives aren't working
-			if ( BAR[0] != 0x1f0){
-				_ata_identify(0, BAR[0],BAR[1]+2,&busses[currentBus].drives[0]);
-				_ata_identify(1, BAR[0],BAR[1]+2,&busses[currentBus].drives[1]);
-				_ata_identify(0, BAR[2],BAR[3]+2,&busses[currentBus].drives[2]);
-				_ata_identify(1, BAR[2],BAR[3]+2,&busses[currentBus].drives[3]);
-				disableIRQ(&busses[currentBus]);
+			if (1 || BAR[0] != 0x1f0){
+				_ata_identify(0, BAR[0],BAR[1]+2,&_busses[currentBus].drives[0]);
+				_ata_identify(1, BAR[0],BAR[1]+2,&_busses[currentBus].drives[1]);
+				_ata_identify(0, BAR[2],BAR[3]+2,&_busses[currentBus].drives[2]);
+				_ata_identify(1, BAR[2],BAR[3]+2,&_busses[currentBus].drives[3]);
+				disableIRQ(&_busses[currentBus]);
 
 			}
 			currentBus++;
 		}
-	}
-
-	_ata_read_blocking(&busses[0].drives[0],0,1,block);
-	for (j=200;j<256;j++){
-		c_printf("%x ",block[j]);
-		block[j]^=0xFF00;
-	}
-	_ata_read_blocking(&busses[0].drives[0],0,1,block);
-	for (j=200;j<256;j++){
-		c_printf("%x ",block[j]);
 	}
 
 	c_puts( " ATA" );

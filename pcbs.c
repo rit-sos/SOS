@@ -16,6 +16,7 @@
 
 #include "queues.h"
 #include "pcbs.h"
+#include "c_io.h"
 
 /*
 ** PRIVATE DEFINITIONS

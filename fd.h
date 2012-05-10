@@ -28,15 +28,16 @@
 ** Start of C-only definitions
 */
 
+#define	FD_BUF_SIZE	1024	
 
 /*
 ** Types
 */
 
 typedef enum rwflags{
-	R,
-	W,
-	RW
+	FD_R=0x01,
+	FD_W=0x02,
+	FD_RW=0x03
 }Rwflags;
 
 typedef struct buffer{
@@ -52,7 +53,8 @@ typedef struct Fd{
 	Rwflags flags;
 	void (*startRead)(struct Fd *fd);	//request more data from the driver.. If we can't, then NULL
 	void (*startWrite)(struct Fd *fd);	//request that the device start writing. If we can't, then NULL
-
+	void *device_data;			//pointer to device specific data assocaited with this filestream
+	Uint16 txwatermark,rxwatermark;		//watermarks to trigger flushes
 }Fd;
 
 /*
@@ -105,25 +107,16 @@ void _fd_init(void);
 **
 ** returns the status 
 */
-Status _fd_write(Fd *fd, int c);
-
-/*
- ** _fd_getTx(file)
- **
- ** get the next character to be transmitted.
- **
- ** returns status 
- */
-int _fd_getTx(Fd *fd);
-
-/*
- ** _fd_read(file)
- **
- ** read from a file descriptor.. Non-blocking
- **
- ** returns the read character 
- */
 int _fd_read(Fd *fd);
+
+/*
+** _fd_write(file, char)
+**
+** write to a file descriptor.. Non-blocking, lossy
+**
+** returns the status 
+*/
+Status _fd_write(Fd *fd, char c);
 
 /*
  ** _fd_available(file)
@@ -133,7 +126,6 @@ int _fd_read(Fd *fd);
  ** returns the number of queued characters
  */
 int _fd_available(Fd *fd);
-
 
 /*
  ***************************************
@@ -148,7 +140,14 @@ int _fd_available(Fd *fd);
  ** To be called from the device
  **
  */
-void _fd_readDone(Fd *fd, int c);
+void _fd_readDone(Fd *fd);
+/*
+ ** _fd_readBack(file, character)
+ **
+ ** Puts character into read buffer.
+ ** To be called from the device
+ */
+void _fd_readBack(Fd *fd, char c);
 
 /*
  ** _fd_writeDone(file)
@@ -160,6 +159,16 @@ void _fd_readDone(Fd *fd, int c);
  **
  */
 int _fd_writeDone(Fd *fd);
+
+/*
+ ** _fd_getTx(file)
+ **
+ ** get the next character to be transmitted.
+ **
+ ** returns status 
+ */
+int _fd_getTx(Fd *fd);
+
 
 #endif
 

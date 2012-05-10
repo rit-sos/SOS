@@ -18,6 +18,7 @@
 #define DELAY_LONG 100000000
 #define SPAWN_A
 #define SPAWN_MMAN
+#define SPAWN_DISK
 
 /*
 ** USER PROCESSES
@@ -106,15 +107,18 @@ void main(void) {
 	}
 #endif
 
-#ifdef SPAWN_B
+#ifdef SPAWN_DISK
 	status = fork( &pid );
 	if( status != SUCCESS ) {
-		//prt_status( "init: can't fork() user B, status %s\n", status );
+		puts("fork failed\n");
+		prt_status( "init: can't fork() user disk, status %s\n", status );
 	} else if( pid == 0 ) {
-		status = exec( user_b );
-		//prt_status( "init: can't exec() user B, status %s\n", status );
+		puts("i'm the child\n");
+		status = exec(user_disk_ID );
+		prt_status( "init: can't exec() user disk, status %s\n", status );
 		exit();
 	}
+	puts("i'm the parent\n");
 #endif
 
 #ifdef SPAWN_C

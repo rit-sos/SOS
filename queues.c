@@ -16,6 +16,7 @@
 
 #include "pcbs.h"
 #include "stacks.h"
+#include "c_io.h"
 
 /*
 ** PRIVATE DEFINITIONS
