@@ -319,7 +319,6 @@ Status _ata_flush(Fd *fd){
 		blocks_rw = write_raw_blocking(dev_data->d,
 				dev_data->write_sector,
 				1, block);
-		c_puts("wrote 1 block");
 		if(blocks_rw != 1){
 			c_puts("error writing block on writeback");
 			return FAILURE;
