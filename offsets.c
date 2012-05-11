@@ -2,6 +2,7 @@
 #define _CLOCK_H
 #define _PROCESSES_H
 #define _MMAN_H
+#define __KERNEL__20113__
 
 #define USER_ENTRY 0x10000
 
@@ -18,6 +19,7 @@ typedef Uint16 Pid;
 typedef Uint32 Time;
 typedef Uint32 Status;
 
+#include "heaps.h"
 #include "pcbs.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -27,6 +29,7 @@ int main(int argc, char **argv) {
 	putchar('\n');
 	printf("/* PCB offsets */\n");
 	printf("#define PCB_CONTEXT		(%d)\n", offsetof(Pcb, context));
+	printf("#define PCB_HEAPINFO	(%d)\n", offsetof(Pcb, heapinfo));
 	printf("#define PCB_STACK		(%d)\n", offsetof(Pcb, stack));
 	printf("#define PCB_VIRT_MAP	(%d)\n", offsetof(Pcb, virt_map));
 	printf("#define PCB_PGDIR		(%d)\n", offsetof(Pcb, pgdir));

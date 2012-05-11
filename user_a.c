@@ -92,4 +92,6 @@ void main( void ) {
 		//prt_status( "User A, write 3 status %s\n", status );
 	}
 
+//	for(;;);
+
 }

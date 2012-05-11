@@ -109,6 +109,7 @@ typedef Pagetbl_entry *Pagetbl_ptr;
 #define MAP_COW			(0x00000200)
 #define MAP_SHARED		(0x00000400)
 #define MAP_DISK		(0x00000800)
+#define MAP_ZERO		(0x40000000)
 #define MAP_VIRT_ONLY	(0x80000000)
 
 #define MAP_FLAGS_MASK	(0x00000e06)

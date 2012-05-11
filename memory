@@ -20,9 +20,9 @@ From		To			Purpose
 0040 0000	007F FFFF	Allocation maps, 128KB each,
 						map 0 is phys, map 1 is kernel virt
 
-0080 0000	009F FFFF	Page-level refcounts
+0080 0000	00BF FFFF	Page-level refcounts
 
-00A0 0000	(framebuf)	Free space for user/kernel heaps
+00C0 0000	(framebuf)	Free space for user/kernel heaps
 
 (framebuf)	FFFF FFFF	Framebuffer
 

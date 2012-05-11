@@ -232,9 +232,6 @@ delay_inner:
 
 	iret
 
-scratch:
-	.long	0
-
 #ifdef ISR_DEBUGGING_CODE
 /*
 ** DEBUGGING CODE PART 2

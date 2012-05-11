@@ -2,16 +2,17 @@
 
 /* PCB offsets */
 #define PCB_CONTEXT		(0)
-#define PCB_STACK		(60)
-#define PCB_VIRT_MAP	(64)
-#define PCB_PGDIR		(68)
-#define PCB_WAKEUP		(72)
-#define PCB_PID			(76)
-#define PCB_PPID		(78)
-#define PCB_STATE		(80)
-#define PCB_PRIORITY	(81)
-#define PCB_QUANTUM		(82)
-#define PCB_PROGRAM		(83)
+#define PCB_HEAPINFO	(60)
+#define PCB_STACK		(64)
+#define PCB_VIRT_MAP	(68)
+#define PCB_PGDIR		(72)
+#define PCB_WAKEUP		(76)
+#define PCB_PID			(80)
+#define PCB_PPID		(82)
+#define PCB_STATE		(84)
+#define PCB_PRIORITY	(85)
+#define PCB_QUANTUM		(86)
+#define PCB_PROGRAM		(87)
 
 /* context offsets */
 #define CTX_EDI			(0)

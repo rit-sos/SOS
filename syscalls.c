@@ -79,16 +79,21 @@ Status _out_param(Pcb *pcb, Int32 index, Uint32 val) {
 	Status status;
 	void *ptr;
 
+	c_printf("out_param: pid=%d val=%d\n", pcb->pid, val);
+
 	// first get the pointer from the user stack
 	if ((status = _in_param(pcb, index, (Uint32*)&ptr)) == SUCCESS) {
 		if (((Uint32)ptr) % 4 == 0) {
 			// then try to write to the pointed-to buffer
 			status = _mman_set_user_data(pcb, ptr, &val, sizeof(Uint32));
+//			c_printf("_mman_set_user_data: %s\n", _kstatus(status));
 		} else {
 			c_printf("[%04d] _out_param: unaligned ptr %08x\n", pcb->pid, ptr);
 			status = BAD_PARAM;
 		}
 	}
+
+//	c_printf("[%04x] out_param: %08x\n", pcb->pid, status);
 
 	return status;
 }
@@ -183,7 +188,7 @@ static void _sys_fork( Pcb *pcb ) {
 		goto Cleanup;
 	}
 
-	c_printf("_sys_fork: _sched(new) OK\n");
+	c_printf("_sys_fork: _sched(new) OK, pcb->pid=%d, new->pid=%d\n", pcb->pid, new->pid);
 	//_pcb_dump(new);
 	RET(pcb) = SUCCESS;
 	RET(new) = SUCCESS;

@@ -248,8 +248,3 @@ void __delay( int tenths ){
 	}
 }
 
-void _kpanic(const char*, const char*, unsigned int);
-void __gp_isr(int vector, int code) {
-	c_printf("*** GENERAL PROTECTION FAULT ***\n vec=0x%08x code=0x%08x\n", vector, code);
-	_kpanic("(#GP)", "", 0);
-}

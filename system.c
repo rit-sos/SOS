@@ -265,6 +265,7 @@ void _init( void ) {
 	_sched_init();
 	_clock_init();
 	_mman_init();
+	_heap_init();
 
 	c_puts( "\n" );
 
@@ -344,4 +345,10 @@ void _init( void ) {
 	*/
 
 	c_puts( "System initialization complete.\n" );
+}
+
+void __gp_isr(int vector, int code) {
+	c_printf("*** GENERAL PROTECTION FAULT ***\n pid=%04x vec=0x%08x code=0x%08x\n", _current->pid, vector, code);
+//	_kpanic("(#GP)", "", 0);
+	_sys_exit(_current);
 }

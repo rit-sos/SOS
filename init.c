@@ -67,7 +67,7 @@
 //void init( void ) {
 void main(void) {
 	int i;
-	unsigned int pid;
+	unsigned int pid, my_pid;
 	unsigned int time;
 	Status status;
 
@@ -75,13 +75,20 @@ void main(void) {
 
 //	c_printf("Hello from ring 3!\n");
 
-	// (#GP)
-	//asm("cli");
-
 	//c_puts( "Init started\n" );
 	puts("init: my main lives at ");
 	putx((Uint32)&main);
 	puts("\n");
+
+	status = get_pid(&pid);
+	puts("init: my pid is ");
+	putx(pid);
+	puts("\n");
+
+//	for(;;);
+
+	// (#GP)
+//	asm("cli");
 	
 	//puts("hello from ring 3 init\n");
 
@@ -95,11 +102,17 @@ void main(void) {
 		puts("fork failed\n");
 	} else if( pid == 0 ) {
 		puts("I'm the child\n");
+		for(;;);
 		status = exec( user_a_ID );
 		//prt_status( "init: can't exec() user A, status %s\n", status );
 		exit();
 	}
-	puts("I'm the parent\n");
+	puts("I'm the parent and my pid is ");
+	get_pid(&my_pid);
+	putx(my_pid);
+	puts(" and my child's pid is ");
+	putx(pid);
+	puts("\n");
 #endif
 
 #ifdef SPAWN_MMAN
@@ -264,7 +277,8 @@ void main(void) {
 	for(;;) {
 		for( i = 0; i < DELAY_LONG; ++i )
 			continue;
-		write( '.' );
+		write( '+' );
+		write( '-' );
 	}
 
 	/*

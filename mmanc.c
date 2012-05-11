@@ -9,12 +9,43 @@
 #include "syscalls.h"
 #include "startup.h"
 
-#define CHECK_PAGE_BIT(M,X)	((M)[(X)>>5] &  (1 << ((X) & 0x1f)) != 0)
-#define CLEAR_PAGE_BIT(M,X)	((M)[(X)>>5] &= ~(1 << ((X) & 0x1f)))
-#define SET_PAGE_BIT(M,X)	((M)[(X)>>5] |= (1 << ((X) & 0x1f)))
+#define CHECK_PAGE_BIT(M,X)	((M)[(X)>>5] &  (0x80000000 >> ((X) & 0x1f)) != 0)
+#define CLEAR_PAGE_BIT(M,X)	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f)))
+#define SET_PAGE_BIT(M,X)	((M)[(X)>>5] |= (0x80000000 >> ((X) & 0x1f)))
 
-#define PAGE_ADDREF(X)		(++(((Uint16*)REFCOUNT_BASE)[(X)]))
-#define PAGE_RELEASE(X)		(--(((Uint16*)REFCOUNT_BASE)[(X)]))
+/*
+#define CLEAR_PAGE_BIT(M,X)		{											\
+	if ((X) == 0x10001)														\
+		c_printf("CLEAR_PAGE_BIT(%08x,%08x)\n",(M),(X));					\
+	((M)[(X)>>5]&=~(1<<((X)&0x1f))); }
+
+#define SET_PAGE_BIT(M,X)		{											\
+	if ((X) == 0x10001)														\
+		c_printf("SET_PAGE_BIT(%08x,%08x)\n",(M),(X));						\
+	((M)[(X)>>5]|=(1<<((X)&0x1f))); }
+*/
+
+#define PAGE_REFCOUNT(X)	(((Uint32*)REFCOUNT_BASE)[(X)])
+
+//#define PAGE_ADDREF(X)		(c_printf("addref:%08x:%d\n",(X),PAGE_REFCOUNT((X))),++(PAGE_REFCOUNT((X))))
+//#define PAGE_RELEASE(X)		(c_printf("release:%08x:%d\n",(X),PAGE_REFCOUNT((X))),--(PAGE_REFCOUNT((X))))
+
+#define PAGE_ADDREF(X)		(++(PAGE_REFCOUNT((X))))
+#define PAGE_RELEASE(X)		(--(PAGE_REFCOUNT((X))))
+
+#define PAGE_ADDREF_V(P,X,W)	{											\
+	Uint32 l_ppg;															\
+	if ((status = _mman_translate_page((P), (X), &l_ppg, (W))) != SUCCESS)	\
+		goto Cleanup;														\
+	PAGE_ADDREF(l_ppg); }
+
+#define PAGE_RELEASE_V(P,X,W)	{											\
+	Uint32 l_ppg;															\
+	if ((status = _mman_translate_page((P), (X), &l_ppg, (W))) != SUCCESS)	\
+		goto Cleanup;														\
+	PAGE_RELEASE(l_ppg); }
+
+//	c_printf("PAGE_RELEASE_V(%08x) => PAGE_RELEASE(%08x)\n", (X), l_ppg);
 
 Pagedir *_pgdirs;
 Pagetbl *_pgtbls;
@@ -83,16 +114,21 @@ static Pagetbl_entry get_pte(Pagedir_entry *pgdir, Uint32 vpg) {
 #define CHK(X) if ((status = (X)) != SUCCESS) goto Cleanup
 
 static Status handle_cow(Pcb *pcb, Uint32 vpg) {
-	Status status;
 	void *ksrc, *kdst;
 	Pagedir_entry *pgdir;
 	Pagetbl_entry *pte;
+	Uint32 *virt_map;
 	Uint32 src, dst, free_src, free_dst;
+	Status status;
+
+	c_printf("[%04x] handle_cow( %08x, %08x )\n", pcb ? pcb->pid : 0xffff, pcb, vpg);
 
 	if (pcb) {
 		pgdir = pcb->pgdir;
+		virt_map = pcb->virt_map;
 	} else {
 		pgdir = (Pagedir_entry*)_kpgdir;
+		virt_map = _virt_map;
 	}
 
 	free_src = free_dst = 0;
@@ -104,7 +140,10 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		/*
 		** This is no longer a COW page, just mark it writable.
 		*/
+		c_printf("handle_cow: un-cow vpg=%08x, ppg=%08x\n", vpg, src);
+
 		pte = &((Pagetbl_entry*)(pgdir[(vpg >> 10) & 0x03ff].dword & PD_FRAME))[vpg & 0x03ff];
+//		c_printf("handle_cow: pte: %06x %d %d %d %d %d %d %d %d %d %d %d %d\n", pte->frame, pte->disk, pte->shared, pte->cow, pte->global, pte->reserved, pte->dirty, pte->accessed, pte->cachewrt, pte->cachedis, pte->user, pte->write, pte->present);
 		pte->cow = 0;
 		pte->write = 1;
 		PAGE_ADDREF(src);
@@ -114,25 +153,41 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		** We need to copy the user COW page to a fresh physical page.
 		*/
 
+		c_printf("handle_cow: MOOve vpg=%08x, ppg=%08x\n", vpg, src);
+
 		/* map COW page into kernel */
 		CHK(_mman_alloc(NULL, &ksrc, PAGESIZE, MAP_VIRT_ONLY));
 		free_src = 1;
 		CHK(_mman_map_page((Pagedir_entry*)_kpgdir, ((Uint32)ksrc) >> 12, src, 0));
+		SET_PAGE_BIT(_virt_map, ((Uint32)ksrc) >> 12);
 	
+		c_printf("map into kernel ok\n");
+
 		/* unmap COW page in user */
 		CHK(_mman_unmap_page(pgdir, vpg));
-	
+		CLEAR_PAGE_BIT(virt_map, vpg);
+
+		c_printf("unmap in user ok\n");
+
 		/* alloc new phys page for user */
 		CHK(_mman_alloc_at(pcb, (void*)(vpg << 12), PAGESIZE, MAP_USER | MAP_WRITE));
 	
+		c_printf("alloc in user ok\n");
+
 		/* get phys addr for new phys page */
 		CHK(_mman_translate_page(pgdir, vpg, &dst, 1));
-	
+
+		c_printf("translate user ok\n");
+
 		/* map new phys page into kernel */
 		CHK(_mman_alloc(NULL, &kdst, PAGESIZE, MAP_VIRT_ONLY | MAP_WRITE));
+		c_printf("alloc in kernel ok\n");
 		free_dst = 1;
 		CHK(_mman_map_page((Pagedir_entry*)_kpgdir, ((Uint32)kdst) >> 12, dst, MAP_WRITE));
+		SET_PAGE_BIT(_virt_map, ((Uint32)kdst) >> 12);
 	
+		c_printf("map in kernel ok\n");
+
 		/* copy */
 		_kmemcpy(kdst, ksrc, PAGESIZE);
 
@@ -141,14 +196,17 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		/*
 		** We need to copy the kernel COW page to a fresh physical page.
 		*/
+		c_printf("handle_cow: kernel MOOve vpg=%08x, ppg=%08x\n", vpg, src);
 
 		/* map the same page to a new location */
 		CHK(_mman_alloc(NULL, &ksrc, PAGESIZE, MAP_VIRT_ONLY));
 		free_src = 1;
 		CHK(_mman_map_page((Pagedir_entry*)_kpgdir, ((Uint32)ksrc) >> 12, src, 0));
+		SET_PAGE_BIT(_virt_map, ((Uint32)ksrc) >> 12);
 
 		/* unmap the page at its old location */
 		CHK(_mman_unmap_page((Pagedir_entry*)_kpgdir, vpg));
+		CLEAR_PAGE_BIT(_virt_map, vpg);
 
 		/* alloc and map a new page for the original virtual address */
 		CHK(_mman_alloc_at(pcb, (void*)(vpg << 12), PAGESIZE, MAP_WRITE));
@@ -161,6 +219,8 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 
 Cleanup:
 	/* unmap COW and new phys page in kernel */
+	c_printf("handle_cow: %s\n", _kstatus(status));
+
 	if (free_src) {
 		_mman_free(NULL, ksrc, PAGESIZE);
 
@@ -168,6 +228,7 @@ Cleanup:
 			_mman_free(NULL, kdst, PAGESIZE);
 		}
 	}
+
 
 	return status;
 }
@@ -209,17 +270,23 @@ void _mman_pagefault_isr(int vec, int code) {
 	/* first get the faulting address */
 	cr2 = _mman_get_cr2();
 
+	c_printf("*** Page Fault ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
+
 	if (code & PF_USER) {
 		pte = get_pte(_current->pgdir, cr2 >> 12);
 		if (code & PF_PRESENT) {
 			if ((code & PF_WRITE) && pte.user && pte.cow) {
 				/* Case 4 */
+				c_putchar('4');
 				if (handle_cow(_current, cr2 >> 12) != SUCCESS) {
 					/* no choice but to crash the user process */
 					_sys_exit(_current);
 				}
 			} else {
 				/* Case 2 or 3 */
+				c_putchar('2');
+		c_printf("#PF: pte: %06x %d %d %d %d %d %d %d %d %d %d %d %d\n", pte.frame, pte.disk, pte.shared, pte.cow, pte.global, pte.reserved, pte.dirty, pte.accessed, pte.cachewrt, pte.cachedis, pte.user, pte.write, pte.present);
+//		c_printf("#PF: pde: %06x %x %d %d %d %d %d %d %d %d\n", pde.frame, pde.unused0, pde.pgsize, pde.unused1, pde.accessed, pde.cachedis, pde.cachewrt, pde.user, pde.write, pde.present);
 				_sys_exit(_current);
 			}
 		} else if (pte.disk) {
@@ -227,18 +294,21 @@ void _mman_pagefault_isr(int vec, int code) {
 			_kpanic("mman", "_mman_pagefault_isr: disk paging not implemented", FAILURE);
 		} else {
 			/* Case 1 */
+			c_putchar('1');
 			_sys_exit(_current);
 		}
 	} else {
 		pte = get_pte((Pagedir_entry*)_kpgdir, cr2 >> 12);
 		if ((code & PF_PRESENT) && (code & PF_WRITE) && !pte.user && pte.cow) {
 			/* Case 7 */
+			c_putchar('7');
 			if (handle_cow(NULL, cr2 >> 12) != SUCCESS) {
 				c_printf("*** Kernel COW error ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
 				_kpanic("mman", "_mman_pagefault_isr", FAILURE);
 			}
 		} else {
 			/* Case 6 or 8, fatal kernel bug */
+			c_putchar('6');
 			c_printf("*** Kernel pagefault ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
 			_kpanic("mman", "_mman_pagefault_isr", FAILURE);
 		}
@@ -293,6 +363,8 @@ Status _mman_pgdir_free(Pagedir_entry *pgdir) {
 		}
 	}
 
+	--pcnt;
+
 	return _q_insert(_pgdir_queue, pgdir, (Key)0);
 }
 
@@ -317,7 +389,6 @@ Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *sr
 	for (i = 1; i < PAGESIZE / 4; i++) {
 		/* if it exists, */
 		if (src[i].present) {
-			c_printf("source pagedir %08x, pgtbl %04x (dword:%08x) is present\n", src, i, src[i].dword);
 			/* allocate a page table for the new directory. */
 			if (_mman_pgdir_alloc((Pagedir_entry**)&dst[i]) != SUCCESS) {
 				c_printf("_mman_pgdir_copy: _mman_pgdir_alloc failed\n");
@@ -337,11 +408,6 @@ Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *sr
 						/* create a new cow mapping */
 						tbl[j].write = 0;
 						tbl[j].cow = 1;
-						/*
-						** Need a total of two addrefs here, since the page is changing to COW
-						** in the source table and also being stored in the destination table.
-						*/
-						PAGE_ADDREF(tbl[j].frame);
 					}
 					/* copy the pte */
 					((Pagetbl_entry*)(dst[i].dword & PD_FRAME))[j].dword = tbl[j].dword;
@@ -389,7 +455,7 @@ Status _mman_translate_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 *phys, Uin
 		tbl = (Pagetbl_entry*)(pde.dword & PD_FRAME);
 		idx = virt & 0x03ff;
 		pte.dword = tbl[idx].dword;
-		if ((pte.present || pte.disk) && (pgdir == _kpgdir || pte.user) && (!write || pte.write)) {
+		if ((pte.present || pte.disk) && (pgdir == _kpgdir || pte.user) && (!write || pte.write || pte.cow)) {
 			*phys = (pte.dword & PT_FRAME) >> 12;
 			return SUCCESS;
 		}
@@ -461,6 +527,9 @@ Status _mman_get_user_data(Pcb *pcb, /* out */ void *buf, void *virt, Uint32 siz
 		if ((status = _mman_map_page((Pagedir_entry*)_kpgdir, kvpg, ppg, 0)) != SUCCESS) {
 			goto Cleanup;
 		}
+
+		SET_PAGE_BIT(_virt_map, kvpg);
+		PAGE_ADDREF(ppg);
 	}
 
 	/* do the copy */
@@ -510,9 +579,18 @@ Status _mman_set_user_data(Pcb *pcb, /* out */ void *virt, void *buf, Uint32 siz
 			goto Cleanup;
 		}
 
+		if (ppg == ((Uint32)_zero) >> 12) {
+			if ((status = handle_cow(pcb, vpg)) != SUCCESS) {
+				goto Cleanup;
+			}
+		}
+
 		if ((status = _mman_map_page((Pagedir_entry*)_kpgdir, kvpg, ppg, MAP_WRITE)) != SUCCESS) {
 			goto Cleanup;
 		}
+
+		SET_PAGE_BIT(_virt_map, kvpg);
+		PAGE_ADDREF(ppg);
 	}
 
 	/* do the copy */
@@ -553,14 +631,14 @@ Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 fla
 		tbl = (Pagetbl_entry*)(pde.dword & PD_FRAME);
 	} else {
 		/* no pagetbl here, alloc a new one */
-		c_printf("_mman_map_page: need a new pgtbl for pgdir %08x, %08x ==> %08x\n", pgdir, virt, phys);
+		//c_printf("_mman_map_page: need a new pgtbl for pgdir %08x, %08x ==> %08x\n", pgdir, virt, phys);
 		if ((status = _mman_pgdir_alloc((Pagedir_entry**)&tbl)) != SUCCESS) {
 			return status;
 		}
 		_kmemclr(tbl, sizeof(Pagedir));
 
 		/* store the new pagetbl address into the pgdir */
-		pgdir[idx].dword = ((Uint32)tbl) | (flags & MAP_PD_MASK) | PT_PRESENT;
+		pgdir[idx].dword = ((Uint32)tbl) | (flags & MAP_PD_MASK) | PD_WRITE | PD_PRESENT;
 	}
 
 	/* now find the pagetbl entry */
@@ -569,9 +647,10 @@ Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 fla
 	if (tbl[idx].present) {
 		/* mapping already exists for this address */
 		Uint32 temp;
-		c_printf("mapping exists at index %d!\n", idx, idx);
+		c_printf("mapping exists at index %d in pgdir %08x!\n", idx, pgdir);
 		_mman_translate_page(pgdir, virt, &temp, 0);
-		c_printf("virt: 0x%08x, phys: 0x%08x (want: 0x%08x)\n", virt << 12, temp << 12, phys << 12);
+		c_printf("virt: 0x%08x, phys: 0x%08x want: 0x%08x ", virt << 12, temp << 12, phys << 12);
+		c_printf("caller=%08x,%08x\n", *(Uint32*)(_get_ebp()+4), *((*(Uint32**)_get_ebp())+1));
 		return ALREADY_EXISTS;
 	}
 
@@ -590,10 +669,15 @@ Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt) {
 		return BAD_PARAM;
 	}
 
+//	if (virt == 0x10001) {
+//		c_printf("_mman_unmap_page: pgdir=%08x, virt=0x10001, caller=%08x,%08x\n", pgdir, *(Uint32*)(_get_ebp()+4), *((*(Uint32**)_get_ebp())+1));
+//	}
+
 	/* first find the pagetbl */
 	idx = (virt >> 10) & 0x03ff;
 	pde.dword = pgdir[idx].dword;
 	if (!pde.present) {
+		c_printf("_mman_unmap_page: pgdir entry not found (pgdir=%08x, virt=%08x)\n", pgdir, virt);
 		return NOT_FOUND;
 	}
 
@@ -602,6 +686,7 @@ Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt) {
 	/* now find the pagetbl entry */
 	idx = virt & 0x03ff;
 	if (!tbl[idx].present) {
+		c_printf("_mman_unmap_page: pgtbl entry not found (pgdir=%08x, virt=%08x)\n", pgdir, virt);
 		return NOT_FOUND;
 	}
 
@@ -670,6 +755,7 @@ Status _mman_proc_init(Pcb *pcb) {
 		goto Cleanup;
 	}
 	SET_PAGE_BIT(map, vpg);
+	PAGE_ADDREF(ppg);
 
 	/*
 	** Map the target process's code to USER_ENTRY and up.
@@ -685,6 +771,7 @@ Status _mman_proc_init(Pcb *pcb) {
 			goto Cleanup;
 		}
 		SET_PAGE_BIT(map, vpg);
+		PAGE_ADDREF(ppg);
 	}
 
 	/*
@@ -703,7 +790,7 @@ Status _mman_proc_init(Pcb *pcb) {
 	/*
 	** Finally, give the process a heap.
 	*/
-	status = _mman_alloc_at(pcb, (void*)USER_HEAP_BASE, HEAP_CHUNK_SIZE, MAP_USER | MAP_WRITE);
+	status = _mman_alloc_at(pcb, (void*)USER_HEAP_BASE, HEAP_CHUNK_SIZE, MAP_USER | MAP_WRITE | MAP_ZERO);
 	if (status != SUCCESS) {
 		goto Cleanup;
 	}
@@ -741,9 +828,7 @@ Status _mman_proc_exit(Pcb *pcb) {
 		if (pgdir[i].present && pgdir[i].user) {
 			pgtbl = (Pagetbl_entry*)(pgdir[i].dword & PD_FRAME);
 			for (j = 0; j < PAGESIZE / 4; j++) {
-				if (pgtbl[j].present && pgtbl[j].user
-				 && pgtbl[j].frame >= (USER_HEAP_BASE >> 12)
-				 && pgtbl[j].frame < (USER_HEAP_MAX >> 12)) {
+				if (pgtbl[j].present && pgtbl[j].user) {
 					if (PAGE_RELEASE(pgtbl[j].frame) == 0) {
 						CLEAR_PAGE_BIT(_phys_map, pgtbl[j].frame);
 					}
@@ -787,24 +872,26 @@ Status _mman_free(Pcb *pcb, void *ptr, Uint32 size) {
 	vpg = ((Uint32)ptr) >> 12;
 
 	for (i = 0; i < num_pages; i++, vpg++) {
-		if (vpg >= (USER_HEAP_BASE >> 12) && vpg < (USER_HEAP_MAX >> 12)) {
-			if (_mman_translate_page(pgdir, vpg, &ppg, 0) == SUCCESS) {
-				if ((PAGE_RELEASE(ppg)) == 0) {
-					CLEAR_PAGE_BIT(_phys_map, ppg);
-				}
+		if (_mman_translate_page(pgdir, vpg, &ppg, 0) == SUCCESS) {
+			if ((PAGE_RELEASE(ppg)) == 0) {
+				CLEAR_PAGE_BIT(_phys_map, ppg);
 			}
 		}
 		_mman_unmap_page(pgdir, vpg);
+		CLEAR_PAGE_BIT(virt_map, vpg);
 	}
 
 	return SUCCESS;
 }
 
 Status _mman_proc_copy(Pcb *new, Pcb *old) {
+	Pagetbl_entry *tbl;
+	Uint32 stack;
 	Status status;
 
 	new->pgdir = NULL;
 	new->virt_map = NULL;
+	stack = ((USER_STACK >> 12) - 1);
 
 	// get a new pgtbl
 	status = _mman_pgdir_alloc(&new->pgdir);
@@ -825,15 +912,22 @@ Status _mman_proc_copy(Pcb *new, Pcb *old) {
 	}
 
 	// move the stack mapping
-	status = _mman_unmap_page(new->pgdir, (USER_STACK >> 12) - 1);
+	PAGE_RELEASE_V(new->pgdir, stack, 1);
+	status = _mman_unmap_page(new->pgdir, stack);
 	if (status != SUCCESS) {
 		goto Cleanup;
 	}
 
-	status = _mman_map_page(new->pgdir, (USER_STACK >> 12) - 1, ((Uint32)new->stack) >> 12, MAP_WRITE | MAP_USER);
+	status = _mman_map_page(new->pgdir, stack, ((Uint32)new->stack) >> 12, MAP_WRITE | MAP_USER);
 	if (status != SUCCESS) {
 		goto Cleanup;
 	}
+	PAGE_ADDREF((Uint32)(new->stack) >> 12);
+
+	// un-cow the parent stack, since pgdir_copy() cow'd it
+	tbl = (Pagetbl_entry*)(old->pgdir[(stack >> 10) & 0x03ff].dword & PD_FRAME);
+	tbl[stack & 0x03ff].cow = 0;
+	tbl[stack & 0x03ff].write = 1;
 
 	return SUCCESS;
 
@@ -850,7 +944,7 @@ Cleanup:
 ** See mman.h for flags.
 */
 Status _mman_alloc(Pcb *pcb, void **ptr, Uint32 size, Uint32 flags) {
-	int i, j, k;
+	Uint32 i, j, k;
 	Uint32 bit, status, vpg, num_pages;
 	Pagedir_entry *pgdir;
 	Uint32 *virt_map, *map;
@@ -868,6 +962,8 @@ Status _mman_alloc(Pcb *pcb, void **ptr, Uint32 size, Uint32 flags) {
 	if ((flags & (MAP_FLAGS_MASK | MAP_VIRT_ONLY)) != flags) {
 		return BAD_PARAM;
 	}
+
+	status = MOO;
 
 	/*
 	** if a pcb was passed in, this is for a user process, else
@@ -891,15 +987,15 @@ Status _mman_alloc(Pcb *pcb, void **ptr, Uint32 size, Uint32 flags) {
 	** Find a continuous piece of the virtual address space.
 	** I don't really care how long this takes.
 	*/
-	for (map = virt_map + 32, i = 32; i < 0x8000; i++, map++) {
+	for (map = virt_map + 96, i = 96; i < 0x8000; i++, map++) {
 		if (*map != 0xffffffff) {
 			/* save the address of the potential mapping */
-			for (vpg = i << 5, k = bit; k; k >>= 1) {
+			for (vpg = i << 5, k = 0x80000000; k & (*map); k >>= 1) {
 				vpg++;
 			}
 
 			/* see if the potential mapping is big enough */
-			for (j = 1; j < num_pages; j++) {
+			for (j = 1, bit = k; j < num_pages; j++) {
 				/* advance to the next bit */
 				if ((bit >>= 1) == 0) {
 					/* if we reached the end of the dword, advance map */
@@ -933,9 +1029,9 @@ Status _mman_alloc(Pcb *pcb, void **ptr, Uint32 size, Uint32 flags) {
 		return ALLOC_FAILED;
 	}
 
-	if (!(flags & MAP_VIRT_ONLY)) {
-		*ptr = (void*)(vpg << 12);
+	*ptr = (void*)(vpg << 12);
 
+	if (!(flags & MAP_VIRT_ONLY)) {
 		/* now we just need physical memory to back it */
 		if ((status = _mman_alloc_at(pcb, *ptr, size, flags)) != SUCCESS) {
 			*ptr = 0;
@@ -946,11 +1042,12 @@ Status _mman_alloc(Pcb *pcb, void **ptr, Uint32 size, Uint32 flags) {
 }
 
 Status _mman_alloc_at(Pcb *pcb, void *ptr, Uint32 size, Uint32 flags) {
-	int i;
+	int i, j, k;
 	Pagedir_entry *pgdir;
 	Uint32 *virt_map;
+	Uint32 *map;
 	Uint32 num_pages;
-	Uint32 zpg, vpg;
+	Uint32 vpg, ppg, bit;
 	Status status;
 
 	if (!ptr) {
@@ -962,7 +1059,7 @@ Status _mman_alloc_at(Pcb *pcb, void *ptr, Uint32 size, Uint32 flags) {
 		return BAD_PARAM;
 	}
 
-	if ((flags & MAP_FLAGS_MASK) != flags) {
+	if ((flags & (MAP_FLAGS_MASK | MAP_ZERO)) != flags) {
 		return BAD_PARAM;
 	}
 
@@ -979,90 +1076,95 @@ Status _mman_alloc_at(Pcb *pcb, void *ptr, Uint32 size, Uint32 flags) {
 		num_pages++;
 	}
 
-	zpg = ((Uint32)_zero) >> 12;
 	vpg = ((Uint32)ptr) >> 12;
 
-	/* fill in the allocation with mapped-zero COW or shared pages */
-	if (flags & MAP_WRITE) {
-		flags = (flags & ~MAP_WRITE) | MAP_COW;
-	} else {
-		flags |= MAP_SHARED;
-	}
+	if (flags & MAP_ZERO) {
+		flags &= ~MAP_ZERO;
 
-	for (i = 0; i < num_pages; i++, vpg++) {
-		if ((status = _mman_map_page(pgdir, vpg, zpg, flags)) != SUCCESS) {
-			c_printf("_mman_alloc_at: _mman_map_page(vpg => zpg) failed\n");
-			goto Cleanup;
+		ppg = ((Uint32)_zero) >> 12;
+
+		/* fill in the allocation with mapped-zero COW or shared pages */
+		if (flags & MAP_WRITE) {
+			flags = (flags & ~MAP_WRITE) | MAP_COW;
 		}
-		SET_PAGE_BIT(virt_map, vpg);
-		PAGE_ADDREF(zpg);
-	}
+	
+		for (i = 0; i < num_pages; i++, vpg++) {
+			if ((status = _mman_map_page(pgdir, vpg, ppg, flags)) != SUCCESS) {
+				c_printf("_mman_alloc_at: _mman_map_page(vpg => zpg) failed\n");
+				goto CleanupZero;
+			}
+			SET_PAGE_BIT(virt_map, vpg);
+			PAGE_ADDREF(ppg);
+		}
 
-	return SUCCESS;
+		return SUCCESS;
 
-Cleanup:
-	/* undo partial mapping on failure */
-	for ( ; i >= 0; --i, --vpg) {
-		_mman_unmap_page(pgdir, vpg);
-		CLEAR_PAGE_BIT(virt_map, vpg);
-		PAGE_RELEASE(zpg);
-	}
+	CleanupZero:
+		/* undo partial mapping on failure */
+		for ( ; i >= 0; --i, --vpg) {
+			_mman_unmap_page(pgdir, vpg);
+			CLEAR_PAGE_BIT(virt_map, vpg);
+			PAGE_RELEASE(ppg);
+		}
 
-	return status;
-}
+		return ALLOC_FAILED;
 
-#if 0
-	/*
-	** Find free physical pages to map to each virtual page.
-	** These don't have to be continuous, so less complicated.
-	*/
-	for (map = _phys_map, i = start_phys, j = 0; i < end_phys && j < num_pages; i++, map++) {
-		if (*map != 0xffffffff) {
-			for (bit = 0x80000000, k = 0; bit; bit >>= 1, k++) {
-				if (!((*map) & bit)) {
-					/* found a free physical page */
-					if ((status = _mman_map_page(pgdir, vpg + j, (i << 5) | k, flags)) != SUCCESS) {
-						/* alloc failed */
-						goto Cleanup;
+	} else {
+		/*
+		** Find free physical pages to map to each virtual page.
+		** These don't have to be continuous, so less complicated.
+		*/
+		for (map = _phys_map + 96, i = 96, j = 0; i < 0x8000 && j < num_pages; i++, map++) {
+			if (*map != 0xffffffff) {
+				for (bit = 0x80000000, k = 0; bit && j < num_pages; bit >>= 1, k++) {
+					if (!((*map) & bit)) {
+						/* found a free physical page */
+						ppg = (i << 5) | k;
+						if ((status = _mman_map_page(pgdir, vpg + j, ppg, flags)) != SUCCESS) {
+							/* alloc failed */
+							goto CleanupPhys;
+						}
+	
+						/* set the bit in the physical allocation map */
+						//*map |= bit;
+						SET_PAGE_BIT(_phys_map, ppg);
+						SET_PAGE_BIT(virt_map, vpg + j);
+						PAGE_ADDREF(ppg);
+
+						++j;
 					}
-
-					/* set the bit in the physical allocation map */
-					*map |= bit;
 				}
 			}
 		}
-	}
-
-	/* we traversed the whole list and didn't find space */
-	if (j != num_pages) {
-		goto Cleanup;
-	}
-
-	/*
-	** Return the virtual address of the mapped region in ptr.
-	** This will, of course, only be valid for the process corresponding
-	** to the passed-in pcb.
-	*/
-	*ptr = (void*)(vpg << 12);
-	return SUCCESS;
-
-Cleanup:
-	/*
-	** Undo partial allocations before returning.
-	** j is number of successfully mapped pages.
-	** vpg is the first virtual page mapped.
-	*/
-	for (i = 0; i < j; i++, vpg++) {
-		if (_mman_translate_page(pgdir, vpg, &ppg) == SUCCESS) {
-			CLEAR_PAGE_BIT(ppg);
+	
+		/* we traversed the whole list and didn't find space */
+		if (j != num_pages) {
+			goto CleanupPhys;
 		}
-		_mman_unmap_page(pgdir, vpg);
-	}
 
-	*ptr = NULL;
-	return ALLOC_FAILED;
+		return SUCCESS;
+
+	CleanupPhys:
+
+		/*
+		** Undo partial allocations before returning.
+		** j is number of successfully mapped pages.
+		** vpg is the first virtual page mapped.
+		*/
+		for (i = 0; i < j; i++, vpg++) {
+			if (_mman_translate_page(pgdir, vpg, &ppg, 0) == SUCCESS) {
+				if (PAGE_RELEASE(ppg) == 0) {
+					CLEAR_PAGE_BIT(_phys_map, ppg);
+				}
+			}
+			_mman_unmap_page(pgdir, vpg);
+			CLEAR_PAGE_BIT(virt_map, vpg);
+		}
+
+		return ALLOC_FAILED;
+	}
 }
-#endif
+
 
 void _mman_init() {
 	Uint32 i, addr;
@@ -1123,15 +1225,16 @@ void _mman_init() {
 	}
 
 	/*
-	** Now the refcounts for shared and COW pages. 2 bytes per physical page,
-	** for a total of 2MB.
+	** Now the refcounts for shared and COW pages. 4 bytes per physical page,
+	** for a total of 4MB.
 	*/
-	_kmemclr(REFCOUNT_BASE, 0x200000);
+	_kmemclr(REFCOUNT_BASE, 0x400000);
 
-	/* initialize _zero's refcount to 1 so it never gets purged */
-	PAGE_ADDREF(((Uint32)_zero) >> 12);
+	for (i = 0; i < 0x0c00; i++) {
+		PAGE_ADDREF(i);
+	}
 
-	/* identity mapping for kernel's first 10MB (this just keeps getting bigger..) */
+	/* identity mapping for kernel's first 12MB (this just keeps getting bigger..) */
 	for (i = 0, addr = 0; addr < 0x400000; i++, addr += 4096) {
 		_kpgtbl[i].dword = addr | PT_WRITE | PT_PRESENT;
 	}
@@ -1140,11 +1243,11 @@ void _mman_init() {
 		_kmappgtbl[i].dword = addr | PT_WRITE | PT_PRESENT;
 	}
 
-	for (i = 0; addr < 0xa00000; i++, addr += 4096) {
+	for (i = 0; addr < 0xc00000; i++, addr += 4096) {
 		_kextrapgtbl[i].dword = addr | PT_WRITE | PT_PRESENT;
 	}
 
-	for (i = 0; i < 80; i++) {
+	for (i = 0; i < 96; i++) {
 		_phys_map[i] = 0xffffffff;
 		_virt_map[i] = 0xffffffff;
 	}

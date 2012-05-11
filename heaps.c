@@ -21,7 +21,7 @@ void _heap_init(void) {
 	Status status;
 
 	/* set up the kernel heap */
-	status = _mman_alloc_at(NULL, (void*)KERNEL_HEAP_BASE, HEAP_CHUNK_SIZE, MAP_WRITE);
+	status = _mman_alloc_at(NULL, (void*)KERNEL_HEAP_BASE, HEAP_CHUNK_SIZE, MAP_WRITE | MAP_ZERO);
 	if (status != SUCCESS) {
 		_kpanic("heap", "_mman_alloc_at: %s", status);
 	}
@@ -34,7 +34,7 @@ void _heap_init(void) {
 	_heap_extent = 0;
 	_kheapinfo.count = 1;
 
-	_kmemclr(_heap_start_ptr, HEAP_CHUNK_SIZE);
+	c_printf("clear ok\n");
 
 	c_puts(" heap");
 }
@@ -193,7 +193,7 @@ Status _heap_create(struct pcb *pcb) {
 		return BAD_PARAM;
 	}
 
-	status = _mman_alloc_at(pcb, (void*)USER_HEAP_BASE, HEAP_CHUNK_SIZE, MAP_USER | MAP_WRITE);
+	status = _mman_alloc_at(pcb, (void*)USER_HEAP_BASE, HEAP_CHUNK_SIZE, MAP_USER | MAP_WRITE | MAP_ZERO);
 	if (status == SUCCESS) {
 		pcb->heapinfo.count = 1;
 	}
@@ -210,11 +210,11 @@ Status _heap_grow(struct pcb *pcb) {
 	if (pcb) {
 		info = &pcb->heapinfo;
 		ptr = (void*)(USER_HEAP_BASE + HEAP_CHUNK_SIZE * pcb->heapinfo.count);
-		flags = MAP_WRITE | MAP_USER;
+		flags = MAP_WRITE | MAP_USER | MAP_ZERO;
 	} else {
 		info = &_kheapinfo;
 		ptr = (void*)(KERNEL_HEAP_BASE + HEAP_CHUNK_SIZE * _kheapinfo.count);
-		flags = MAP_WRITE;
+		flags = MAP_WRITE | MAP_ZERO;
 	}
 
 	ptr = (void*)(USER_HEAP_BASE + HEAP_CHUNK_SIZE * _kheapinfo.count);
