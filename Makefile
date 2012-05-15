@@ -82,7 +82,7 @@
 
 # Add your user programs here, and add a line to the map too.
 # Don't remove init from this list, bad things will happen.
-USERS = init user_a mman_test
+USERS = init user_a mman_test heap_test
 
 MAPS = umap.h kmap.h kmap.c
 

@@ -17,6 +17,7 @@
 #include "c_io.h"
 #include "x86arch.h"
 #include "bootstrap.h"
+#include "syscalls.h"
 
 /*
 ** Global variables and local data types.
@@ -162,8 +163,11 @@ static void set_idt_entry( int entry, void ( *handler )( void ) ){
 
 	g->offset_15_0 = (int)handler & 0xffff;
 	g->segment_selector = GDT_CODE;
-//	g->flags = IDT_PRESENT | IDT_DPL_0 | IDT_INT32_GATE;
-	g->flags = IDT_PRESENT | IDT_DPL_3 | IDT_INT32_GATE;
+	if (entry == INT_VEC_SYSCALL) {
+		g->flags = IDT_PRESENT | IDT_DPL_3 | IDT_INT32_GATE;
+	} else {
+		g->flags = IDT_PRESENT | IDT_DPL_0 | IDT_INT32_GATE;
+	}
 	g->offset_31_16 = (int)handler >> 16 & 0xffff;
 }
 

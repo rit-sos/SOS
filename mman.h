@@ -146,6 +146,7 @@ Uint32 _mman_get_cr0(void);
 Uint32 _mman_get_cr2(void);
 Uint32 _mman_get_cr3(void);
 Uint32 _mman_enable_paging(void);
+Uint32 _invlpg(void *ptr);
 void _mman_pagefault_isr(int vec, int code);
 Status _mman_pgdir_alloc(Pagedir_entry **pgdir);
 Status _mman_map_alloc(Memmap_ptr *map);

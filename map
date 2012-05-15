@@ -1,3 +1,4 @@
 init		0x50000
 user_a		0x58000
 mman_test	0x60000
+heap_test	0x68000

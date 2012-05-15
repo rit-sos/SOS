@@ -13,8 +13,10 @@
 #ifndef _SYSCALLS_H
 #define _SYSCALLS_H
 
+#ifdef __KERNEL__20113__
 #include "headers.h"
 #include "queues.h"
+#endif
 
 #include <x86arch.h>
 
@@ -63,7 +65,7 @@
 
 #define	DEFAULT_EFLAGS	(EFLAGS_MB1 | EFLAGS_IF)
 
-#ifndef __ASM__20113__
+#if !defined(__ASM__20113__) && defined(__KERNEL__20113__)
 
 /*
 ** Start of C-only definitions

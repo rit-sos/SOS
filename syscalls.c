@@ -79,7 +79,7 @@ Status _out_param(Pcb *pcb, Int32 index, Uint32 val) {
 	Status status;
 	void *ptr;
 
-	c_printf("out_param: pid=%d val=%d\n", pcb->pid, val);
+//	c_printf("out_param: pid=%d val=%d\n", pcb->pid, val);
 
 	// first get the pointer from the user stack
 	if ((status = _in_param(pcb, index, (Uint32*)&ptr)) == SUCCESS) {
@@ -130,7 +130,7 @@ static void _sys_fork( Pcb *pcb ) {
 	Pcb *new;
 	Status status;
 
-	c_printf("[%d] _sys_fork\n", pcb->pid);
+	c_printf("[%04x] entering _sys_fork\n", pcb->pid);
 
 	// get a new pcb
 	new = _pcb_alloc();

@@ -99,21 +99,19 @@ void _kmemcpy( void *destination, void *source, Uint32 length ) {
 void _kpanic( char *mod, char *msg, Status code ) {
 
 	c_puts( "\n\n***** KERNEL PANIC *****\n\n" );
-//	c_printf( "Module: %s\n", mod );
-//	if( msg != NULL ) {
-//		c_printf( msg, _kstatus(code) );
-//		c_putchar( '\n' );
-//	}
-//	if( code >= STATUS_SENTINEL ) {
-//		c_printf( "*** bad code %d\n", code );
-//	}
+	c_printf( "Module: %s\n", mod );
+	if( msg != NULL ) {
+		c_printf( msg, _kstatus(code) );
+		c_putchar( '\n' );
+	}
+	if( code >= STATUS_SENTINEL ) {
+		c_printf( "*** bad code %d\n", code );
+	}
 
 	//
 	// This might be a good place to do a stack frame
 	// traceback
 	//
-
-	for(;;);
 
 	__panic( "KERNEL PANIC" );
 

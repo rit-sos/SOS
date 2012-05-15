@@ -14,9 +14,10 @@
 #include "umap.h"
 #include "pcbs.h"
 
-#define DELAY_LONG 100000000
+#define DELAY_LONG 10000000
 #define SPAWN_A
 //#define SPAWN_MMAN
+#define SPAWN_HEAP
 
 /*
 ** USER PROCESSES
@@ -89,12 +90,11 @@ void main(void) {
 
 	// (#GP)
 //	asm("cli");
-	
-	//puts("hello from ring 3 init\n");
 
 	// we'll start the first three "manually"
 	// by doing fork() and exec() ourselves
 
+//for (i = 0; i < 3; i++) {
 #ifdef SPAWN_A
 	status = fork( &pid );
 	if( status != SUCCESS ) {
@@ -102,7 +102,6 @@ void main(void) {
 		puts("fork failed\n");
 	} else if( pid == 0 ) {
 		puts("I'm the child\n");
-		for(;;);
 		status = exec( user_a_ID );
 		//prt_status( "init: can't exec() user A, status %s\n", status );
 		exit();
@@ -114,6 +113,7 @@ void main(void) {
 	putx(pid);
 	puts("\n");
 #endif
+//}
 
 #ifdef SPAWN_MMAN
 	status = fork( &pid );
@@ -126,12 +126,13 @@ void main(void) {
 	}
 #endif
 
-#ifdef SPAWN_B
+#ifdef SPAWN_HEAP
 	status = fork( &pid );
 	if( status != SUCCESS ) {
 		//prt_status( "init: can't fork() user B, status %s\n", status );
 	} else if( pid == 0 ) {
-		status = exec( user_b );
+		status = exec( heap_test_ID );
+		puts("exec failed for heap\n");
 		//prt_status( "init: can't exec() user B, status %s\n", status );
 		exit();
 	}

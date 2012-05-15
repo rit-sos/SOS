@@ -33,3 +33,9 @@ _mman_get_cr2:
 _mman_get_cr3:
 	movl	%cr3, %eax
 	ret
+
+.global _invlpg
+_invlpg:
+	movl	4(%esp), %eax
+	invlpg	(%eax)
+	ret

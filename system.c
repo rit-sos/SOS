@@ -70,7 +70,7 @@ Status _get_proc_address(Program program, void(**entry)(void), Uint32 *size) {
 
 	*entry = PROC_IMAGE_MAP[program];
 	//*size = PROC_IMAGE_SIZE[program];
-	*size = 0x5000;
+	*size = 0x8000;
 	return SUCCESS;
 }
 

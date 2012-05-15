@@ -10,28 +10,39 @@
 #include "startup.h"
 
 #define CHECK_PAGE_BIT(M,X)	((M)[(X)>>5] &  (0x80000000 >> ((X) & 0x1f)) != 0)
-#define CLEAR_PAGE_BIT(M,X)	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f)))
+//#define CLEAR_PAGE_BIT(M,X)	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f)))
 #define SET_PAGE_BIT(M,X)	((M)[(X)>>5] |= (0x80000000 >> ((X) & 0x1f)))
 
-/*
 #define CLEAR_PAGE_BIT(M,X)		{											\
-	if ((X) == 0x10001)														\
-		c_printf("CLEAR_PAGE_BIT(%08x,%08x)\n",(M),(X));					\
-	((M)[(X)>>5]&=~(1<<((X)&0x1f))); }
+	if (((M) == _phys_map || (M) == _virt_map) && (X) < 0x0c00) {			\
+		_mman_panic((M), (X));												\
+	}																		\
+	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f))); }
 
-#define SET_PAGE_BIT(M,X)		{											\
-	if ((X) == 0x10001)														\
-		c_printf("SET_PAGE_BIT(%08x,%08x)\n",(M),(X));						\
-	((M)[(X)>>5]|=(1<<((X)&0x1f))); }
-*/
+static void _mman_panic(Uint32 *map, Uint32 page) {
+	Uint32 *ptr;														\
+	c_printf("how did we get here? map=%08x, page=%08x, stack follows:\n",map,page); \
+	for (ptr = (Uint32*)_get_ebp(); ptr; ptr = (Uint32*)*ptr) {
+		c_printf("> %08x <\n", ptr[1]);	
+		break;
+	}
+	for(;;);
+	_kpanic("mman", "bad bad", FAILURE);
+}
 
 #define PAGE_REFCOUNT(X)	(((Uint32*)REFCOUNT_BASE)[(X)])
+#define PAGE_ADDREF(X)		(SET_PAGE_BIT(_phys_map,(X)),++(PAGE_REFCOUNT((X))))
+//#define PAGE_RELEASE(X)		(--(PAGE_REFCOUNT((X))))
 
-//#define PAGE_ADDREF(X)		(c_printf("addref:%08x:%d\n",(X),PAGE_REFCOUNT((X))),++(PAGE_REFCOUNT((X))))
-//#define PAGE_RELEASE(X)		(c_printf("release:%08x:%d\n",(X),PAGE_REFCOUNT((X))),--(PAGE_REFCOUNT((X))))
+//#define PAGE_ADDREF(X)			(											\
+	SET_PAGE_BIT(_phys_map,(X)),											\
+	++(PAGE_REFCOUNT((X))),													\
+	(void)(((X) < 0xc00 && (X) != 0x24 && (X) != 0x23 && (X) != 0x3d)		\
+		? c_printf("page=%08x ref=%d\n",(X),PAGE_REFCOUNT((X))) : 0),		\
+	PAGE_REFCOUNT((X)))
 
-#define PAGE_ADDREF(X)		(++(PAGE_REFCOUNT((X))))
-#define PAGE_RELEASE(X)		(--(PAGE_REFCOUNT((X))))
+#define PAGE_RELEASE(X)			(											\
+	(X) == 0x22 ? _mman_panic(_phys_map,(X)),0 : --(PAGE_REFCOUNT((X))))
 
 #define PAGE_ADDREF_V(P,X,W)	{											\
 	Uint32 l_ppg;															\
@@ -143,10 +154,12 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		c_printf("handle_cow: un-cow vpg=%08x, ppg=%08x\n", vpg, src);
 
 		pte = &((Pagetbl_entry*)(pgdir[(vpg >> 10) & 0x03ff].dword & PD_FRAME))[vpg & 0x03ff];
-//		c_printf("handle_cow: pte: %06x %d %d %d %d %d %d %d %d %d %d %d %d\n", pte->frame, pte->disk, pte->shared, pte->cow, pte->global, pte->reserved, pte->dirty, pte->accessed, pte->cachewrt, pte->cachedis, pte->user, pte->write, pte->present);
 		pte->cow = 0;
 		pte->write = 1;
 		PAGE_ADDREF(src);
+		if (pgdir == _kpgdir) {
+			_invlpg((void*)(vpg << 12));
+		}
 		status = SUCCESS;
 	} else if (pcb) {
 		/*
@@ -157,41 +170,32 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 
 		/* map COW page into kernel */
 		CHK(_mman_alloc(NULL, &ksrc, PAGESIZE, MAP_VIRT_ONLY));
-		free_src = 1;
 		CHK(_mman_map_page((Pagedir_entry*)_kpgdir, ((Uint32)ksrc) >> 12, src, 0));
+		free_src = 1;
 		SET_PAGE_BIT(_virt_map, ((Uint32)ksrc) >> 12);
+		PAGE_ADDREF(src);
 	
-		c_printf("map into kernel ok\n");
-
-		/* unmap COW page in user */
+		/* unmap COW page in user, release already happened above */
 		CHK(_mman_unmap_page(pgdir, vpg));
 		CLEAR_PAGE_BIT(virt_map, vpg);
-
-		c_printf("unmap in user ok\n");
 
 		/* alloc new phys page for user */
 		CHK(_mman_alloc_at(pcb, (void*)(vpg << 12), PAGESIZE, MAP_USER | MAP_WRITE));
 	
-		c_printf("alloc in user ok\n");
-
 		/* get phys addr for new phys page */
 		CHK(_mman_translate_page(pgdir, vpg, &dst, 1));
 
-		c_printf("translate user ok\n");
-
 		/* map new phys page into kernel */
 		CHK(_mman_alloc(NULL, &kdst, PAGESIZE, MAP_VIRT_ONLY | MAP_WRITE));
-		c_printf("alloc in kernel ok\n");
-		free_dst = 1;
 		CHK(_mman_map_page((Pagedir_entry*)_kpgdir, ((Uint32)kdst) >> 12, dst, MAP_WRITE));
+		free_dst = 1;
 		SET_PAGE_BIT(_virt_map, ((Uint32)kdst) >> 12);
-	
-		c_printf("map in kernel ok\n");
+		PAGE_ADDREF(dst);
 
 		/* copy */
 		_kmemcpy(kdst, ksrc, PAGESIZE);
 
-		/* alloc_at() already did the addref */
+		/* alloc_at() already did the addref for the user */
 	} else {
 		/*
 		** We need to copy the kernel COW page to a fresh physical page.
@@ -214,7 +218,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		/* copy */
 		_kmemcpy((void*)(vpg << 12), ksrc, PAGESIZE);
 
-		/* alloc_at() already did the addref */
+		/* alloc_at() already did the addref for the user */
 	}
 
 Cleanup:
@@ -354,10 +358,16 @@ Status _mman_pgdir_alloc(Pagedir_entry **pgdir) {
 }
 
 Status _mman_pgdir_free(Pagedir_entry *pgdir) {
-	int i;
+	int i, start;
+
+	if (pgdir->dword == _kpgdir->dword) {
+		start = 1;
+	} else {
+		start = 0;
+	}
 
 	/* free any attached page tables */
-	for (i = 0; i < 0x400; i++) {
+	for (i = start; i < 0x400; i++) {
 		if (pgdir[i].present) {
 			_q_insert(_pgdir_queue, (Pagetbl*)(pgdir[i].dword & PD_FRAME), (Key)0);
 		}
@@ -384,6 +394,9 @@ Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *sr
 
 	/* copy kernel low 4MB mapping */
 	dst[0] = _kpgdir[0];
+//	for (i = 0; i < 0x400; i++) {
+//		PAGE_ADDREF(i);
+//	}
 
 	/* for each pagedir entry, */
 	for (i = 1; i < PAGESIZE / 4; i++) {
@@ -507,6 +520,10 @@ Status _mman_get_user_data(Pcb *pcb, /* out */ void *buf, void *virt, Uint32 siz
 		num_pages++;
 	}
 
+	if (num_pages != 1) {
+		_kpanic("mman", "spanning more than one page?", FAILURE);
+	}
+
 	if (num_pages > MAX_TRANSFER_PAGES) {
 		return BAD_PARAM;
 	}
@@ -547,7 +564,9 @@ Cleanup:
 */
 Status _mman_set_user_data(Pcb *pcb, /* out */ void *virt, void *buf, Uint32 size) {
 	void *kvaddr;
-	Uint32 ppg, vpg, kvpg, num_pages, i;
+	Uint32 vpg, kvpg, num_pages, i;
+	Pagedir_entry pde;
+	Pagetbl_entry *pte;
 	Status status;
 
 	if (!pcb || !buf || !virt || !size) {
@@ -575,22 +594,36 @@ Status _mman_set_user_data(Pcb *pcb, /* out */ void *virt, void *buf, Uint32 siz
 
 	/* translate and map */
 	for (i = 0, vpg = ((Uint32)virt) >> 12; i < num_pages; i++, vpg++, kvpg++) {
-		if ((status = _mman_translate_page(pcb->pgdir, vpg, &ppg, 1)) != SUCCESS) {
-			goto Cleanup;
-		}
+		pde = pcb->pgdir[(vpg >> 10) & 0x03ff];
+		if (pde.present && pde.user && pde.write) {
+			pte = &((Pagetbl_entry*)(pde.dword & PD_FRAME))[vpg & 0x03ff];
+			if (pte->present && pte->user) {
+				if (pte->cow) {
+					if ((status = handle_cow(pcb, vpg)) != SUCCESS) {
+						c_printf("[%04x] _mman_set_user_data: handle_cow=%08x vpg=%08x\n", pcb->pid, status, vpg);
+						goto Cleanup;
+					}
+				}
 
-		if (ppg == ((Uint32)_zero) >> 12) {
-			if ((status = handle_cow(pcb, vpg)) != SUCCESS) {
-				goto Cleanup;
+				if (!pte->write) {
+					c_printf("[%04x] _mman_set_user_data: user page %08x not writable\n", pcb->pid, vpg);
+					goto Cleanup;
+				}
+
+				//c_printf("[%04x] _mman_set_user_data: kernel mapping page %08x\n", pcb->pid, pte->frame);
+				status = _mman_map_page((Pagedir_entry*)_kpgdir, kvpg, pte->frame, MAP_WRITE);
+				if (status != SUCCESS) {
+					c_printf("[%04x] _mman_set_user_data: map error kvpg=%08x ppg=%08x\n", pcb->pid, kvpg, pte->frame);
+					goto Cleanup;
+				}
 			}
-		}
-
-		if ((status = _mman_map_page((Pagedir_entry*)_kpgdir, kvpg, ppg, MAP_WRITE)) != SUCCESS) {
+		} else {
+			c_printf("[%04x] _mman_set_user_data: pgdir flags incorrect: %08x\n", pde.dword);
 			goto Cleanup;
 		}
 
 		SET_PAGE_BIT(_virt_map, kvpg);
-		PAGE_ADDREF(ppg);
+		PAGE_ADDREF(pte->frame);
 	}
 
 	/* do the copy */
@@ -657,6 +690,10 @@ Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 fla
 	/* if we get here, then we're ready to add the pagetbl entry */
 	tbl[idx].dword = ((phys << 12) & PT_FRAME) | (flags & MAP_FLAGS_MASK) | PT_PRESENT;
 
+	if (pgdir == _kpgdir) {
+		_invlpg((void*)(virt << 12));
+	}
+
 	return SUCCESS;
 }
 
@@ -664,6 +701,7 @@ Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt) {
 	Pagedir_entry pde;
 	Pagetbl_entry *tbl;
 	Uint32 idx;
+	Uint32 *ptr;
 
 	if (!pgdir) {
 		return BAD_PARAM;
@@ -672,6 +710,14 @@ Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt) {
 //	if (virt == 0x10001) {
 //		c_printf("_mman_unmap_page: pgdir=%08x, virt=0x10001, caller=%08x,%08x\n", pgdir, *(Uint32*)(_get_ebp()+4), *((*(Uint32**)_get_ebp())+1));
 //	}
+
+	if (pgdir == _kpgdir && virt < 0xc00) {
+		c_printf("how did we get here? virt=%08x, stack follows:\n", virt);
+		for (ptr = _get_ebp(); 0; ptr = (Uint32*)*ptr) {
+			c_printf("> %08x <\n", ptr[1]);
+		}
+		_kpanic("mman", "bad bad", FAILURE);
+	}
 
 	/* first find the pagetbl */
 	idx = (virt >> 10) & 0x03ff;
@@ -692,6 +738,10 @@ Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt) {
 
 	/* and clear it */
 	tbl[idx].dword = 0;
+
+	if (pgdir == _kpgdir) {
+		_invlpg((void*)(virt << 12));
+	}
 
 	/* if the whole pagetbl is empty, we can free it */
 	for (idx = 0; idx < 0x400 && !(tbl[idx].present); idx++) {
@@ -783,6 +833,9 @@ Status _mman_proc_init(Pcb *pcb) {
 	for (i = 0; i < (0x400 / 32); i++) {
 		map[i] = 0xffffffff;
 	}
+//	for (i = 0; i < 0x400; i++) {
+//		PAGE_ADDREF(i);
+//	}
 
 	pcb->pgdir = (Pagedir_ptr)pgdir;
 	pcb->virt_map = map;
@@ -918,6 +971,7 @@ Status _mman_proc_copy(Pcb *new, Pcb *old) {
 		goto Cleanup;
 	}
 
+	c_printf("_mman_proc_copy: new stack is on page %08x, old stack %08x\n", ((Uint32)new->stack) >> 12, ((Uint32)old->stack) >> 12);
 	status = _mman_map_page(new->pgdir, stack, ((Uint32)new->stack) >> 12, MAP_WRITE | MAP_USER);
 	if (status != SUCCESS) {
 		goto Cleanup;
@@ -929,12 +983,17 @@ Status _mman_proc_copy(Pcb *new, Pcb *old) {
 	tbl[stack & 0x03ff].cow = 0;
 	tbl[stack & 0x03ff].write = 1;
 
+	{
+		Uint32 new_ppg = -1, old_ppg = -1;
+		_mman_translate_page(new->pgdir, stack, &new_ppg, 1);
+		_mman_translate_page(old->pgdir, stack, &old_ppg, 1);
+		c_printf("_mman_proc_copy: stack translation: new=%08x, old=%08x\n", new_ppg, old_ppg);
+	}
+
 	return SUCCESS;
 
 Cleanup:
 	/* let _cleanup() handle this */
-//	if (new->pgdir) _mman_pgdir_free(new->pgdir);
-//	if (new->virt_map) _mman_map_free(new->virt_map);
 	return status;
 }
 
@@ -1127,7 +1186,6 @@ Status _mman_alloc_at(Pcb *pcb, void *ptr, Uint32 size, Uint32 flags) {
 	
 						/* set the bit in the physical allocation map */
 						//*map |= bit;
-						SET_PAGE_BIT(_phys_map, ppg);
 						SET_PAGE_BIT(virt_map, vpg + j);
 						PAGE_ADDREF(ppg);
 
@@ -1218,7 +1276,7 @@ void _mman_init() {
 	_phys_map = _maps[0];
 	_virt_map = _maps[1];
 
-	for (i = 2, map = _maps + 2; i < (0x400000 / sizeof(Memmap)); i++, map++) {
+	for (i = 2, map = &_maps[2]; i < (0x400000 / sizeof(Memmap)); i++, map++) {
 		if ((status = _q_insert(_map_queue, map, (Key)0)) != SUCCESS) {
 			_kpanic("mman", "_q_insert(map)", status);
 		}
