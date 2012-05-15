@@ -278,8 +278,8 @@ void main(void) {
 	for(;;) {
 		for( i = 0; i < DELAY_LONG; ++i )
 			continue;
-		write( '+' );
-		write( '-' );
+//		write( '+' );
+//		write( '-' );
 	}
 
 	/*

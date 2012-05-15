@@ -154,10 +154,11 @@ unsigned int puts(const char *str) {
 }
 
 void putx(unsigned int x) {
+	int i;
 	write('0');
 	write('x');
 	if (x) {
-		for ( ; x; x <<= 4) {
+		for (i = 0; i < 8; ++i, x <<= 4) {
 			if (((x>>28) & 0x0f) >= 10) {
 				write('a' + ((x>>28) & 0x0f) - 10);
 			} else {

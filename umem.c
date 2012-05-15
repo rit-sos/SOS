@@ -95,18 +95,25 @@ void *malloc(unsigned int size) {
 		real_size += 4 - (real_size & 0x03);
 	}
 
+	puts(">> new alloc, real_size = ");
+	putx(real_size);
+	puts("\n");
+
 	/* sanity check: is there any chance we can fit this allocation? */
 	if (real_size > HEAP_CHUNK_SIZE * USER_MAX_CHUNKS) {
+		puts(">> way way too big\n");
 		return NULL;
 	}
 
 	if (!heap_first) {
 		/* case #1: there are no other heap allocations */
+		puts(">> FRIST!!1\n");
 		ptr = heap_start_ptr;
 		prev = NULL;
 		curr = NULL;
 	} else if ((void*)heap_first - heap_start_ptr >= real_size) {
 		/* case #2: insert before the head */
+		puts(">> found space before head\n");
 		ptr = heap_start_ptr;
 		prev = NULL;
 		curr = heap_first;
@@ -163,6 +170,8 @@ void *malloc(unsigned int size) {
 
 	if (prev) {
 		prev->next = tag;
+	} else {
+		heap_first = tag;
 	}
 
 	if (curr) {
