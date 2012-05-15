@@ -64,9 +64,13 @@ SYSCALL(get_state)
 SYSCALL(set_priority)
 SYSCALL(set_time)
 SYSCALL(exec)
-SYSCALL(vbe_print)
-SYSCALL(vbe_print_char)
-SYSCALL(vbe_clearscreen)
+SYSCALL(s_windowing_get_window)
+SYSCALL(s_windowing_free_window)
+SYSCALL(s_windowing_print_str)
+SYSCALL(s_windowing_print_char)
+SYSCALL(s_windowing_clearscreen)
+SYSCALL(s_windowing_draw_line)
+SYSCALL(s_windowing_copy_rect)
 
 // This is a bogus system call; it's here so that we can test
 // our handling of out-of-range syscall codes in the syscall ISR.

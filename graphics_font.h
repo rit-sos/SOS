@@ -22,6 +22,12 @@
 #define CHAR_HEIGHT	(8)
 
 // 5 bytes per character, 127 characters
-extern Uint8 font_map[];
+//extern Uint8 font_map[];
+
+/*
+ * draw the character onto the provided buffer
+ */
+void _draw_char( char c, Uint x, Uint y, Uint w, Uint h, Uint scale, Uint8 r, Uint8 g, Uint8 b, 
+		void (*put_pixel)(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b) );
 
 #endif

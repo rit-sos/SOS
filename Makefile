@@ -82,17 +82,17 @@
 
 # Add your user programs here, and add a line to the map too.
 # Don't remove init from this list, bad things will happen.
-USERS = init user_a mman_test
+USERS = init user_a mman_test window_test
 
 MAPS = umap.h kmap.h kmap.c
 
-USER_BITS = ulibc.o ulibs.o
+USER_BITS = ulibc.o ulibs.o u_windowing.o graphics_font.o
 USER_SRC = $(patsubst %,%.c,$(USERS))
-USER_BASE = 0xC00000
+USER_BASE = 0x400000
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
 	clock.o sio.o stacks.o syscalls.o kmap.o isr_stubs.o support.o c_io.o \
-	mmanc.o mmans.o fd.o vbe.o graphics_font.o
+	mmanc.o mmans.o fd.o vbe.o graphics_font.o windowing.o
 KERNEL_BASE = 0x10000
 
 BOOT_BITS = bootstrap.o 

@@ -38,13 +38,19 @@
 #define	SYS_get_time		11
 #define	SYS_set_priority	12
 #define	SYS_set_time		13
-#define	SYS_vbe_print		14
-#define	SYS_vbe_print_char	15
-#define	SYS_vbe_clearscreen	16
+
+/* windowing syscalls */
+#define	SYS_s_windowing_get_window		14
+#define	SYS_s_windowing_free_window		15
+#define	SYS_s_windowing_print_str		16
+#define	SYS_s_windowing_print_char		17
+#define	SYS_s_windowing_clearscreen		18
+#define	SYS_s_windowing_draw_line		19
+#define	SYS_s_windowing_copy_rect		20
 
 // number of "real" system calls
 
-#define	N_SYSCALLS	17
+#define	N_SYSCALLS	21
 
 // dummy system call code to test the syscall ISR
 

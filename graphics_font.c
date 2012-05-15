@@ -10,6 +10,49 @@
 
 #include "graphics_font.h"
 
+// forward declaration
+Uint8 font_map[];
+
+#define BIT(x)	(1<<(x))
+void _draw_char( char c, Uint x, Uint y, Uint w, Uint h, Uint scale, Uint8 r, Uint8 g, Uint8 b, 
+		void (*put_pixel)(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b) )
+{
+	Uint8 *c_map = GET_CHAR_FONT_PTR(c);
+
+	int i, j;
+	int kx, ky;
+	// For each pixel in the character
+	for( i = 0; i < scale * CHAR_WIDTH; i+=scale )
+	{
+		for( j = 0; j < scale * CHAR_HEIGHT; j+= scale )
+		{
+			// make sure its a valid pixel location
+			if( x+i+scale <= w && y+j+scale <= w )
+			{
+				// scale it to the set scale factor
+				for( kx = 0; kx < scale; kx++ )
+				{
+					for( ky = 0; ky < scale; ky++ )
+					{
+						// draw
+						if( c_map[i/scale] & BIT(j/scale) )
+						{
+							// if this pixel is part of the character, draw it
+							put_pixel(x+i+kx, y+(CHAR_HEIGHT-(j-ky)), r, g, b);
+						}
+						else
+						{
+							// else clear to black
+							put_pixel(x+i+kx, y+(CHAR_HEIGHT-(j-ky)), 0, 0, 0);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
 // 5x8 characters
 // 5 bytes per character, 128 characters in ascii
 // characters are defined column wise

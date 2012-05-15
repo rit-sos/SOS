@@ -9,7 +9,6 @@
 **
 ** Description:	System call module
 */
-
 #define	__KERNEL__20113__
 
 #include "headers.h"
@@ -22,7 +21,7 @@
 #include "system.h"
 #include "kmap.h"
 #include "c_io.h"
-#include "vbe.h"
+#include "windowing.h"
 
 #include "startup.h"
 
@@ -550,44 +549,125 @@ static void _sys_exec( Pcb *pcb ) {
 }
 
 /*
-** _sys_vbe_print - display a string on the monitor
+** _sys_windowing_get_window - request a window to draw to
 **
-** implements:	Status vbe_print(int x, int y, const char *);
+** implements:	Status windowing_get_window(Window *win);
+**
+** returns:
+**		SUCCESS	if window was reservered
+**		FAILURE	otherwise
+*/
+static void _sys_windowing_get_window( Pcb *pcb ) {
+	Window win;
+
+	/* ARG(pcb)[1] is a pointer */
+	win = _windowing_get_window( pcb->pid );
+
+	// return window
+	*((Window*)(ARG(pcb)[1])) = win;
+
+	RET(pcb) = win != -1 ? SUCCESS : FAILURE;
+}
+
+/*
+** _sys_windowing_free_window - free the specified window
+**
+** implements:	Status windowing_free_window(Window win);
 **
 ** returns:
 **		SUCCESS
 */
-static void _sys_vbe_print( Pcb *pcb ) {
-	/* ARG(pcb)[3] is a pointer */
-	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char *)ARG(pcb)[3] );
+static void _sys_windowing_free_window( Pcb *pcb ) {
+	/* ARG(pcb)[4] is a pointer */
+	_windowing_free_window( ARG(pcb)[1] );
 
 	RET(pcb) = SUCCESS;
 }
 
 /*
-** _sys_vbe_print_char - display a character on the monitor
+** _sys_windowing_print_str - display a string on the monitor
 **
-** implements:	Status vbe_print_char(int x, int y, const char);
+** implements:	Status windowing_print_str(Window win, int x, int y, const char *);
 **
 ** returns:
 **		SUCCESS
 */
-static void _sys_vbe_print_char( Pcb *pcb ) {
-	_vbe_write_char( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char)ARG(pcb)[3] );
+static void _sys_windowing_print_str( Pcb *pcb ) {
+	/* ARG(pcb)[4] is a pointer */
+	_windowing_write_str( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3], 255, 255, 255, (const char *)ARG(pcb)[4] );
 
 	RET(pcb) = SUCCESS;
 }
 
 /*
-** _sys_vbe_clearscreen - Clear the display
+** _sys_windowing_print_char - display a character on the monitor
 **
-** implements:	Status vbe_clearscreen(char r, char g, char b);
+** implements:	Status windowing_print_char(Window, win, int x, int y, const char);
 **
 ** returns:
 **		SUCCESS
 */
-static void _sys_vbe_clearscreen( Pcb *pcb ) {
-	_vbe_clear_display( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3] );
+static void _sys_windowing_print_char( Pcb *pcb ) {
+	_windowing_write_char( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3], 255, 255, 255, (const char)ARG(pcb)[4] );
+
+	RET(pcb) = SUCCESS;
+}
+
+/*
+** _sys_windowing_clearscreen - Clear the display
+**
+** implements:	Status windowing_clearscreen(Window win, char r, char g, char b);
+**
+** returns:
+**		SUCCESS
+*/
+static void _sys_windowing_clearscreen( Pcb *pcb ) {
+	_windowing_clear_display( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3], ARG(pcb)[4] );
+
+	RET(pcb) = SUCCESS;
+}
+
+/*
+** _sys_windowing_draw_line - Draw a line in the window
+**
+** implements:	Status windowing_draw_line(Window win, Uint x0, Uint y0, Uint x1, Uint y1, char r, char g, char b);
+**
+** returns:
+**		SUCCESS
+*/
+static void _sys_windowing_draw_line( Pcb *pcb ) {
+	_windowing_draw_line( (Window)ARG(pcb)[1], 
+			(Uint)ARG(pcb)[2], (Uint)ARG(pcb)[3], 
+			(Uint)ARG(pcb)[4], (Uint)ARG(pcb)[5], 
+			(Uint8)ARG(pcb)[6], (Uint8)ARG(pcb)[7], (Uint8)ARG(pcb)[8] );
+
+	RET(pcb) = SUCCESS;
+}
+
+/*
+** _sys_windowing_copy_rect - Copy the userspace buffer into video memory
+**
+** implements:	Status windowing_copy_rect(Window win, Uint x0, Uint y0, Uint w, Uint h, Uint *buf);
+**
+** returns:
+**		SUCCESS
+*/
+static void _sys_windowing_copy_rect( Pcb *pcb ) {
+
+	Uint w = ARG(pcb)[4];
+	Uint h = ARG(pcb)[5];
+
+	Uint num_pages = w*h>>12;
+	if( w*h & 0xFFF )
+		num_pages++;
+
+	/*
+	 * TODO: copy in X pages from userspace then copy the buffer
+	 */
+	Uint8 *k_buf = (Uint8*)ARG(pcb)[6];
+
+	_windowing_copy_rect( (Window)ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3], 
+			w, h, k_buf );
 
 	RET(pcb) = SUCCESS;
 }
@@ -638,9 +718,15 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_get_time ]      = _sys_get_time;
 	_syscall_tbl[ SYS_set_priority ]  = _sys_set_priority;
 	_syscall_tbl[ SYS_set_time ]      = _sys_set_time;
-	_syscall_tbl[ SYS_vbe_print ]     = _sys_vbe_print;
-	_syscall_tbl[ SYS_vbe_print_char ]= _sys_vbe_print_char;
-	_syscall_tbl[ SYS_vbe_clearscreen ]= _sys_vbe_clearscreen;
+
+	/* windowing */
+	_syscall_tbl[ SYS_s_windowing_get_window ]		= _sys_windowing_get_window;
+	_syscall_tbl[ SYS_s_windowing_free_window ]		= _sys_windowing_free_window;
+	_syscall_tbl[ SYS_s_windowing_print_str ]		= _sys_windowing_print_str;
+	_syscall_tbl[ SYS_s_windowing_print_char ]		= _sys_windowing_print_char;
+	_syscall_tbl[ SYS_s_windowing_clearscreen ]		= _sys_windowing_clearscreen;
+	_syscall_tbl[ SYS_s_windowing_draw_line ]		= _sys_windowing_draw_line;
+	_syscall_tbl[ SYS_s_windowing_copy_rect ]		= _sys_windowing_copy_rect;
 
 //	these are syscalls we elected not to implement
 //	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;

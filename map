@@ -1,3 +1,4 @@
 init		0x50000
 user_a		0x55000
 mman_test	0x60000
+window_test	0x65000

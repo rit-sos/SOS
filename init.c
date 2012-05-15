@@ -18,6 +18,7 @@
 #define DELAY_LONG 100000000
 #define SPAWN_A
 #define SPAWN_MMAN
+#define SPAWN_WINDOW_TEST
 
 /*
 ** USER PROCESSES
@@ -102,6 +103,17 @@ void main(void) {
 	} else if( pid == 0 ) {
 		status = exec( mman_test_ID );
 		//prt_status( "init: can't exec() user A, status %s\n", status );
+		exit();
+	}
+#endif
+
+#ifdef SPAWN_WINDOW_TEST
+	status = fork( &pid );
+	if( status != SUCCESS ) {
+		//prt_status( "init: can't fork() user window_test, status %s\n", status );
+	} else if( pid == 0 ) {
+		status = exec( window_test_ID );
+		//prt_status( "init: can't exec() user window_test, status %s\n", status );
 		exit();
 	}
 #endif

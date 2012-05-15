@@ -10,6 +10,7 @@
 #define	__KERNEL__20113__
 
 #include "vbe.h"
+#include "windowing.h"
 #include "vbe_structs.h"
 #include "graphics_font.h"
 #include "system.h"
@@ -68,18 +69,8 @@ void _vbe_init(void)
 		_vbe_screen_text[i] = ' ';
 	}
 
-	// write some strings
-	/*
-	_vbe_set_font_scale(1);
-	_vbe_write_str(0,   0, 255, 255, 255, "VBE text test");
-	_vbe_set_font_scale(2);
-	_vbe_write_str(0, 3, 255, 255, 255, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
-	_vbe_set_font_scale(3);
-	_vbe_write_str(0, 5, 255, 255, 255, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
-	*/
-
 	// this gives readable size strings
-	_vbe_set_font_scale(2);
+	_vbe_set_font_scale(1);
 
 	char str[] = "VBE Initialization Complete\r\n";
 	char *s;
@@ -231,7 +222,6 @@ void _vbe_write_str(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char *str)
 	}
 }
 
-#define BIT(x)	(1<<(x))
 /*
  * _vbe_write_char(x, y, color, char)
  *
@@ -239,12 +229,25 @@ void _vbe_write_str(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char *str)
  */
 void _vbe_write_char(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char c )
 {
+	// call with 0 offsets for x and y
+	_vbe_write_char_win(x, y, 0, 0, r, g, b, c);
+}
+
+/*
+ * _vbe_write_char_win(x, y, x_start, y_start, color, char)
+ *
+ * Write the specified character at the specified position from a starting pixel
+ */
+void _vbe_write_char_win(Uint x, Uint y, Uint x_start, Uint y_start, Uint8 r, Uint8 g, Uint8 b, const char c )
+{
+	Uint x_idx = x + (x_start/((CHAR_WIDTH + 1)*_vbe_font_scale));
+	Uint y_idx = y + (y_start/((CHAR_HEIGHT + 1)*_vbe_font_scale));
 	// First, lets only draw if needed
-	if( _vbe_screen_text[x + y*_vbe_char_res_x] == c )
+	if( _vbe_screen_text[x_idx + y_idx*_vbe_char_res_x] == c )
 		return;
 
 	// store this character in the screen map
-	_vbe_screen_text[x + y*_vbe_char_res_x] = c;
+	_vbe_screen_text[x_idx + y_idx*_vbe_char_res_x] = c;
 
 	// move char position into screen coords
 	x *= (CHAR_WIDTH+1)*_vbe_font_scale;
@@ -253,45 +256,17 @@ void _vbe_write_char(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char c )
 	// adjust position to compensate for starting just off screen for some reason
 	y += (CHAR_HEIGHT+1)*_vbe_font_scale/2;
 
+	// offset for window
+	x += x_start;
+	y += y_start;
+
 	if( vbe_mode_info )
 	{
-		Uint8 *c_map = GET_CHAR_FONT_PTR(c);
-
 		/* mode settings */
 		Uint16 x_res = vbe_mode_info->XResolution;
 		Uint16 y_res = vbe_mode_info->YResolution;
 
-		int i, j;
-		int kx, ky;
-		// For each pixel in the character
-		for( i = 0; i < _vbe_font_scale * CHAR_WIDTH; i+=_vbe_font_scale )
-		{
-			for( j = 0; j < _vbe_font_scale * CHAR_HEIGHT; j+=_vbe_font_scale )
-			{
-				// make sure its a valid pixel location
-				if( x+i+_vbe_font_scale <= x_res && y+j+_vbe_font_scale <= y_res )
-				{
-					// scale it to the set scale factor
-					for( kx = 0; kx < _vbe_font_scale; kx++ )
-					{
-						for( ky = 0; ky < _vbe_font_scale; ky++ )
-						{
-							// draw
-							if( c_map[i / _vbe_font_scale] & BIT(j / _vbe_font_scale) )
-							{
-								// if this pixel is part of the character, draw it
-								_vbe_draw_pixel(x+i+kx, y+(CHAR_HEIGHT-(j-ky)), r, g, b);
-							}
-							else
-							{
-								// else clear to black
-								_vbe_draw_pixel(x+i+kx, y+(CHAR_HEIGHT-(j-ky)), 0, 0, 0);
-							}
-						}
-					}
-				}
-			}
-		}
+		_draw_char( c, x, y, x_res, y_res, _vbe_font_scale, r, g, b, _vbe_draw_pixel );
 	}
 }
 
@@ -323,3 +298,29 @@ void _vbe_char_scroll(Uint min_y, Uint max_y, Uint lines)
 	}
 }
 
+/*
+ * _vbe_get_char_win( x, y, x_start, y_start ) 
+ *
+ * Get the character being displayed at this point, in the window
+ */
+char _vbe_get_char_win( Uint x, Uint y, Uint x_start, Uint y_start )
+{
+	Uint x_idx = x + (x_start/((CHAR_WIDTH + 1)*_vbe_font_scale));
+	Uint y_idx = y + (y_start/((CHAR_HEIGHT + 1)*_vbe_font_scale));
+
+	if( x_idx < _vbe_char_res_x && y_idx < _vbe_char_res_y )
+		return _vbe_screen_text[x_idx + y_idx * _vbe_char_res_x];
+
+	// invalid point
+	return '\0';
+}
+
+/*
+ * _vbe_get_char( x, y )
+ *
+ * Get the character being displayed at this point
+ */
+char _vbe_get_char( Uint x, Uint y )
+{
+	return _vbe_get_char_win(x, y, 0, 0);
+}

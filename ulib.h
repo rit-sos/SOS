@@ -28,6 +28,7 @@
 #include "types.h"
 #include "clock.h"
 #include "pcbs.h"
+#include "u_windowing.h"
 
 // pseudo-function:  sleep for a specified number of seconds
 
@@ -224,25 +225,55 @@ Status set_time(Time time);
 Status exec(Uint32 entry_id);
 
 /*
-** vbe_print	- display a string on the monitor
+** s_windowing_get_window	-	Request a window for this process
 **
-** returns:	SUCCESS
+** returns:	
+**		SUCCESS	if window was reservered
+**		FAILURE	otherwise
 */
-Status vbe_print(int x, int y, const char *str);
+Status s_windowing_get_window(Window *win);
 
 /*
-** vbe_print_char	- display a character on the monitor
+** s_windowing_free_window	-	Frees the specified window
 **
 ** returns:	SUCCESS
 */
-Status vbe_print_char(int x, int y, const char c);
+Status s_windowing_free_window(Window win);
 
 /*
-** vbe_clearscreen	- clear the display
+** s_windowing_print_str	- display a string on the monitor
 **
 ** returns:	SUCCESS
 */
-Status vbe_clearscreen(char r, char g, char b);
+Status s_windowing_print_str(Window win, int x, int y, const char *str);
+
+/*
+** s_windowing_print_char	- display a character on the monitor
+**
+** returns:	SUCCESS
+*/
+Status s_windowing_print_char(Window win, int x, int y, const char c);
+
+/*
+** s_windowing_clearscreen	- clear the display
+**
+** returns:	SUCCESS
+*/
+Status s_windowing_clearscreen(Window win, char r, char g, char b);
+
+/*
+** s_windowing_draw_line - draws a line
+**
+** returns:	SUCCESS
+*/
+Status s_windowing_draw_line(Window win, Uint x0, Uint y0, Uint x1, Uint y1, char r, char g, char b);
+
+/*
+** s_windowing_copy_rect - copys part of user frame buffer into video memory
+**
+** returns:	SUCCESS
+*/
+Status s_windowing_copy_rect(Window win, Uint x0, Uint y0, Uint w, Uint h, Uint8 *buf);
 
 /*
 ** bogus - a bogus system call, for testing our syscall ISR
