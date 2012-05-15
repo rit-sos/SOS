@@ -207,14 +207,16 @@ static void _sys_fopen( Pcb *pcb ) {
 	sectorstart=((Uint64) ARG(pcb)[2])<<32 | ARG(pcb)[1];//64 bits passed as one arg. No idea if endianness is right
 	length=ARG(pcb)[3];
 	ptr = (int *) (ARG(pcb)[4]);
-
-	fd=_ata_fopen(&_busses[0].drives[0],sectorstart,length,FD_RW);
 	
-	if(fd!=NULL){
+	//select the drive we want to write to.
+	fd=_ata_fopen(_ata_primary,sectorstart,length,FD_RW);
+	
+	if(fd != NULL){
 		RET(pcb) = SUCCESS;
 		*ptr=fd-_fds;
 	}else{
 		RET(pcb) = FAILURE;
+		*ptr=0; //return a blank FD
 	}
 }
 /*

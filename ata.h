@@ -63,6 +63,8 @@ typedef struct bus{
 */
 
 Bus _busses[ATA_MAX_BUSSES];
+Drive *_ata_primary;
+
 
 /*
 ** prototypes

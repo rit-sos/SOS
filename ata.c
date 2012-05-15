@@ -77,7 +77,7 @@
 /*
  **control register bit descriptions
  */
-#define NIEN	0x02 
+#define NIEN	0x02
 #define SRST 	0x04
 #define HOB  	0x08
 
@@ -250,7 +250,6 @@ Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Flags flags){
 		return NULL;
 	}	
 
-
 	fd=_fd_alloc(flags);
 	if(fd==NULL){
 		return NULL;
@@ -327,12 +326,16 @@ Status _ata_flush(Fd *fd){
 	return SUCCESS;
 }
 
-
 Status _ata_read_blocking(Fd* fd){
 	Ata_fd_data *dev_data;
 	int blocks_read,i;
 	char *data;
 	dev_data=(Ata_fd_data *)fd->device_data;
+
+	if(dev_data->d->type == INVALID_DRIVE){
+		fd->flags |= FD_EOF;
+		return EOF;
+	}
 
 	if(dev_data->read_sector >= dev_data->sector_end){
 		fd->flags |= FD_EOF;
@@ -456,7 +459,6 @@ int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf 
 int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf ){
 	volatile unsigned char status = 0;
 	Uint16 i,j;
-	
 
 	if(d->type== INVALID_DRIVE){
 		c_printf("Invalid drive\n");
@@ -517,12 +519,18 @@ int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf )
 
 int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 
-	delay(control);
 
 	d->type=INVALID_DRIVE;
 	d->base=base;
 	d->control=control;
 	d->master=master;
+
+	if(base == 0x00 || control == 0x00){
+		c_puts("invalid bus. Skipping");
+		return -1;
+	}
+	
+	delay(control);
 
 	selectDrive(d,CHS); //chs mode for identification
 	__outb(control,NIEN); //disable interrupts
@@ -535,12 +543,12 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 		status =__inb(base+REGULAR_STATUS);
 
 		//load 0 into the follow addresses. If these change, we messed up.
-		__outb(base+SECTOR_COUNT,0);	
-		__outb(base+LBA_LOW,0);	
-		__outb(base+LBA_MID,0);	
-		__outb(base+LBA_HIGH,0);	
+		__outb(base+SECTOR_COUNT,0);
+		__outb(base+LBA_LOW,0);
+		__outb(base+LBA_MID,0);
+		__outb(base+LBA_HIGH,0);
 
-		//send the identify command	
+		//send the identify command
 		__outb(base+COMMAND,IDENTIFY);
 		delay(control);
 		status =__inb(base+REGULAR_STATUS);
@@ -591,7 +599,7 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 			if(d->model[i] < ' ' || d->model[i] > '~')
 				break;
 		}
-		c_printf("%s",d->model);	
+		c_printf("%s",d->model);
 
 		//check sector count
 		if (block[83] & (1<<10) ){
@@ -604,6 +612,19 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 			d->sectors=*(Uint32* ) &block[60];
 			c_printf("sectors: %d %d\n", block[61],block[60] );
 		}
+
+		//Ask the user if we should use this drive.
+		c_puts("Should we use this drive?");
+		int c='j';
+		while((c = c_getchar()) != 'y' && c !='n');
+		if (c=='n'){
+			c_puts(" Okay. Marking as invalid.");
+			d->type=INVALID_DRIVE;
+		}else{
+			_ata_primary=d;
+		}
+		c_puts("\n");
+
 	}
 	__outb(control,NIEN); //disable interrupts
 	return 0;
@@ -620,6 +641,8 @@ void _ata_init(void){
 
 	int currentBus=0;
 	int i,j;
+	
+	_ata_primary = &_busses[0].drives[0]; //set primary to something by default
 
 	status = _q_alloc( &free_dat_queue, NULL );
 	if( status != SUCCESS ) {
@@ -657,35 +680,37 @@ void _ata_init(void){
 			BAR[4]= read_pci_conf_long (f.bus, f.slot, f.func, PCI_BAR4)&0xFFFE;
 
 			_busses[currentBus].interrupt_line = read_pci_conf_byte(f.bus,f.slot,f.func,PCI_INTERRUPT_LINE);
-
+			int i;
+			for(i=0;i<5;i++){
+				c_printf("BAR[%d] = %x ", i, BAR[i]);
+			}
+			c_puts("\n");
 
 			//check if this is an ATA drive (not supported for now)
 			if (BAR[0] == 0x01 || BAR[0]==0x00){
 				BAR[0]=0x1F0;
 				BAR[1]=0x3F4;
-				BAR[3]=0x170;
-				BAR[4]=0x374;
-
 			}
-			/*
-			   for(i =0;i<5;i++){
-			   c_printf("BAR%d %x ", i, BAR[i]);
-			   }
-			   c_printf("irq: 0x%x\n",_busses[currentBus].interrupt_line);*/
 
+			if (BAR[2] == 0x8F0 || BAR[3] ==  0x8F8){
+				
+				BAR[2]=0x00;
+				BAR[3]=0x00;
+			}
 			_busses[currentBus].primary_base=BAR[0];
 			_busses[currentBus].primary_control=BAR[1]+2;
 			_busses[currentBus].secondary_base=BAR[2];
 			_busses[currentBus].secondary_control=BAR[3]+2;
 
 			//TODO: figure out why regular PATA drives aren't working
-			if (1 || BAR[0] != 0x1f0){
+			if (BAR[0] != 0x1f0){
 				_ata_identify(0, BAR[0],BAR[1]+2,&_busses[currentBus].drives[0]);
 				_ata_identify(1, BAR[0],BAR[1]+2,&_busses[currentBus].drives[1]);
-				_ata_identify(0, BAR[2],BAR[3]+2,&_busses[currentBus].drives[2]);
-				_ata_identify(1, BAR[2],BAR[3]+2,&_busses[currentBus].drives[3]);
-				disableIRQ(&_busses[currentBus]);
-
+				if(BAR[2] != 0x00){
+					_ata_identify(0, BAR[2],BAR[3]+2,&_busses[currentBus].drives[2]);
+					_ata_identify(1, BAR[2],BAR[3]+2,&_busses[currentBus].drives[3]);
+					disableIRQ(&_busses[currentBus]);
+				}
 			}
 			currentBus++;
 		}
