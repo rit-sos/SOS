@@ -22,7 +22,7 @@
 */
 
 //number of global file descriptors to allocate
-#define N_FDS	16
+#define N_FDS	10
 
 
 
