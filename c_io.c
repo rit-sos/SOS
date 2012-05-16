@@ -14,6 +14,7 @@
 **	Refer to the printed documentation for complete details.
 **
 */
+#define __KERNEL__20113__
 
 #include "io.h"
 #include "fd.h"
@@ -21,16 +22,16 @@
 #include "startup.h"
 #include "support.h"
 #include "x86arch.h"
-#include "vbe.h"
 #include "graphics_font.h"
+#include "windowing.h"
 
 /*
 ** Video parameters, and state variables
 */
 #define	SCREEN_MIN_X	0
 #define	SCREEN_MIN_Y	0
-#define	SCREEN_X_SIZE	(1280/12)
-#define	SCREEN_Y_SIZE	(1024/18)
+#define	SCREEN_X_SIZE	WIN_CHAR_RES_X
+#define	SCREEN_Y_SIZE	WIN_CHAR_RES_Y
 #define	SCREEN_MAX_X	( SCREEN_X_SIZE - 1 )
 #define	SCREEN_MAX_Y	( SCREEN_Y_SIZE - 1 )
 
@@ -39,6 +40,8 @@ unsigned int	scroll_max_x, scroll_max_y;
 unsigned int	curr_x, curr_y;
 unsigned int	min_x, min_y;
 unsigned int	max_x, max_y;
+
+Window cio_win_idx;
 
 #ifdef	SA_DEBUG
 #include <stdio.h>
@@ -82,7 +85,7 @@ static void __c_putchar_at( unsigned int x, unsigned int y, unsigned int c ){
 	** If x or y is too big or small, don't do any output.
 	*/
 	if( x <= max_x && y <= max_y ){
-		_vbe_write_char(x, y, 255, 255, 255, c & 0x7F );
+		_windowing_write_char(cio_win_idx, x, y, 255, 255, 255, c & 0x7F );
 	}
 }
 
@@ -127,7 +130,7 @@ void c_putchar_at( unsigned int x, unsigned int y, unsigned int c ){
 			limit = scroll_min_x - 1;
 		}
 		while( x <= limit ){
-			__c_putchar_at( x, y, ' ' );
+			//__c_putchar_at( x, y, ' ' );
 			x += 1;
 		}
 	}
@@ -205,13 +208,13 @@ void c_clearscroll( void ){
 
 	for( y = scroll_min_y; y <= scroll_max_y; y += 1 ){
 		for( x = scroll_min_x; x < scroll_max_x; x += 1 ){
-			_vbe_write_char(x, y, 255, 255, 255, ' ');
+			_windowing_write_char(cio_win_idx, x, y, 255, 255, 255, ' ');
 		}
 	}
 }
 
 void c_clearscreen( void ){
-	_vbe_clear_display(0, 0, 0);
+	_windowing_clear_display(cio_win_idx, 0, 0, 0);
 }
 
 
@@ -230,7 +233,7 @@ void c_scroll( unsigned int lines ){
 	/*
 	** Must copy it line by line.
 	*/
-	_vbe_char_scroll(scroll_min_y, scroll_max_y, lines);
+	_windowing_char_scroll(cio_win_idx, scroll_min_y, scroll_max_y, lines);
 }
 
 char * cvtdec0( char *buf, int value ){
@@ -642,7 +645,9 @@ int c_input_queue( void ){
 /*
  ** Initialization routines
  */
-void c_io_init( void ){
+void c_io_init( Window win_idx ){
+	cio_win_idx = win_idx;
+
 	/*
 	 ** Screen dimensions
 	 */

@@ -52,11 +52,11 @@
 **	the number of characters available for immediate reading. 
 **	No conversions are provided (yet).
 */
-
-#include "fd.h"
-
 #ifndef _C_IO_H_
 #define _C_IO_H_
+
+#include "fd.h"
+#include "windowing.h"
 
 #ifndef __ASM__20113__
 
@@ -67,7 +67,7 @@ Status c_startWrite(Fd *fd);
 ** Description:	Initializes the I/O routines.  This is called by the
 **		standalone loader so you need not call it.
 */
-void c_io_init( void );
+void c_io_init( Window win_idx );
 
 /*****************************************************************************
 **

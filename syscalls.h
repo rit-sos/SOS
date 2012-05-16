@@ -52,9 +52,18 @@
 #define SYS_sys_sum			23
 #define SYS_set_test		24
 
+/* windowing syscalls */
+#define	SYS_s_windowing_get_window		25
+#define	SYS_s_windowing_free_window		26
+#define	SYS_s_windowing_print_str		27
+#define	SYS_s_windowing_print_char		28
+#define	SYS_s_windowing_clearscreen		29
+#define	SYS_s_windowing_draw_line		30
+#define	SYS_s_windowing_copy_rect		31
+
 // number of "real" system calls
 
-#define	N_SYSCALLS	25
+#define	N_SYSCALLS	32
 
 // dummy system call code to test the syscall ISR
 

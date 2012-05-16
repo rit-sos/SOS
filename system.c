@@ -23,6 +23,7 @@
 #include "scheduler.h"
 #include "fd.h"
 #include "vbe.h"
+#include "windowing.h"
 #include "mman.h"
 #include "c_io.h"
 #include "ata.h"
@@ -245,20 +246,38 @@ void _init( void ) {
 	** Console I/O system.
 	*/
 
+	/* initialize graphics first */
 	_vbe_init();
-	c_io_init();
+	_windowing_init();
+	/* now init c_io with a window mapped to init */
+	c_io_init( _windowing_get_window( init_ID + 1 ) );
 	c_setscroll( 0, 7, 99, 99 );
 	c_puts_at( 0, 6, "================================================================================" );
 
 	/*
+	 * pretty color debug
+	 */
+	Window win = _windowing_get_window( init_ID + 1 );
+	int i, j;
+
+	for( i = 0; i < WINDOW_WIDTH; i++ )
+	{
+		for( j = 0; j < WINDOW_HEIGHT; j++ )
+		{
+			Uint color = i + j * WINDOW_WIDTH;
+			_windowing_draw_pixel(win, i, j, color & 0xFF, ~color & 0xFF, (color >> 8) & 0xFF );
+		}
+	}
+
+	_windowing_free_window( win );
+
+	/*
 	** 20113-SPECIFIC CODE STARTS HERE
 	*/
-
+	
 	/*
 	** Initialize various OS modules
 	*/
-
-	c_printf("VBE Framebuffer: 0x%x\n", _vbe_framebuffer_addr());
 	c_puts( "Module init: " );
 
 	_q_init();		// must be first

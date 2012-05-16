@@ -2,3 +2,4 @@ init		0x60000
 user_disk	0x68000
 mman_test	0x70000
 heap_test	0x78000
+window_test	0x80000

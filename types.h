@@ -67,6 +67,10 @@ typedef	Uint16		Pid;
 
 typedef	Uint32		Time;
 
+// Window
+
+typedef Int32		Window;
+
 #endif
 
 #endif

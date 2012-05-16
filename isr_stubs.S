@@ -180,7 +180,7 @@ restore_ctx:
 	pushl	_system_time
 
 	pushl	$fmt
-	pushl	$1
+	pushl	$0
 	pushl	$0
 	call	c_printf_at
 
