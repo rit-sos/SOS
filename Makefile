@@ -144,7 +144,7 @@ all: build list
 #
 build: boot kernel $(USERS) BuildImage
 	./BuildImage -d usb -o usb.image -b boot kernel $(KERNEL_BASE) `cat map`
-	@#./BuildImage -d floppy -o floppy.image -b boot kernel $(KERNEL_BASE) `cat map`
+	./BuildImage -d floppy -o floppy.image -b boot kernel $(KERNEL_BASE) `cat map`
 
 BuildImage: BuildImage.c
 	$(CC) -o BuildImage BuildImage.c
@@ -170,10 +170,8 @@ kernel: $(MAPS) $(KERNEL_BITS)
 $(USERS): ustrap.o $(USER_BITS) $(USER_SRC)
 	$(CC) $(CFLAGS) -c -o $@.tmp.o $@.c
 	$(LD) -Ttext $(USER_BASE) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
-#	$(LD) -Ttext $(shell if [ "$@" = "user_a" ]; then echo -n "0x55000"; elif [ "$@" = "mman_test" ]; then echo -n "0x60000"; else echo -n "0x50000"; fi) -o $@.o ustrap.o $@.tmp.o $(USER_BITS)
 	-rm -f $@.tmp.o
 	$(LD) $(LDFLAGS) -Ttext $(USER_BASE) -o $@ -e _start $@.o
-#	$(LD) $(LDFLAGS) -Ttext $(shell if [ "$@" = "user_a" ]; then echo -n "0x55000"; elif [ "$@" = "mman_test" ]; then echo -n "0x60000"; else echo -n "0x50000"; fi) -o $@ -e _start $@.o
 
 # When adding or removing user programs, update the map file (called 'map').
 # This file contains a list of program names and their offsets in the
@@ -217,12 +215,13 @@ depend: realclean
 
 # DO NOT DELETE
 
-0.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h mman.h
-0.o: heaps.h pcbs.h clock.h stacks.h klib.h
-ata.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h mman.h
-ata.o: heaps.h pcbs.h clock.h stacks.h klib.h pci.h ata.h ./startup.h c_io.h
-bitbang.o: bitbang.h headers.h defs.h types.h fd.h io.h queues.h support.h
-bitbang.o: system.h mman.h heaps.h pcbs.h clock.h stacks.h klib.h
+0.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+0.o: clock.h stacks.h klib.h
+ata.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+ata.o: clock.h stacks.h klib.h pci.h ata.h fd.h io.h queues.h ./startup.h
+ata.o: c_io.h
+bitbang.o: bitbang.h headers.h defs.h types.h support.h system.h mman.h
+bitbang.o: heaps.h pcbs.h clock.h stacks.h klib.h
 BuildImage.o: /usr/include/stdio.h /usr/include/features.h
 BuildImage.o: /usr/include/bits/predefs.h /usr/include/sys/cdefs.h
 BuildImage.o: /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h
@@ -243,79 +242,77 @@ BuildImage.o: /usr/include/xlocale.h
 c_io.o: io.h fd.h headers.h defs.h types.h support.h system.h mman.h heaps.h
 c_io.o: pcbs.h clock.h stacks.h klib.h queues.h c_io.h ./startup.h
 c_io.o: ./include/x86arch.h vbe.h graphics_font.h
-clock.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-clock.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h ./include/x86arch.h
-clock.o: ./startup.h c_io.h scheduler.h sio.h syscalls.h
-e100.o: pci.h headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-e100.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
-fd.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h mman.h
-fd.o: heaps.h pcbs.h clock.h stacks.h klib.h scheduler.h c_io.h
-graphics_font.o: graphics_font.h headers.h defs.h types.h fd.h io.h queues.h
-graphics_font.o: support.h system.h mman.h heaps.h pcbs.h clock.h stacks.h
-graphics_font.o: klib.h
-heaps.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-heaps.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
-heap_test.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-heap_test.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
-init.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h mman.h
-init.o: heaps.h pcbs.h clock.h stacks.h klib.h
-klibc.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-klibc.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h c_io.h
-mmanc.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-mmanc.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h ./include/x86arch.h
-mmanc.o: bootstrap.h syscalls.h ./startup.h
-mman_test.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-mman_test.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
-offsets.o: heaps.h pcbs.h headers.h defs.h types.h fd.h io.h queues.h
-offsets.o: support.h system.h mman.h klib.h clock.h stacks.h
-offsets.o: /usr/include/stdio.h /usr/include/features.h
-offsets.o: /usr/include/bits/predefs.h /usr/include/sys/cdefs.h
-offsets.o: /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h
-offsets.o: /usr/include/gnu/stubs-32.h /usr/include/bits/types.h
-offsets.o: /usr/include/bits/typesizes.h /usr/include/libio.h
-offsets.o: /usr/include/_G_config.h /usr/include/wchar.h
+clock.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+clock.o: clock.h stacks.h klib.h ./include/x86arch.h ./startup.h c_io.h fd.h
+clock.o: io.h queues.h scheduler.h sio.h syscalls.h
+e100.o: pci.h headers.h defs.h types.h support.h system.h mman.h heaps.h
+e100.o: pcbs.h clock.h stacks.h klib.h
+fd.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+fd.o: clock.h stacks.h klib.h scheduler.h queues.h c_io.h fd.h io.h
+graphics_font.o: graphics_font.h headers.h defs.h types.h support.h system.h
+graphics_font.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
+heaps.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+heaps.o: clock.h stacks.h klib.h c_io.h fd.h io.h queues.h
+heap_test.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
+heap_test.o: pcbs.h clock.h stacks.h klib.h
+init.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+init.o: clock.h stacks.h klib.h
+klibc.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+klibc.o: clock.h stacks.h klib.h c_io.h fd.h io.h queues.h
+mmanc.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+mmanc.o: clock.h stacks.h klib.h ./include/x86arch.h c_io.h fd.h io.h
+mmanc.o: queues.h bootstrap.h syscalls.h ./startup.h
+mman_test.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
+mman_test.o: pcbs.h clock.h stacks.h klib.h
+offsets.o: heaps.h pcbs.h headers.h defs.h types.h support.h system.h mman.h
+offsets.o: klib.h clock.h stacks.h /usr/include/stdio.h
+offsets.o: /usr/include/features.h /usr/include/bits/predefs.h
+offsets.o: /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h
+offsets.o: /usr/include/gnu/stubs.h /usr/include/gnu/stubs-32.h
+offsets.o: /usr/include/bits/types.h /usr/include/bits/typesizes.h
+offsets.o: /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h
 offsets.o: /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h
-pcbs.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h mman.h
-pcbs.o: heaps.h pcbs.h clock.h stacks.h klib.h c_io.h
-pci.o: pci.h headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-pci.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h ./startup.h
-queues.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-queues.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h c_io.h
-scheduler.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-scheduler.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h c_io.h scheduler.h
-shm.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h mman.h
-shm.o: heaps.h pcbs.h clock.h stacks.h klib.h
-sio.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h mman.h
-sio.o: heaps.h pcbs.h clock.h stacks.h klib.h sio.h c_io.h scheduler.h
+pcbs.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+pcbs.o: clock.h stacks.h klib.h queues.h c_io.h fd.h io.h
+pci.o: pci.h headers.h defs.h types.h support.h system.h mman.h heaps.h
+pci.o: pcbs.h clock.h stacks.h klib.h ./startup.h
+queues.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+queues.o: clock.h stacks.h klib.h queues.h c_io.h fd.h io.h
+scheduler.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
+scheduler.o: pcbs.h clock.h stacks.h klib.h c_io.h fd.h io.h queues.h
+scheduler.o: scheduler.h
+shm.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+shm.o: clock.h stacks.h klib.h
+sio.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+sio.o: clock.h stacks.h klib.h fd.h io.h queues.h sio.h c_io.h scheduler.h
 sio.o: ./startup.h ./include/uart.h ./include/x86arch.h
-stacks.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-stacks.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
+stacks.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+stacks.o: clock.h stacks.h klib.h c_io.h fd.h io.h queues.h
 support.o: ./startup.h support.h c_io.h fd.h io.h headers.h defs.h types.h
 support.o: system.h mman.h heaps.h pcbs.h clock.h stacks.h klib.h queues.h
 support.o: ./include/x86arch.h bootstrap.h syscalls.h
-syscalls.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-syscalls.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h scheduler.h sio.h
-syscalls.o: syscalls.h ./include/x86arch.h c_io.h vbe.h ata.h ./startup.h
-system.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-system.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h bootstrap.h
-system.o: syscalls.h ./include/x86arch.h sio.h scheduler.h vbe.h c_io.h ata.h
-ulibc.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-ulibc.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
-umem.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h mman.h
-umem.o: heaps.h pcbs.h clock.h stacks.h klib.h
-user_a.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-user_a.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
-users.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-users.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h users.h
-vbe.o: vbe.h headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-vbe.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h vbe_structs.h
-vbe.o: graphics_font.h sio.h bootstrap.h
+syscalls.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+syscalls.o: clock.h stacks.h klib.h scheduler.h queues.h sio.h syscalls.h
+syscalls.o: ./include/x86arch.h c_io.h fd.h io.h vbe.h ata.h ./startup.h
+system.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+system.o: clock.h stacks.h klib.h bootstrap.h syscalls.h queues.h
+system.o: ./include/x86arch.h sio.h scheduler.h fd.h io.h vbe.h c_io.h ata.h
+ulibc.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+ulibc.o: clock.h stacks.h klib.h
+umem.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+umem.o: clock.h stacks.h klib.h
+user_a.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+user_a.o: clock.h stacks.h klib.h
+users.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+users.o: clock.h stacks.h klib.h users.h
+vbe.o: vbe.h headers.h defs.h types.h support.h system.h mman.h heaps.h
+vbe.o: pcbs.h clock.h stacks.h klib.h vbe_structs.h graphics_font.h sio.h
+vbe.o: queues.h bootstrap.h
 bootstrap.o: vbe_boot.h bootstrap.h vbe_boot.S
 isr_stubs.o: bootstrap.h offsets.h
-mmans.o: headers.h defs.h types.h fd.h io.h queues.h support.h system.h
-mmans.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h offsets.h
+mmans.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+mmans.o: clock.h stacks.h klib.h offsets.h
 startup.o: bootstrap.h
-ulibs.o: syscalls.h headers.h defs.h types.h fd.h io.h queues.h support.h
-ulibs.o: system.h mman.h heaps.h pcbs.h clock.h stacks.h klib.h
-ulibs.o: ./include/x86arch.h
+ulibs.o: syscalls.h headers.h defs.h types.h support.h system.h mman.h
+ulibs.o: heaps.h pcbs.h clock.h stacks.h klib.h queues.h ./include/x86arch.h
 vbe_boot.o: vbe_boot.h bootstrap.h

@@ -17,7 +17,7 @@
 
 #define DELAY_LONG 100000000
 #define SPAWN_A
-//#define SPAWN_MMAN
+#define SPAWN_MMAN
 //#define SPAWN_DISK
 
 /*
@@ -77,7 +77,7 @@ void main(void) {
 	puts("init: my main lives at ");
 	putx((unsigned int)&main);
 	puts("\n");
-	
+
 	//puts("hello from ring 3 init\n");
 
 	// we'll start the first three "manually"
