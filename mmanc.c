@@ -10,10 +10,10 @@
 #include "startup.h"
 
 #define CHECK_PAGE_BIT(M,X)	((M)[(X)>>5] &  (0x80000000 >> ((X) & 0x1f)) != 0)
-//#define CLEAR_PAGE_BIT(M,X)	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f)))
+#define CLEAR_PAGE_BIT(M,X)	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f)))
 #define SET_PAGE_BIT(M,X)	((M)[(X)>>5] |= (0x80000000 >> ((X) & 0x1f)))
 
-#define CLEAR_PAGE_BIT(M,X)		{											\
+//#define CLEAR_PAGE_BIT(M,X)		{											\
 	if (((M) == _phys_map || (M) == _virt_map) && (X) < 0x0c00) {			\
 		_mman_panic((M), (X));												\
 	}																		\
@@ -32,7 +32,7 @@ static void _mman_panic(Uint32 *map, Uint32 page) {
 
 #define PAGE_REFCOUNT(X)	(((Uint32*)REFCOUNT_BASE)[(X)])
 #define PAGE_ADDREF(X)		(SET_PAGE_BIT(_phys_map,(X)),++(PAGE_REFCOUNT((X))))
-//#define PAGE_RELEASE(X)		(--(PAGE_REFCOUNT((X))))
+#define PAGE_RELEASE(X)		(--(PAGE_REFCOUNT((X))))
 
 //#define PAGE_ADDREF(X)			(											\
 	SET_PAGE_BIT(_phys_map,(X)),											\
@@ -41,7 +41,7 @@ static void _mman_panic(Uint32 *map, Uint32 page) {
 		? c_printf("page=%08x ref=%d\n",(X),PAGE_REFCOUNT((X))) : 0),		\
 	PAGE_REFCOUNT((X)))
 
-#define PAGE_RELEASE(X)			(											\
+//#define PAGE_RELEASE(X)			(											\
 	(X) == 0x22 ? _mman_panic(_phys_map,(X)),0 : --(PAGE_REFCOUNT((X))))
 
 #define PAGE_ADDREF_V(P,X,W)	{											\
@@ -134,13 +134,12 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 
 	c_printf("[%04x] handle_cow( %08x, %08x )\n", pcb ? pcb->pid : 0xffff, pcb, vpg);
 
-	if (pcb) {
-		pgdir = pcb->pgdir;
-		virt_map = pcb->virt_map;
-	} else {
-		pgdir = (Pagedir_entry*)_kpgdir;
-		virt_map = _virt_map;
+	if (!pcb) {
+		return BAD_PARAM;
 	}
+
+	pgdir = pcb->pgdir;
+	virt_map = pcb->virt_map;
 
 	free_src = free_dst = 0;
 
@@ -196,29 +195,6 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		_kmemcpy(kdst, ksrc, PAGESIZE);
 
 		/* alloc_at() already did the addref for the user */
-	} else {
-		/*
-		** We need to copy the kernel COW page to a fresh physical page.
-		*/
-		c_printf("handle_cow: kernel MOOve vpg=%08x, ppg=%08x\n", vpg, src);
-
-		/* map the same page to a new location */
-		CHK(_mman_alloc(NULL, &ksrc, PAGESIZE, MAP_VIRT_ONLY));
-		free_src = 1;
-		CHK(_mman_map_page((Pagedir_entry*)_kpgdir, ((Uint32)ksrc) >> 12, src, 0));
-		SET_PAGE_BIT(_virt_map, ((Uint32)ksrc) >> 12);
-
-		/* unmap the page at its old location */
-		CHK(_mman_unmap_page((Pagedir_entry*)_kpgdir, vpg));
-		CLEAR_PAGE_BIT(_virt_map, vpg);
-
-		/* alloc and map a new page for the original virtual address */
-		CHK(_mman_alloc_at(pcb, (void*)(vpg << 12), PAGESIZE, MAP_WRITE));
-
-		/* copy */
-		_kmemcpy((void*)(vpg << 12), ksrc, PAGESIZE);
-
-		/* alloc_at() already did the addref for the user */
 	}
 
 Cleanup:
@@ -232,7 +208,6 @@ Cleanup:
 			_mman_free(NULL, kdst, PAGESIZE);
 		}
 	}
-
 
 	return status;
 }
@@ -264,7 +239,7 @@ void _mman_pagefault_isr(int vec, int code) {
 	** 6. Kernel tried to access memory that's not in its address space.
 	**    this is a really bad thing. Kernel panic.
 	**
-	** 7. Kernel tried to write to a COW page. Call the COW handler.
+	** 7. Kernel tried to write to a COW page. Why? Panic.
 	**
 	** 8. Kernel tried to read or write a page that's not in physical
 	**    memory. I'm pretty sure we don't want to allow kernel data
@@ -289,8 +264,11 @@ void _mman_pagefault_isr(int vec, int code) {
 			} else {
 				/* Case 2 or 3 */
 				c_putchar('2');
-		c_printf("#PF: pte: %06x %d %d %d %d %d %d %d %d %d %d %d %d\n", pte.frame, pte.disk, pte.shared, pte.cow, pte.global, pte.reserved, pte.dirty, pte.accessed, pte.cachewrt, pte.cachedis, pte.user, pte.write, pte.present);
-//		c_printf("#PF: pde: %06x %x %d %d %d %d %d %d %d %d\n", pde.frame, pde.unused0, pde.pgsize, pde.unused1, pde.accessed, pde.cachedis, pde.cachewrt, pde.user, pde.write, pde.present);
+				c_printf("[%04x] Segmentation Fault: "
+					"%06x %d %d %d %d %d %d %d %d %d %d %d %d\n",
+					_current->pid, pte.frame, pte.disk, pte.shared, pte.cow,
+					pte.global, pte.reserved, pte.dirty, pte.accessed,
+					pte.cachewrt, pte.cachedis, pte.user, pte.write, pte.present);
 				_sys_exit(_current);
 			}
 		} else if (pte.disk) {
@@ -302,51 +280,23 @@ void _mman_pagefault_isr(int vec, int code) {
 			_sys_exit(_current);
 		}
 	} else {
+		Pagedir_entry pde = _kpgdir[cr2 >> 22];
 		pte = get_pte((Pagedir_entry*)_kpgdir, cr2 >> 12);
-		if ((code & PF_PRESENT) && (code & PF_WRITE) && !pte.user && pte.cow) {
-			/* Case 7 */
-			c_putchar('7');
-			if (handle_cow(NULL, cr2 >> 12) != SUCCESS) {
-				c_printf("*** Kernel COW error ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
-				_kpanic("mman", "_mman_pagefault_isr", FAILURE);
-			}
-		} else {
-			/* Case 6 or 8, fatal kernel bug */
-			c_putchar('6');
-			c_printf("*** Kernel pagefault ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
-			_kpanic("mman", "_mman_pagefault_isr", FAILURE);
-		}
+		c_printf("pde = "
+			"%05x %x %d %d %d %d %d %d %d %d\n",
+			pde.frame, pde.unused0, pde.pgsize, pde.unused1,
+			pde.accessed, pde.cachedis, pde.cachewrt, pde.user,
+			pde.write, pde.present);
+		c_printf("pte = "
+			"%05x %d %d %d %d %d %d %d %d %d %d %d %d\n",
+			pte.frame, pte.disk, pte.shared, pte.cow,
+			pte.global, pte.reserved, pte.dirty, pte.accessed,
+			pte.cachewrt, pte.cachedis, pte.user, pte.write, pte.present);
+		_kpanic("mman", "_mman_pagefault_isr", FAILURE);
 	}
 
 	__outb(PIC_MASTER_CMD_PORT, PIC_EOI);
 }
-
-#if 0
-void _mman_pagefault_isr(int vec, int code) {
-	Uint32 cr0, cr2, cr3;
-//	Uint32 idx, addr;
-//	Pagedir_entry pde;
-//	Pagetbl_entry pte;
-//	Pagedir_entry *pgdir = (Pagedir_entry*)_current->pgdir;
-//	Status status;
-
-	cr0 = _mman_get_cr0();
-	cr2 = _mman_get_cr2();
-	cr3 = _mman_get_cr3();
-//	addr = cr2 >> 12;
-
-	c_printf("PAGE FAULT: vec=0x%08x code=0x%08x\n", vec, code);
-	c_printf("current user: pid=%04d  pgdir=0x%08x\n", _current->pid, _current->pgdir);
-	c_printf("cr0=0x%08x  cr2=0x%08x  cr3=0x%08x  _kpgdir=0x%08x\n", cr0, cr2, cr3, _kpgdir);
-//	c_printf("Mapping vpg 0x%08x to ppg 0x%08x\n", addr, addr);
-
-//	if ((status = _mman_map_page(pgdir, addr, addr, MAP_WRITE | MAP_USER)) != SUCCESS) {
-//		_kpanic("_mman_pagefault_isr", "%s", status);
-//	}
-
-	_kpanic("mman", "page fault handler not fully implemented", FAILURE);
-}
-#endif
 
 static int pcnt;
 
@@ -394,9 +344,6 @@ Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *sr
 
 	/* copy kernel low 4MB mapping */
 	dst[0] = _kpgdir[0];
-//	for (i = 0; i < 0x400; i++) {
-//		PAGE_ADDREF(i);
-//	}
 
 	/* for each pagedir entry, */
 	for (i = 1; i < PAGESIZE / 4; i++) {
@@ -518,10 +465,6 @@ Status _mman_get_user_data(Pcb *pcb, /* out */ void *buf, void *virt, Uint32 siz
 	}
 	if ((size & 0x0fff) > PAGESIZE - (((Uint32)virt) & 0x0fff)) {
 		num_pages++;
-	}
-
-	if (num_pages != 1) {
-		_kpanic("mman", "spanning more than one page?", FAILURE);
 	}
 
 	if (num_pages > MAX_TRANSFER_PAGES) {
@@ -647,6 +590,10 @@ Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 fla
 	Status status;
 	Uint32 idx;
 
+	if (pgdir == _kpgdir && virt == 0x20000) {
+		c_printf("kernel mapping vpg 0x20000 to ppg %08x, flags=%08x\n", phys, flags);
+	}
+
 	if (!pgdir) {
 		return BAD_PARAM;
 	}
@@ -689,6 +636,13 @@ Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 fla
 
 	/* if we get here, then we're ready to add the pagetbl entry */
 	tbl[idx].dword = ((phys << 12) & PT_FRAME) | (flags & MAP_FLAGS_MASK) | PT_PRESENT;
+	if (pgdir == _kpgdir && virt == 0x20000) {
+		c_printf("new pte: %05x %d %d %d %d %d %d %d %d %d %d %d %d\n",
+			tbl[idx].frame, tbl[idx].disk, tbl[idx].shared, tbl[idx].cow,
+			tbl[idx].global, tbl[idx].reserved, tbl[idx].dirty, tbl[idx].accessed,
+			tbl[idx].cachewrt, tbl[idx].cachedis, tbl[idx].user, tbl[idx].write,
+			tbl[idx].present);
+	}
 
 	if (pgdir == _kpgdir) {
 		_invlpg((void*)(virt << 12));
@@ -706,10 +660,6 @@ Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt) {
 	if (!pgdir) {
 		return BAD_PARAM;
 	}
-
-//	if (virt == 0x10001) {
-//		c_printf("_mman_unmap_page: pgdir=%08x, virt=0x10001, caller=%08x,%08x\n", pgdir, *(Uint32*)(_get_ebp()+4), *((*(Uint32**)_get_ebp())+1));
-//	}
 
 	if (pgdir == _kpgdir && virt < 0xc00) {
 		c_printf("how did we get here? virt=%08x, stack follows:\n", virt);

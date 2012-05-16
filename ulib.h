@@ -291,6 +291,17 @@ Status get_heap_size(unsigned int *size);
 */
 Status get_heap_base(void *base);
 
+/*
+** write_buf - write a string from a user buffer
+**
+** usage: status = write_buf(str);
+*/
+Status write_buf(const char *str, unsigned int size);
+
+
+Status sys_sum(int *numbers, int count);
+Status set_test(int *buf, int count);
+
 void *memset(void *ptr, int byte, unsigned int size);
 
 void *memcpy(void *dst, void *src, unsigned int size);

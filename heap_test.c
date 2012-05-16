@@ -84,6 +84,9 @@ Alloc:
 
 		((char*)ptr2)[i] = 0xAA;
 	}
+
+	msleep(1000);
+
 	puts("write successful\n");
 
 	if( 0 )

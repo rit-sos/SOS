@@ -15,9 +15,9 @@
 #include "pcbs.h"
 
 #define DELAY_LONG 10000000
-#define SPAWN_A
-//#define SPAWN_MMAN
-#define SPAWN_HEAP
+//#define SPAWN_A
+#define SPAWN_MMAN
+//#define SPAWN_HEAP
 
 /*
 ** USER PROCESSES

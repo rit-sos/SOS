@@ -21,7 +21,7 @@ void _heap_init(void) {
 	Status status;
 
 	/* set up the kernel heap */
-	status = _mman_alloc_at(NULL, (void*)KERNEL_HEAP_BASE, HEAP_CHUNK_SIZE, MAP_WRITE | MAP_ZERO);
+	status = _mman_alloc_at(NULL, (void*)KERNEL_HEAP_BASE, HEAP_CHUNK_SIZE, MAP_WRITE);
 	if (status != SUCCESS) {
 		_kpanic("heap", "_mman_alloc_at: %s", status);
 	}
@@ -135,6 +135,8 @@ void *_kmalloc(Uint32 size) {
 
 	if (prev) {
 		prev->next = tag;
+	} else {
+		_heap_first = tag;
 	}
 
 	if (curr) {
@@ -214,10 +216,8 @@ Status _heap_grow(struct pcb *pcb) {
 	} else {
 		info = &_kheapinfo;
 		ptr = (void*)(KERNEL_HEAP_BASE + HEAP_CHUNK_SIZE * _kheapinfo.count);
-		flags = MAP_WRITE | MAP_ZERO;
+		flags = MAP_WRITE;
 	}
-
-	ptr = (void*)(USER_HEAP_BASE + HEAP_CHUNK_SIZE * _kheapinfo.count);
 
 	status = _mman_alloc_at(pcb, ptr, HEAP_CHUNK_SIZE, flags);
 	if (status == SUCCESS) {

@@ -522,9 +522,12 @@ void _sio_writec( int ch ){
 	//
 	// If we're currently transmitting, just add this to the buffer
 	//
-
-	if( _sending ) {
+	if (_sending && _outcount < BUF_SIZE ) {
 		*_outlast++ = ch;
+		// wrap around if necessary
+		if( _outlast >= (_outbuffer + BUF_SIZE) ) {
+			_outlast = _outbuffer;
+		}
 		++_outcount;
 		return;
 	}

@@ -43,6 +43,9 @@
 #define SYS_grow_heap		14
 #define SYS_get_heap_size	15
 #define SYS_get_heap_base	16
+#define SYS_write_buf		17
+#define SYS_sys_sum			18
+#define SYS_set_test		19
 
 // these are syscalls we elected not to implement
 // #define	SYS_set_pid		?
@@ -51,7 +54,7 @@
 
 // number of "real" system calls
 
-#define	N_SYSCALLS	17
+#define	N_SYSCALLS	20
 
 // dummy system call code to test the syscall ISR
 

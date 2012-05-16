@@ -676,6 +676,138 @@ static void _sys_get_heap_base(Pcb *pcb) {
 	RET(pcb) = SUCCESS;
 }
 
+static void _sys_write_buf(Pcb *pcb) {
+	void *ptr, *buf;
+	Uint32 size;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		c_printf("[%04x] _sys_write_buf: _in_param(1): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &size)) != SUCCESS) {
+		c_printf("[%04x] _sys_write_buf: _in_param(2): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if (size > 0x100000) {
+		c_printf("[%04x] _sys_write_buf: size=%d > 0x100000\n", pcb->pid, size);
+		RET(pcb) = BAD_PARAM;
+		return;
+	}
+
+	c_printf("[%04x] _sys_write_buf: ptr=%08x, size=%d\n", pcb->pid, ptr, size);
+
+	buf = _kmalloc(size);
+
+	if (!buf) {
+		c_printf("[%04x] _sys_write_buf: _kmalloc returned NULL\n", pcb->pid);
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	if ((status = _mman_get_user_data(pcb, buf, ptr, size)) != SUCCESS) {
+		c_printf("[%04x] _sys_write_buf: _mman_get_user_data: %s\n", pcb->pid, _kstatus(status));
+		RET(pcb) = status;
+		_kfree(buf);
+		return;
+	}
+
+	_sio_writes(buf, size);
+
+	_kfree(buf);
+
+	RET(pcb) = SUCCESS;
+}
+
+static void _sys_sys_sum(Pcb *pcb) {
+	Int32 *buf, sum;
+	void *ptr;
+	Uint32 count, i;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		c_printf("[%04x] _sys_sys_sum: _in_param(1): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &count)) != SUCCESS) {
+		c_printf("[%04x] _sys_sys_sum: _in_param(2): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	buf = _kmalloc(count * sizeof(Int32));
+
+	if (!buf) {
+		c_printf("[%04x] _sys_sys_sum: _kmalloc returned NULL\n", pcb->pid);
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	if ((status = _mman_get_user_data(pcb, buf, ptr, count*sizeof(Int32))) != SUCCESS) {
+		c_printf("[%04x] _sys_sys_sum: _mman_get_user_data: %s\n", pcb->pid, _kstatus(status));
+		RET(pcb) = status;
+		_kfree(buf);
+	}
+
+	for (i = 0, sum = 0; i < count; i++) {
+		sum += buf[i];
+	}
+
+	c_printf("[%04x] _sys_sys_sum: %d integers, total %d\n", pcb->pid, count, sum);
+
+	_kfree(buf);
+
+	RET(pcb) = SUCCESS;
+}
+
+static void _sys_set_test(Pcb *pcb) {
+	Int32 *buf;
+	void *ptr;
+	Uint32 count, i;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		c_printf("[%04x] _sys_set_test: _in_param(1): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &count)) != SUCCESS) {
+		c_printf("[%04x] _sys_set_test: _in_param(2): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	buf = _kmalloc(count * sizeof(Int32));
+
+	if (!buf) {
+		c_printf("[%04x] _sys_set_test: _kmalloc returned NULL\n", pcb->pid);
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	for (i = 0; i < count; i++) {
+		buf[i] = i;
+	}
+
+	if ((status = _mman_set_user_data(pcb, ptr, buf, count*sizeof(Int32))) != SUCCESS) {
+		c_printf("[%04x] _sys_set_test: _mman_set_user_data: %s\n", pcb->pid, _kstatus(status));
+		RET(pcb) = status;
+		_kfree(buf);
+	}
+
+	_kfree(buf);
+
+	RET(pcb) = SUCCESS;
+
+}
+
 /*
 ** PUBLIC FUNCTIONS
 */
@@ -725,6 +857,9 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_grow_heap ]     = _sys_grow_heap;
 	_syscall_tbl[ SYS_get_heap_size ] = _sys_get_heap_size;
 	_syscall_tbl[ SYS_get_heap_base ] = _sys_get_heap_base;
+	_syscall_tbl[ SYS_write_buf ]     = _sys_write_buf;
+	_syscall_tbl[ SYS_sys_sum ]       = _sys_sys_sum;
+	_syscall_tbl[ SYS_set_test ]      = _sys_set_test;
 
 //	these are syscalls we elected not to implement
 //	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;
