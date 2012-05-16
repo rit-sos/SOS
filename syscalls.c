@@ -795,12 +795,15 @@ static void _sys_get_heap_base(Pcb *pcb) {
 */
 static void _sys_windowing_get_window( Pcb *pcb ) {
 	Window win;
+	Status status;
 
-	/* ARG(pcb)[1] is a pointer */
 	win = _windowing_get_window( pcb->pid );
 
 	// return window
-	*((Window*)(ARG(pcb)[1])) = win;
+	if((status = _out_param(pcb, 1, win)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = win != -1 ? SUCCESS : FAILURE;
 }
@@ -814,8 +817,14 @@ static void _sys_windowing_get_window( Pcb *pcb ) {
 **		SUCCESS
 */
 static void _sys_windowing_free_window( Pcb *pcb ) {
-	/* ARG(pcb)[4] is a pointer */
-	_windowing_free_window( ARG(pcb)[1] );
+	Status status;
+	Uint32 win;
+
+	if( (status = _in_param(pcb, 1, &win)) != SUCCESS ) {
+		_sys_exit(pcb);
+		return;
+	}
+	_windowing_free_window( (Window)win );
 
 	RET(pcb) = SUCCESS;
 }
@@ -829,8 +838,30 @@ static void _sys_windowing_free_window( Pcb *pcb ) {
 **		SUCCESS
 */
 static void _sys_windowing_print_str( Pcb *pcb ) {
-	/* ARG(pcb)[4] is a pointer */
-	_windowing_write_str( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3], 255, 255, 255, (const char *)ARG(pcb)[4] );
+	Uint32 win, x, y;
+	const char* str;
+
+	if( _in_param(pcb, 1, &win) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+	if( _in_param(pcb, 2, &x) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+	if( _in_param(pcb, 3, &y) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+	if( _in_param(pcb, 4, (Uint32*)&str) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+	_windowing_write_str( (Window)win, x, y, 255, 255, 255, str );
 
 	RET(pcb) = SUCCESS;
 }
@@ -894,7 +925,29 @@ static void _sys_vbe_print_char( Pcb *pcb ) {
 **		SUCCESS
 */
 static void _sys_windowing_print_char( Pcb *pcb ) {
-	_windowing_write_char( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3], 255, 255, 255, (const char)ARG(pcb)[4] );
+	Uint32 win, x, y, c;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, &win)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &x)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 3, &y)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 4, &c)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+	_windowing_write_char( (Window)win, x, y, 255, 255, 255, c & 0xFF );
 
 	RET(pcb) = SUCCESS;
 }
@@ -940,7 +993,29 @@ static void _sys_vbe_clearscreen( Pcb *pcb ) {
 **		SUCCESS
 */
 static void _sys_windowing_clearscreen( Pcb *pcb ) {
-	_windowing_clear_display( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3], ARG(pcb)[4] );
+	Uint32 win, r, g, b;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, &win)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &r)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 3, &g)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 4, &b)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+	_windowing_clear_display( (Window)win, (Uint8)r, (Uint8)b, (Uint8)g );
 
 	RET(pcb) = SUCCESS;
 }
@@ -1001,10 +1076,50 @@ static void _sys_write_buf(Pcb *pcb) {
 **		SUCCESS
 */
 static void _sys_windowing_draw_line( Pcb *pcb ) {
-	_windowing_draw_line( (Window)ARG(pcb)[1], 
-			(Uint)ARG(pcb)[2], (Uint)ARG(pcb)[3], 
-			(Uint)ARG(pcb)[4], (Uint)ARG(pcb)[5], 
-			(Uint8)ARG(pcb)[6], (Uint8)ARG(pcb)[7], (Uint8)ARG(pcb)[8] );
+	Uint32 win, x0, y0, x1, y1, r, g, b;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, &win)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &x0)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 3, &y0)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 4, &x1)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 5, &y1)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 6, &r)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 7, &g)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 8, &b)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	_windowing_draw_line( (Window)win, x0, y0, x1, y1, (Uint8)r, (Uint8)g, (Uint8)b );
 
 	RET(pcb) = SUCCESS;
 }
@@ -1061,21 +1176,53 @@ static void _sys_sys_sum(Pcb *pcb) {
 **		SUCCESS
 */
 static void _sys_windowing_copy_rect( Pcb *pcb ) {
+	Uint32 win, x, y, w, h, u_buf;
+	Status status;
 
-	Uint w = ARG(pcb)[4];
-	Uint h = ARG(pcb)[5];
+	if( (status = _in_param(pcb, 1, &win)) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
 
-	Uint num_pages = w*h>>12;
-	if( w*h & 0xFFF )
-		num_pages++;
+	if( (status = _in_param(pcb, 2, &x)) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+
+	if( (status = _in_param(pcb, 3, &y)) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+
+	if( (status = _in_param(pcb, 4, &w)) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+
+	if( (status = _in_param(pcb, 5, &h)) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+
+	if( (status = _in_param(pcb, 6, &u_buf)) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
 
 	/*
-	 * TODO: copy in X pages from userspace then copy the buffer
+	 * TODO: copy in w*h*3 bytes from userspace then copy the buffer
 	 */
-	Uint8 *k_buf = (Uint8*)ARG(pcb)[6];
+	Uint8 *k_buf = (Uint8*)_kmalloc(w*h*3);
 
-	_windowing_copy_rect( (Window)ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3], 
-			w, h, k_buf );
+	return _mman_get_user_data(pcb, (Uint32*)k_buf, (Uint32*)u_buf, w*h*3);
+
+	_windowing_copy_rect( (Window)win, x, y, w, h, k_buf );
 
 	RET(pcb) = SUCCESS;
 }
