@@ -15,3 +15,5 @@ init
 kernel
 mman_test
 user_a
+offsets
+heap_test

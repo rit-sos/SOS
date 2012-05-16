@@ -1,0 +1,49 @@
+SOS memory usage. Try to keep this updated.
+
+===========================================================
+SOS Physical Memory Layout
+===========================================================
+
+From		To			Purpose
+=========	=========	===================================
+0000 0000	0000 FFFF	Bootstrap, CPU data structures
+						(GDT, IDT, TSS, etc.)
+
+0001 0000	0004 FFFF	Kernel image and data structures
+
+0005 0000	0007 FFFF	Built-in user process images
+
+0008 0000	000F FFFF	System (BIOS, etc.)
+
+0010 0000	001F FFFF	Pagedirs/pagetbls, 4k each
+
+0040 0000	007F FFFF	Allocation maps, 128KB each,
+						map 0 is phys, map 1 is kernel virt
+
+0080 0000	00BF FFFF	Page-level refcounts
+
+00C0 0000	(framebuf)	Free space for user/kernel heaps
+
+(framebuf)	FFFF FFFF	Framebuffer
+
+===========================================================
+SOS Kernel Virtual Memory Layout
+===========================================================
+
+Same as physical, except for heap mappings
+
+
+===========================================================
+SOS User Virtual Memory Layout
+===========================================================
+
+From		To			Purpose
+=========	=========	===================================
+0000 0000	0040 0000	Kernel mapping, user flag not set
+
+1000 0000	1000 8000	Program text/data mapping
+
+2000 0000	???? ????	Heap space
+
+???? ????	CFFF FFFF	Stack mapping
+						(downwards, currently 4k)

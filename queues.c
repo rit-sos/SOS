@@ -14,6 +14,7 @@
 
 #include "headers.h"
 
+#include "queues.h"
 #include "pcbs.h"
 #include "stacks.h"
 #include "c_io.h"
@@ -26,7 +27,7 @@
 //
 // need one per PCB, one per Stack, and a whole bunch for page tables
 
-#define	N_QNODES	(500)
+#define	N_QNODES	(2000)
 
 // Number of queues to allocate
 
@@ -35,28 +36,6 @@
 /*
 ** PRIVATE DATA TYPES
 */
-
-// Queue node
-
-typedef struct qnode {
-	struct qnode *prev;
-	struct qnode *next;
-	void *data;
-	Key key;
-} Qnode;
-
-// A queue
-
-typedef struct queue {
-	Qnode *head;
-	Qnode *tail;
-	int (*compare)(Key, Key);
-} Queue;
-
-// We define this so that we don't get the "fake" Queue definitions
-
-#define	COMPILING_QUEUE_MODULE
-#include "queues.h"
 
 /*
 ** PRIVATE GLOBAL VARIABLES

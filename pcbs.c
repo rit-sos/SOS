@@ -127,3 +127,29 @@ void _pcb_init( void ) {
 	c_puts( " pcbs" );
 
 }
+
+void _pcb_dump(Pcb *pcb) {
+	c_printf("Pcb <%08x> = {\n"
+	         "  context = {\n"
+	         "    %08x, %08x, %08x, %08x,\n"
+	         "    %08x, %08x, %08x, %08x,\n"
+	         "    %08x, %08x, %08x, %08x,\n"
+	         "    %08x, %08x, %08x\n"
+	         "  }\n"
+	         "  stack    = %08x    virt_map = %08x\n"
+	         "  pgdir    = %08x    wakeup   = %08x\n"
+	         "  pid      = %04x    ppid     = %04x\n"
+	         "  state    = %02x    priority = %02x\n"
+	         "  quantum  = %02x    program  = %02x\n"
+	         "}\n", pcb,
+	         pcb->context.edi, pcb->context.esi,
+	         pcb->context.ebp, pcb->context.dummy_esp,
+	         pcb->context.ebx, pcb->context.edx,
+	         pcb->context.ecx, pcb->context.eax,
+	         pcb->context.vector, pcb->context.code,
+	         pcb->context.eip, pcb->context.cs,
+	         pcb->context.eflags, pcb->context.esp,
+	         pcb->context.ss, pcb->stack, pcb->virt_map,
+	         pcb->pgdir, pcb->wakeup, pcb->pid, pcb->ppid,
+	         pcb->state, pcb->priority, pcb->quantum, pcb->program);	         
+}

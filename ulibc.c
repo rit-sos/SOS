@@ -12,6 +12,8 @@
 
 #include "headers.h"
 
+#include "pcbs.h"
+
 /*
 ** PRIVATE DEFINITIONS
 */
@@ -28,7 +30,7 @@
 ** PUBLIC GLOBAL VARIABLES
 */
 
-// Status value strings
+// unsigned int value strings
 //
 // this is identical to the kernel _kstatus_strings array,
 // but is separate to simplify life for people implementing VM.
@@ -43,7 +45,7 @@ const char *ustatus_strings[] = {
 	"not found",		/* NOT_FOUND */
 	"no queues",		/* NO_QUEUES */
 	"bad priority",		/* BAD_PRIO */
-	"status sentinel",	/* STATUS_SENTINEL*/
+	"already exists",	/* ALREADY EXISTS */
 	"out of bounds",	/* OUT_OF_BOUNDS*/
 	"end of file",		/* EOF */
 };
@@ -63,7 +65,7 @@ const char *ustatus_strings[] = {
 ** the desired status value should be printed
 */
 
-void prt_status( char *msg, Status stat ) {
+void prt_status( char *msg, unsigned int stat ) {
 
 	if( msg == NULL ) {
 		return;
@@ -87,10 +89,10 @@ void prt_status( char *msg, Status stat ) {
 ** success, and the status of the creation attempt
 */
 
-//Status spawnp( Pid *pid, Prio prio, void (*entry)(void) ) {
-Status spawnp(Pid *pid, Prio prio, Uint32 entry_id) {
-	Pid new;
-	Status status, status2;
+//unsigned int spawnp( unsigned int *pid, unsigned int prio, void (*entry)(void) ) {
+unsigned int spawnp(unsigned int *pid, unsigned int prio, unsigned int entry_id) {
+	unsigned int new;
+	unsigned int status, status2;
 
 	// create the process
 	status = fork( &new );
@@ -135,16 +137,16 @@ Status spawnp(Pid *pid, Prio prio, Uint32 entry_id) {
 ** success, and the status of the creation attempt
 */
 
-//Status spawn( Pid *pid, void (*entry)(void) ) {
-Status spawn(Pid *pid, Uint32 entry_id) {
+//unsigned int spawn( unsigned int *pid, void (*entry)(void) ) {
+unsigned int spawn(unsigned int *pid, unsigned int entry_id) {
 
 	// take the easy way out
 
 	return( spawnp(pid,PRIO_STD,entry_id) );
 }
 
-Status puts(const char *str) {
-	Status status = SUCCESS;
+unsigned int puts(const char *str) {
+	unsigned int status = SUCCESS;
 	const char *p = str;
 
 	while (*p && status == SUCCESS) {
@@ -154,11 +156,14 @@ Status puts(const char *str) {
 	return status;
 }
 
-void putx(Uint32 x) {
+void putx(unsigned int x) {
+	int i;
+
 	write(CIO_FD,'0');
 	write(CIO_FD,'x');
+
 	if (x) {
-		for ( ; x; x <<= 4) {
+		for (i = 0; i < 8; ++i, x <<= 4) {
 			if (((x>>28) & 0x0f) >= 10) {
 				write(CIO_FD,'a' + ((x>>28) & 0x0f) - 10);
 			} else {

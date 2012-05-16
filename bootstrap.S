@@ -381,11 +381,6 @@ switch:
 	lidt	idt_48 + BOOT_ADDRESS
 	lgdt	gdt_48 + BOOT_ADDRESS
 
-#ifdef USE_TSS
-	mov		$0x20, %ax	/* gdt entry #5 */
-	ltr		%ax
-#endif
-
 	movl	%cr0, %eax	/* get current CR0 */
 	orl	$1, %eax	/* set the PE bit */
 	movl	%eax, %cr0	/* and store it back. */
@@ -489,51 +484,6 @@ wait2_exit:
 /* VBE CODE END */
 /*				*/
 
-#ifdef USE_TSS
-#define TSS_START	0x300
-
-.org TSS_START
-.globl tss_data
-tss_data:
-	.word	0				/* reserved */
-	.word	0				/* link */
-	.long	TARGET_STACK	/* esp0 */
-	.word	0				/* reserved */
-	.word	0x10			/* ss0  */
-	.long	0				/* esp1 */
-	.word	0				/* reserved */
-	.word	0				/* ss1  */
-	.long	0				/* esp2 */
-	.word	0				/* reserved */
-	.word	0				/* ss2 */
-	.long	0				/* cr3 */
-	.long	0				/* eip */
-	.long	0				/* eflags */
-	.long	0				/* eax */
-	.long	0				/* ecx */
-	.long	0				/* edx */
-	.long	0				/* ebx */
-	.long	0				/* esp */
-	.long	0				/* ebp */
-	.long	0				/* esi */
-	.long	0				/* edi */
-	.word	0				/* reserved */
-	.word	0				/* es */
-	.word	0				/* reserved */
-	.word	0				/* cs */
-	.word	0				/* reserved */
-	.word	0				/* ss */
-	.word	0				/* reserved */
-	.word	0				/* ds */
-	.word	0				/* reserved */
-	.word	0				/* fs */
-	.word	0				/* reserved */
-	.word	0				/* gs */
-	.word	0				/* reserved */
-	.word	0				/* ldtr */
-	.word	104				/* iopb off */
-	.word	0				/* reserved */
-#endif
 
 /*
 ** The GDT.  This cannot be created in C because the bootstrap is not
@@ -541,14 +491,6 @@ tss_data:
 */
 start_gdt:
 	.word	0,0,0,0		/* first GDT entry is always null */
-
-linear_seg:	/* limit FFFFF, base 0, R/W data seg, 32-bit 4K */
-	.word	0xFFFF	/* limit[15:0] */
-	.word	0x0000	/* base[15:0] */
-	.byte	0x00	/* base[23:16] */
-	.byte	0x92	/* access byte */
-	.byte	0xCF	/* granularity */
-	.byte	0x00	/* base[31:24] */
 
 code_seg:	/* limit FFFFF, base 0, R/E code seg, 32-bit 4K */
 	.word	0xFFFF
@@ -566,42 +508,68 @@ data_seg:	/* limit FFFFF, base 0, R/W data seg, 32-bit 4K */
 	.byte	0xCF
 	.byte	0x00
 
-stack_seg:	/* limit FFFFF, base 0, R/W data seg, 32-bit 4K */
-	.word	0xFFFF
-	.word	0x0000
-	.byte	0x00
-	.byte	0x92
-	.byte	0xCF
-	.byte	0x00
-
-#ifdef USE_TSS
 user_code:
-	.word	0xffff
-	.word	0x0000
-	.byte	0x00
-	.byte	0xf2
-	.byte	0xcf
-	.byte	0x00
+	.word	0xffff /* limit */
+	.word	0x0000 /* base */
+	.byte	0x00 /* base */
+	.byte	0xfa /* access: 1 11 1 1010 present ring3 1 code noconform read noacc */
+	.byte	0xcf /* flags: 1 1 00: lim4k prot32 00, limit */
+	.byte	0x00 /* base */
 
 user_data:
-	.word	0xffff
-	.word	0x0000
-	.byte	0x00
-	.byte	0xfa
+	.word	0xffff /* limit */
+	.word	0x0000 /* base */
+	.byte	0x00 /* base */
+	.byte	0xf2 /* access: 1 11 1 0010 present ring3 1 data noconform write noacc */
 	.byte	0xcf
 	.byte	0x00
 
 gdt_tss_entry:
-	.word	104	/* limit = sizeof(TSS) */
-	.word	(TSS_START & 0xffff)
-	.byte	((TSS_START >> 16) & 0xff)
-	.byte	0x89	/* present, executable, accessed */
-	.byte	0x40
-	.byte	((TSS_START >> 24) & 0xff)
-#endif
+	.word	((TSS_START + BOOT_ADDRESS + 108) & 0xffff)	/* limit = TSS_START + sizeof(TSS) */
+	.word	((TSS_START + BOOT_ADDRESS) & 0xffff)
+	.byte	(((TSS_START + BOOT_ADDRESS) >> 16) & 0xff)
+	.byte	0xe9 /* access: 1 11 0 1001 present ring3 0 code noconform noread acc */
+	.byte	((((TSS_START + BOOT_ADDRESS + 108) >> 16) & 0x0f) | 0x00) /* flags: 0 0 00: lim1b prot32 00, limit */
+	.byte	(((TSS_START + BOOT_ADDRESS) >> 24) & 0xff)
 
 end_gdt:
 gdt_len = end_gdt - start_gdt
+
+.org TSS_START
+.globl tss_data
+tss_data:
+	.word 0 /* reserved */
+	.word 0 /* link */
+	.long TARGET_STACK /* esp0 */
+	.long GDT_DATA /* ss0 */
+	.long 0 /* esp1 */
+	.word 0 /* reserved */
+	.word 0 /* ss1 */
+	.long 0 /* esp2 */
+	.word 0 /* reserved */
+	.word 0 /* ss2 */
+	.long 0 /* cr3 */
+	.long 0 /* eip */
+	.long 0 /* eflags */
+	.long 0 /* eax */
+	.long 0 /* ecx */
+	.long 0 /* edx */
+	.long 0 /* ebx */
+	.long 0 /* esp */
+	.long 0 /* ebp */
+	.long 0 /* esi */
+	.long 0 /* edi */
+	.long (GDT_DATA | 3) /* es */
+	.long (GDT_CODE | 3) /* cs */
+	.long (GDT_DATA | 3) /* ss */
+	.long (GDT_DATA | 3) /* ds */
+	.long (GDT_DATA | 3) /* fs */
+	.long (GDT_DATA | 3) /* gs */
+	.word 0 /* reserved */
+	.word 0 /* ldtr */
+//	.word 104 /* iopb off */
+	.word 0 /* iopb off */
+	.word 0 /* reserved */
 
 	/* place the VBE structures in known location */
 	.org	VBE_INFO_ORG

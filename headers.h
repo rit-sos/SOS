@@ -20,8 +20,6 @@
 #include "defs.h"
 #include "types.h"
 
-#include "fd.h"
-#include "io.h"
 #include "support.h"
 
 

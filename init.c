@@ -17,8 +17,8 @@
 
 #define DELAY_LONG 100000000
 #define SPAWN_A
-#define SPAWN_MMAN
-#define SPAWN_DISK
+//#define SPAWN_MMAN
+//#define SPAWN_DISK
 
 /*
 ** USER PROCESSES
@@ -69,13 +69,13 @@
 //void init( void ) {
 void main(void) {
 	int i;
-	Pid pid;
-	Time time;
-	Status status;
+	unsigned int pid;
+	unsigned int time;
+	unsigned int status;
 
 	//c_puts( "Init started\n" );
 	puts("init: my main lives at ");
-	putx((Uint32)&main);
+	putx((unsigned int)&main);
 	puts("\n");
 	
 	//puts("hello from ring 3 init\n");

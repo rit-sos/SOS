@@ -23,6 +23,9 @@
 
 #define	NULL		0
 
+// Vitally important macro, never leave home without it!
+#define offsetof(T,M) ((int)&(((T*)0)->M))
+
 // Maximum number of simultaneous user processes
 
 #define	N_PROCESSES	25

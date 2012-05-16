@@ -13,8 +13,10 @@
 #ifndef _SYSCALLS_H
 #define _SYSCALLS_H
 
+#ifdef __KERNEL__20113__
 #include "headers.h"
 #include "queues.h"
+#endif
 
 #include <x86arch.h>
 
@@ -43,10 +45,16 @@
 #define	SYS_vbe_clearscreen	16
 #define	SYS_fopen		17	
 #define	SYS_fclose		18	
+#define SYS_grow_heap		19
+#define SYS_get_heap_size	20
+#define SYS_get_heap_base	21
+#define SYS_write_buf		22
+#define SYS_sys_sum			23
+#define SYS_set_test		24
 
 // number of "real" system calls
 
-#define	N_SYSCALLS	19
+#define	N_SYSCALLS	25
 
 // dummy system call code to test the syscall ISR
 
@@ -60,7 +68,7 @@
 
 #define	DEFAULT_EFLAGS	(EFLAGS_MB1 | EFLAGS_IF)
 
-#ifndef __ASM__20113__
+#if !defined(__ASM__20113__) && defined(__KERNEL__20113__)
 
 /*
 ** Start of C-only definitions
@@ -97,6 +105,17 @@ void _isr_syscall( int vector, int code );
 */
 
 void _syscall_init( void );
+
+/*
+** Export _sys_exit() for use in other ISRs
+*/
+void _sys_exit(Pcb*);
+
+/*
+** Export _in_param and _out_param for other ISRs
+*/
+Status _in_param(Pcb *pcb, Int32 index, Uint32 *buf);
+Status _out_param(Pcb *pcb, Int32 index, Uint32 data);
 
 #endif
 

@@ -55,7 +55,7 @@ _start:
 	movw	%ax, %fs
 	movw	%ax, %gs
 
-	movw	$GDT_STACK, %ax	/* entry #4 is the stack segment */
+	movw	$GDT_DATA, %ax	/* entry #4 is the stack segment */
 	movw	%ax, %ss
 
 	movl	$TARGET_STACK, %ebp	/* set up the system frame pointer */
@@ -80,6 +80,9 @@ clearbss:
 #endif
 
 #ifdef SP2_CONFIG
+
+	mov		$GDT_TSS | 3, %ax	/* gdt entry #7 */
+	ltr		%ax
 
 /*
 ** Initialize devices

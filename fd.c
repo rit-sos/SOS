@@ -294,23 +294,27 @@ void _fd_readDone(Fd *fd){
 	key.u = fd-_fds;
 	//unblock process waiting on reading 
 
-	while(!_q_empty(_reading)){
-		status = _q_remove_by_key( _reading, (void **) &pcb, key );
-		if (status==SUCCESS){
-			pcb->state=READY;
-			//put the newest char into the blocked process
-			ptr = (int *) (ARG(pcb)[2]);
-			c=buffer_get(&fd->inbuffer);
-			*ptr = c & 0xff;
-			RET(pcb) = SUCCESS;
-			//schedule the previously blocked process
-			_sched(pcb);
-			//return here so we don't put the car in the buffer.
+	status = _q_remove_by_key( _reading, (void **) &pcb, key );
+
+	if (status==SUCCESS){
+		pcb->state=READY;
+
+		//put the newest char into the blocked process
+		c=buffer_get(&fd->inbuffer);
+
+		// we'll lose a character if this fails. that's a risk i'm willing
+		// to take since we did a write test in _sys_read, meaning the
+		// destination address should certainly be writable from here.
+		if ((status = _out_param(pcb, 2, c & 0xff)) != SUCCESS) {
+			_cleanup(pcb);
+			status = MOO;
 			return;
 		}
-		if (status==NOT_FOUND){
-			break;
-		}
+
+		RET(pcb) = SUCCESS;
+
+		//schedule the previously blocked process
+		_sched(pcb);
 	}
 }
 
@@ -354,7 +358,11 @@ int _fd_writeDone(Fd *fd){
 		status = _q_remove_by_key( _writing, (void **) &pcb, key );
 		if (status==SUCCESS){
 			//attempt to put the blocked process's character into the queue
-			status=_fd_write(fd,ARG(pcb)[2]);
+
+			if ((status = _in_param(pcb, 2, &c)) != SUCCESS) {
+				_cleanup(pcb);
+				return -1;
+			}
 
 			if (status != SUCCESS){
 				c_puts("Second chance write failed!");
