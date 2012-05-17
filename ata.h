@@ -14,6 +14,7 @@
 #define _ATA_H
 
 #include "headers.h"
+#include "fd.h"
 
 /*
 ** General (C and/or assembly) definitions

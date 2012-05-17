@@ -56,17 +56,67 @@ Queue *_sleeping;
  */
 
 /*
- ** Second-level syscall handlers
- **
- ** All have this prototype:
- **
- **	static void _sys_NAME( Pcb * );
- **
- ** Most syscalls return a Status value to the user calling function.
- ** Those which return additional information from the system have as
- ** their first user-level argument a pointer (called the "info pointer"
- ** below) to a variable into which the information is to be placed.
- */
+** The following convenience functions are used to validate and move
+** int-sized values into and out of user buffers. This is a surprisingly
+** difficult thing to do, for a few reasons. The user's passed-in pointer
+** might not be on the user stack. We have to make sure that the pointer
+** is valid in the user's address space, that the user can write to that
+** memory (if necessary), and that the read/write is aligned. Buffers
+** that are larger or smaller than sizeof(int) or are not aligned should
+** go through _mman_set_user_data() and _mman_get_user_data().
+*/
+
+Status _in_param(Pcb *pcb, Int32 index, /*out */ Uint32 *ret) {
+	Uint32 *ptr = ((Uint32*)(pcb->context.esp)) + index;
+//	c_printf("[%04d] _in_param: esp=%08x ptr=%08x\n", pcb->pid, pcb->context.esp, ptr);
+
+	if (((Uint32)ptr) % 4 == 0) {
+		return _mman_get_user_data(pcb, ret, ptr, sizeof(Uint32));
+	} else {
+		c_printf("[%04d] _in_param: unaligned ptr %08x\n", pcb->pid, ptr);
+		return BAD_PARAM;
+	}
+}
+
+Status _out_param(Pcb *pcb, Int32 index, Uint32 val) {
+	Status status;
+	void *ptr;
+
+//	c_printf("out_param: pid=%d val=%d\n", pcb->pid, val);
+
+	// first get the pointer from the user stack
+	if ((status = _in_param(pcb, index, (Uint32*)&ptr)) == SUCCESS) {
+		if (((Uint32)ptr) % 4 == 0) {
+			// then try to write to the pointed-to buffer
+			status = _mman_set_user_data(pcb, ptr, &val, sizeof(Uint32));
+//			c_printf("_mman_set_user_data: %s\n", _kstatus(status));
+		} else {
+			c_printf("[%04d] _out_param: unaligned ptr %08x\n", pcb->pid, ptr);
+			status = BAD_PARAM;
+		}
+	}
+
+//	c_printf("[%04x] out_param: %08x\n", pcb->pid, status);
+
+	return status;
+}
+
+/*
+** Second-level syscall handlers
+**
+** All have this prototype:
+**
+**	static void _sys_NAME( Pcb * );
+**
+** Most syscalls return a Status value to the user calling function.
+** Those which return additional information from the system have as
+** their first user-level argument a pointer (called the "info pointer"
+** below) to a variable into which the information is to be placed.
+**
+** When stack and info pointers are accessed by the syscalls, a bad pointer
+** (i.e. not in user address space, not writable, etc.) is tantamount to a
+** segmentation violation, and the offending process is killed.
+*/
 
 /*
  ** _sys_fork - create a new process
@@ -81,90 +131,78 @@ Queue *_sleeping;
 
 static void _sys_fork( Pcb *pcb ) {
 	Pcb *new;
-	Uint32 *ptr;
-	Uint32 diff;
 	Status status;
 
-	// allocate a pcb for the new process
+	c_printf("[%04x] entering _sys_fork\n", pcb->pid);
 
+	// get a new pcb
 	new = _pcb_alloc();
-	if( new == NULL ) {
+	if (!new) {
 		RET(pcb) = FAILURE;
 		return;
 	}
 
-	// duplicate the parent's pcb
+	status = FAILURE;
+	new->stack = NULL;
+	new->pgdir = NULL;
+	new->virt_map = NULL;
 
-	_kmemcpy( (void *)new, (void *)pcb, sizeof(Pcb) );
+	// copy parent
+	_kmemcpy((void*)new, (void*)pcb, sizeof(Pcb));
 
-	// allocate a stack for the new process
-
+	// get a new stack
 	new->stack = _stack_alloc();
-	if( new->stack == NULL ) {
-		RET(pcb) = FAILURE;
-		_cleanup( new );
-		return;
+	if (!new->stack) {
+		goto Cleanup;
 	}
 
-	// duplicate the parent's stack
+	//copy parent
+	_kmemcpy((void*)new->stack, (void*)pcb->stack, sizeof(Stack));
 
-	_kmemcpy( (void *)new->stack, (void *)pcb->stack, sizeof(Stack));
+	status = _mman_proc_copy(new, pcb);
+	if (status != SUCCESS) {
+		goto Cleanup;
+	}
 
-	// fix the pcb fields that should be unique to this process
-
-	diff = (Uint32)new->stack - (Uint32)pcb->stack;
-
-	new->context = (Context*)((Uint32)new->context + diff);
-	new->context->esp += diff;
-	ARG(new)[1] += diff;
-
+	// fix unique fields
 	new->pid = _next_pid++;
 	new->ppid = pcb->pid;
 	new->state = NEW;
 
-	c_printf("fork: old: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", pcb, pcb->stack, pcb->context, pcb->context->esp, ARG(pcb)[1]);
-
-	c_printf("fork: new: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", new, new->stack, new->context, new->context->esp, ARG(new)[1]);
-
-	c_printf("***\n");
-
-	if ((status = _mman_proc_init(new)) != SUCCESS) {
-		_kpanic("_sys_fork", "_mman_proc_init: %s", status);
+	// return values
+	// parent gets pid of child
+	if ((status = _out_param(pcb, 1, new->pid)) != SUCCESS) {
+		// if the parent can't get its return value then it's a segfault
+		_cleanup(new);
+		_sys_exit(pcb);
+		return;
 	}
 
-	// assign the PID return values for the two processes
-
-	ptr = (Uint32 *) (ARG(pcb)[1]);
-	*ptr = new->pid;
-
-	ptr = (Uint32 *) (ARG(new)[1]);
-	*ptr = 0;
-
-	c_printf("fork: old: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", pcb, pcb->stack, pcb->context, pcb->context->esp, ARG(pcb)[1]);
-
-	c_printf("fork: new: pcb=0x%08x, stack=0x%08x,\n  ctxt=0x%08x, ctxtstk=0x%08x ret=%d\n", new, new->stack, new->context, new->context->esp, ARG(new)[1]);
-
-	//	_kpanic("asdf", "asdf", 0);
-
-	/*
-	 ** Philosophical issue:  should the child run immediately, or
-	 ** should the parent continue?
-	 **
-	 ** We take the path of least resistance (work), and opt for the
-	 ** latter; we schedule the child, and let the parent continue.
-	 */
-
-	status = _sched( new );
-	if( status != SUCCESS ) {
-		// couldn't schedule the child, so deallocate it
-		RET(pcb) = FAILURE;
-		_cleanup( new );
-	} else {
-		// indicate success for both processes
-		RET(pcb) = SUCCESS;
-		RET(new) = SUCCESS;
+	// child gets 0
+	if ((status = _out_param(new, 1, 0)) != SUCCESS) {
+		// if the child can't get its return value then either our memory
+		// management is broken or the parent's stack was already wrong,
+		// in which case we shouldn't be here...
+		goto Cleanup;
 	}
 
+	// schedule the new process and return
+	if ((status = _sched(new)) != SUCCESS) {
+		goto Cleanup;
+	}
+
+	c_printf("_sys_fork: _sched(new) OK, pcb->pid=%d, new->pid=%d\n", pcb->pid, new->pid);
+	//_pcb_dump(new);
+	RET(pcb) = SUCCESS;
+	RET(new) = SUCCESS;
+
+	return;
+
+Cleanup:
+	c_printf("_sys_fork: cleanup: 0x%08x\n", status);
+	_cleanup(new);
+	RET(pcb) = status;
+	return;
 }
 
 /*
@@ -175,7 +213,11 @@ static void _sys_fork( Pcb *pcb ) {
  ** does not return
  */
 
-static void _sys_exit( Pcb *pcb ) {
+void _sys_exit( Pcb *pcb ) {
+
+	c_printf("*** _sys_exit : %d exiting ***\n", pcb->pid);
+
+	c_printf("caller = %08x\n", *(Uint32*)(_get_ebp() + 4));
 
 	// deallocate all the OS data structures
 
@@ -199,24 +241,48 @@ static void _sys_exit( Pcb *pcb ) {
 
 static void _sys_fopen( Pcb *pcb ) {
 	Uint64 sectorstart;
-	Uint16 length;
+	Uint32 ss0, ss1;
+	Uint32 length;
 	Fd *fd;
-	int *ptr;
+	Status status;
+
 	fd = NULL;
 
-	sectorstart=((Uint64) ARG(pcb)[2])<<32 | ARG(pcb)[1];//64 bits passed as one arg. No idea if endianness is right
-	length=ARG(pcb)[3];
-	ptr = (int *) (ARG(pcb)[4]);
+	if ((status = _in_param(pcb, 1, &ss0)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &ss1)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 3, &length)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	// write test to see if we can return a value later, also pre-set
+	// null fd for failure case
+	if ((status = _out_param(pcb, 4, 0)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	sectorstart = (((Uint64)ss1) << 32) | ((Uint64)ss0);
 	
 	//select the drive we want to write to.
 	fd=_ata_fopen(_ata_primary,sectorstart,length,FD_RW);
 	
 	if(fd != NULL){
+		if ((status = _out_param(pcb, 4, _fd_lookup(fd))) != SUCCESS) {
+			_sys_exit(pcb);
+			return;
+		}
 		RET(pcb) = SUCCESS;
-		*ptr=fd-_fds;
 	}else{
 		RET(pcb) = FAILURE;
-		*ptr=0; //return a blank FD
 	}
 }
 /*
@@ -229,9 +295,16 @@ static void _sys_fopen( Pcb *pcb ) {
  */
 
 static void _sys_fclose( Pcb *pcb ) {
+	Uint32 fd;
 	Status status;
 
-	status = _ata_fclose(&_fds[ARG(pcb)[1]]);
+	if ((status = _in_param(pcb, 1, &fd)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	status = _ata_fclose(&_fds[fd]);
+
 	RET(pcb)=status;
 }
 /*
@@ -250,13 +323,20 @@ static void _sys_read( Pcb *pcb ) {
 	Key key;
 	int ch;
 	int fd;
-	int *ptr;
 	Status status;
+
+	// do a test write to see if everything is valid
+	if ((status = _out_param(pcb, 2, 0)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// try to get the next character
 
-
-	fd=ARG(pcb)[1];
+	if ((status = _in_param(pcb, 1, (Uint32*)&fd)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 	
 	if (_fds[fd].flags & FD_UNUSED){
 		RET(pcb) = FAILURE;
@@ -271,8 +351,11 @@ static void _sys_read( Pcb *pcb ) {
 
 	if( ch >= 0 ) {
 
-		ptr = (int *) (ARG(pcb)[2]);
-		*ptr = ch & 0xFF;
+		if ((status = _out_param(pcb, 2, ch & 0xff)) != SUCCESS) {
+			_sys_exit(pcb);
+			return;
+		}
+
 		RET(pcb) = SUCCESS;
 
 	} else if (_fds[fd].flags & FD_EOF){
@@ -306,11 +389,20 @@ static void _sys_read( Pcb *pcb ) {
  */
 
 static void _sys_write( Pcb *pcb ) {
-	Status status;
 	Key key;
-	int fd = ARG(pcb)[1];
-	char ch = ARG(pcb)[2];
+	int fd;
+	int ch;
+	Status status;
 
+	if ((status = _in_param(pcb, 1, (Uint32*)&fd)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, (Uint32*)&ch)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// this is almost insanely simple, but it does separate
 	// the low-level device access fromm the higher-level
@@ -358,7 +450,10 @@ static void _sys_msleep( Pcb *pcb ) {
 
 	// retrieve the sleep time from the user
 
-	time = ARG(pcb)[1];
+	if ((status = _in_param(pcb, 1, &time)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// if the user says "sleep for no seconds", we just preempt it;
 	// otherwise, we put it on the sleep queue
@@ -410,10 +505,14 @@ static void _sys_msleep( Pcb *pcb ) {
 static void _sys_kill( Pcb *pcb ) {
 	int i;
 	Uint32 pid;
+	Status status;
 
 	// figure out who we are going to kill
 
-	pid = ARG(pcb)[1];
+	if ((status = _in_param(pcb, 1, &pid)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// locate the victim by brute-force scan of the PCB array
 
@@ -450,9 +549,14 @@ static void _sys_kill( Pcb *pcb ) {
  */
 
 static void _sys_get_priority( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, pcb->priority)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = pcb->priority;
 
 }
 
@@ -467,9 +571,14 @@ static void _sys_get_priority( Pcb *pcb ) {
  */
 
 static void _sys_get_pid( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, pcb->pid)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = pcb->pid;
 
 }
 
@@ -484,9 +593,14 @@ static void _sys_get_pid( Pcb *pcb ) {
  */
 
 static void _sys_get_ppid( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, pcb->ppid)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = pcb->ppid;
 
 }
 
@@ -501,9 +615,15 @@ static void _sys_get_ppid( Pcb *pcb ) {
  */
 
 static void _sys_get_time( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, _system_time)) != SUCCESS) {
+		c_printf("[%04x] _sys_get_time: _out_param: %08x (%s)\n", pcb->pid, status, _kstatus_strings[status]);
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = _system_time;
 
 }
 
@@ -518,9 +638,14 @@ static void _sys_get_time( Pcb *pcb ) {
  */
 
 static void _sys_get_state( Pcb *pcb ) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, pcb->state)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	RET(pcb) = SUCCESS;
-	*((Uint32 *)(ARG(pcb)[1])) = pcb->state;
 
 }
 
@@ -534,17 +659,20 @@ static void _sys_get_state( Pcb *pcb ) {
  */
 
 static void _sys_set_priority( Pcb *pcb ) {
-	Prio prio;
+	Uint32 prio;
+	Status status;
 
 	// retrieve the desired priority
-
-	prio = (Prio) ARG(pcb)[1];
+	if ((status = _in_param(pcb, 1, &prio)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// if the priority is valid, do the change;
 	// otherwise, report the failure
 
 	if( prio < N_PRIOS ) {
-		pcb->priority = prio;
+		pcb->priority = (Prio)prio;
 		RET(pcb) = SUCCESS;
 	} else {
 		RET(pcb) = BAD_PARAM;
@@ -562,10 +690,17 @@ static void _sys_set_priority( Pcb *pcb ) {
  */
 
 static void _sys_set_time( Pcb *pcb ) {
+	Time time;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, &time)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// this is extremely simple, but disturbingly powerful
 
-	_system_time = (Time) ARG(pcb)[1];
+	_system_time = time;
 	RET(pcb) = SUCCESS;
 
 }
@@ -581,14 +716,21 @@ static void _sys_set_time( Pcb *pcb ) {
  */
 
 static void _sys_exec( Pcb *pcb ) {
+	Uint32 program;
 	Status status;
+
+	if ((status = _in_param(pcb, 1, &program)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
 
 	// invoke the common code for process creation
 
-	if (ARG(pcb)[1] < PROC_NUM_ENTRY) {
+	if (program < PROC_NUM_ENTRY) {
+		// memory management cleanup
 		status = _mman_proc_exit(pcb);
 		if (status == SUCCESS) {
-			status = _create_process( pcb, ARG(pcb)[1] );
+			status = _create_process( pcb, (Program)program );
 		}
 	} else {
 		status = BAD_PARAM;
@@ -604,6 +746,46 @@ static void _sys_exec( Pcb *pcb ) {
 }
 
 /*
+** Kernel entry point for user heap manager
+*/
+static void _sys_grow_heap(Pcb*);
+static void _sys_get_heap_size(Pcb*);
+static void _sys_get_heap_base(Pcb*);
+
+static void _sys_grow_heap(Pcb *pcb) {
+	Status status;
+
+	if((status = _heap_grow(pcb)) != SUCCESS) {
+		RET(pcb) = status;
+	} else {
+		_sys_get_heap_size(pcb);
+		return;
+	}
+}
+
+static void _sys_get_heap_size(Pcb *pcb) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, HEAP_CHUNK_SIZE * pcb->heapinfo.count)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	RET(pcb) = SUCCESS;
+}
+
+static void _sys_get_heap_base(Pcb *pcb) {
+	Status status;
+
+	if ((status = _out_param(pcb, 1, USER_HEAP_BASE)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	RET(pcb) = SUCCESS;
+}
+
+/*
  ** _sys_vbe_print - display a string on the monitor
  **
  ** implements:	Status vbe_print(int x, int y, const char *);
@@ -612,10 +794,13 @@ static void _sys_exec( Pcb *pcb ) {
  **		SUCCESS
  */
 static void _sys_vbe_print( Pcb *pcb ) {
-	/* ARG(pcb)[3] is a pointer */
-	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char *)ARG(pcb)[3] );
+	c_printf("_sys_vbe_print: Hi James, I need a buffer size please.\n");
+	RET(pcb) = FAILURE;
+	return;
 
-	RET(pcb) = SUCCESS;
+	/* ARG(pcb)[3] is a pointer */
+//	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char *)ARG(pcb)[3] );
+//	RET(pcb) = SUCCESS;
 }
 
 /*
@@ -627,7 +812,25 @@ static void _sys_vbe_print( Pcb *pcb ) {
  **		SUCCESS
  */
 static void _sys_vbe_print_char( Pcb *pcb ) {
-	_vbe_write_char( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char)ARG(pcb)[3] );
+	Uint32 x, y, c;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, &x)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &y)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 3, &c)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	_vbe_write_char( x, y, 255, 255, 255, c & 0xff );
 
 	RET(pcb) = SUCCESS;
 }
@@ -641,9 +844,159 @@ static void _sys_vbe_print_char( Pcb *pcb ) {
  **		SUCCESS
  */
 static void _sys_vbe_clearscreen( Pcb *pcb ) {
-	_vbe_clear_display( ARG(pcb)[1], ARG(pcb)[2], ARG(pcb)[3] );
+	Uint32 r, g, b;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, &r)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &g)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 3, &b)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	_vbe_clear_display( (Uint8)r, (Uint8)g, (Uint8)b );
 
 	RET(pcb) = SUCCESS;
+}
+
+static void _sys_write_buf(Pcb *pcb) {
+	void *ptr, *buf;
+	Uint32 size;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		c_printf("[%04x] _sys_write_buf: _in_param(1): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &size)) != SUCCESS) {
+		c_printf("[%04x] _sys_write_buf: _in_param(2): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if (size > 0x100000) {
+		c_printf("[%04x] _sys_write_buf: size=%d > 0x100000\n", pcb->pid, size);
+		RET(pcb) = BAD_PARAM;
+		return;
+	}
+
+	c_printf("[%04x] _sys_write_buf: ptr=%08x, size=%d\n", pcb->pid, ptr, size);
+
+	buf = _kmalloc(size);
+
+	if (!buf) {
+		c_printf("[%04x] _sys_write_buf: _kmalloc returned NULL\n", pcb->pid);
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	if ((status = _mman_get_user_data(pcb, buf, ptr, size)) != SUCCESS) {
+		c_printf("[%04x] _sys_write_buf: _mman_get_user_data: %s\n", pcb->pid, _kstatus(status));
+		RET(pcb) = status;
+		_kfree(buf);
+		return;
+	}
+
+	_sio_writes(buf, size);
+
+	_kfree(buf);
+
+	RET(pcb) = SUCCESS;
+}
+
+static void _sys_sys_sum(Pcb *pcb) {
+	Int32 *buf, sum;
+	void *ptr;
+	Uint32 count, i;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		c_printf("[%04x] _sys_sys_sum: _in_param(1): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &count)) != SUCCESS) {
+		c_printf("[%04x] _sys_sys_sum: _in_param(2): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	buf = _kmalloc(count * sizeof(Int32));
+
+	if (!buf) {
+		c_printf("[%04x] _sys_sys_sum: _kmalloc returned NULL\n", pcb->pid);
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	if ((status = _mman_get_user_data(pcb, buf, ptr, count*sizeof(Int32))) != SUCCESS) {
+		c_printf("[%04x] _sys_sys_sum: _mman_get_user_data: %s\n", pcb->pid, _kstatus(status));
+		RET(pcb) = status;
+		_kfree(buf);
+	}
+
+	for (i = 0, sum = 0; i < count; i++) {
+		sum += buf[i];
+	}
+
+	c_printf("[%04x] _sys_sys_sum: %d integers, total %d\n", pcb->pid, count, sum);
+
+	_kfree(buf);
+
+	RET(pcb) = SUCCESS;
+}
+
+static void _sys_set_test(Pcb *pcb) {
+	Int32 *buf;
+	void *ptr;
+	Uint32 count, i;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		c_printf("[%04x] _sys_set_test: _in_param(1): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &count)) != SUCCESS) {
+		c_printf("[%04x] _sys_set_test: _in_param(2): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	buf = _kmalloc(count * sizeof(Int32));
+
+	if (!buf) {
+		c_printf("[%04x] _sys_set_test: _kmalloc returned NULL\n", pcb->pid);
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	for (i = 0; i < count; i++) {
+		buf[i] = i;
+	}
+
+	if ((status = _mman_set_user_data(pcb, ptr, buf, count*sizeof(Int32))) != SUCCESS) {
+		c_printf("[%04x] _sys_set_test: _mman_set_user_data: %s\n", pcb->pid, _kstatus(status));
+		RET(pcb) = status;
+		_kfree(buf);
+	}
+
+	_kfree(buf);
+
+	RET(pcb) = SUCCESS;
+
 }
 
 /*
@@ -697,6 +1050,12 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_vbe_clearscreen ]= _sys_vbe_clearscreen;
 	_syscall_tbl[ SYS_fopen]          = _sys_fopen;
 	_syscall_tbl[ SYS_fclose]         = _sys_fclose;
+	_syscall_tbl[ SYS_grow_heap ]     = _sys_grow_heap;
+	_syscall_tbl[ SYS_get_heap_size ] = _sys_get_heap_size;
+	_syscall_tbl[ SYS_get_heap_base ] = _sys_get_heap_base;
+	_syscall_tbl[ SYS_write_buf ]     = _sys_write_buf;
+	_syscall_tbl[ SYS_sys_sum ]       = _sys_sys_sum;
+	_syscall_tbl[ SYS_set_test ]      = _sys_set_test;
 
 	//	these are syscalls we elected not to implement
 	//	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;
@@ -728,12 +1087,6 @@ void _isr_syscall( int vector, int code ) {
 
 	if( _current == NULL ) {
 		_kpanic( "_isr_syscall", "null _current", FAILURE );
-	}
-
-	// also, make sure it actually has a context
-
-	if( _current->context == NULL ) {
-		_kpanic( "_isr_syscall", "null _current context", FAILURE );
 	}
 
 	// retrieve the syscall code from the process

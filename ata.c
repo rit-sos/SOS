@@ -703,7 +703,7 @@ void _ata_init(void){
 			_busses[currentBus].secondary_control=BAR[3]+2;
 
 			//TODO: figure out why regular PATA drives aren't working
-			if (BAR[0] != 0x1f0){
+			if (1 || BAR[0] != 0x1f0){
 				_ata_identify(0, BAR[0],BAR[1]+2,&_busses[currentBus].drives[0]);
 				_ata_identify(1, BAR[0],BAR[1]+2,&_busses[currentBus].drives[1]);
 				if(BAR[2] != 0x00){

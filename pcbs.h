@@ -48,23 +48,17 @@
 
 #define	PID_INIT	1
 
-// ARG(p) - access argument from user stack of process
-//
-// ARG(p)[0]: return address
-// ARG(p)[n]: argument #n
-
-#define ARG(p)  ((Uint32 *) ((p)->context + 1))
+#ifdef __KERNEL__20113__
 
 // RET(p) - access return value register in process context
 
-#define RET(p)  ((p)->context->eax)
+#define RET(p)  ((p)->context.eax)
 
 #ifndef __ASM__20113__
 
 /*
 ** Start of C-only definitions
 */
-
 #include "clock.h"
 #include "stacks.h"
 #include "mman.h"
@@ -91,15 +85,10 @@ typedef Uint8		Program;
 // register save code in isr_stubs.S!!!!
 
 typedef struct context {
-	Uint32 ss;
-	Uint32 gs;
-	Uint32 fs;
-	Uint32 es;
-	Uint32 ds;
 	Uint32 edi;
 	Uint32 esi;
 	Uint32 ebp;
-	Uint32 esp;
+	Uint32 dummy_esp;
 	Uint32 ebx;
 	Uint32 edx;
 	Uint32 ecx;
@@ -109,6 +98,8 @@ typedef struct context {
 	Uint32 eip;
 	Uint32 cs;
 	Uint32 eflags;
+	Uint32 esp;
+	Uint32 ss;
 } Context;
 
 // process control block
@@ -116,8 +107,12 @@ typedef struct context {
 // members are ordered by size
 
 typedef struct pcb {
+	// structures
+	Context		context;	// kernel-mode process context
+							// (this also contains the user esp)
+	Heapinfo	heapinfo;	// heap allocation information
+//	Shminfo		shminfo;	// shared memory information
 	// four-byte fields
-	Context		*context;	// process context
 	Stack		*stack;		// kernel-mode address of stack
 	Memmap_ptr	virt_map;	// kernel-mode address of process VM usage map
 	Pagedir_ptr	pgdir;		// kernel-mode address of process page directory
@@ -170,6 +165,10 @@ Status _pcb_dealloc( Pcb *pcb );
 */
 
 void _pcb_init( void );
+
+void _pcb_dump (Pcb *pcb);
+
+#endif
 
 #endif
 

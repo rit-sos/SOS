@@ -39,20 +39,24 @@
 ** routine to order the queue elements.  This allows us to have
 ** different sorting criteria for different queues, but manage them
 ** with one set of functions.
-**
-** From the outside world, "Queue" is an opaque type.  However, inside
-** the queue module itself, we need the real Queue declaration.  We
-** control this with the COMPILING_QUEUE_MODULE symbol.
 */
 
-#ifndef COMPILING_QUEUE_MODULE
+// Queue node
 
-// Queue type forward declaration
+typedef struct qnode {
+    struct qnode *prev;
+    struct qnode *next;
+    void *data;
+    Key key;
+} Qnode;
 
-struct queue;
-typedef struct queue Queue;
+// A queue
 
-#endif
+typedef struct queue {
+    Qnode *head;
+    Qnode *tail;
+    int (*compare)(Key, Key);
+} Queue;
 
 /*
 ** Globals

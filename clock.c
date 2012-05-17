@@ -153,6 +153,7 @@ void _isr_clock( int vector, int code ) {
 	// Approximately every 20 seconds, dump the queues, and
 	// print the contents of the SIO buffers.
 
+/*
 	if( (_system_time % 10000) == 0 ) {
 		c_printf( "Queue contents @%08x\n", _system_time );
 		_q_dump( "ready[0]", _ready[0] );
@@ -163,6 +164,7 @@ void _isr_clock( int vector, int code ) {
 		_q_dump( "read", _reading );
 		_sio_dump();
 	}
+*/
 
 	// if the current process has used its quantum, reschedule it
 	// and dispatch another one

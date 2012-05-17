@@ -22,6 +22,7 @@
 #ifndef __ASM__20113__
 
 #include "mman.h"
+#include "heaps.h"
 #include "pcbs.h"
 
 /*

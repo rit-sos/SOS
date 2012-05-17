@@ -21,17 +21,14 @@
 #include "syscalls.h"
 #include "sio.h"
 #include "scheduler.h"
+#include "mman.h"
 #include "fd.h"
 #include "vbe.h"
-#include "mman.h"
 #include "c_io.h"
 #include "ata.h"
 
 // need init() address
 #include "kmap.h"
-
-// need the exit() prototype
-#include "ulib.h"
 
 /*
 ** PUBLIC FUNCTIONS
@@ -76,7 +73,7 @@ Status _get_proc_address(Program program, void(**entry)(void), Uint32 *size) {
 
 	*entry = PROC_IMAGE_MAP[program];
 	//*size = PROC_IMAGE_SIZE[program];
-	*size = 0x5000;
+	*size = 0x8000;
 	return SUCCESS;
 }
 
@@ -127,7 +124,6 @@ Status _create_process( Pcb *pcb, Program entry ) {
 	Context *context;
 	Stack *stack;
 	Status status;
-	Uint32 *ptr;
 
 	// don't need to do this if called from _sys_exec(), but
 	// we are called from other places, so...
@@ -163,17 +159,16 @@ Status _create_process( Pcb *pcb, Program entry ) {
 	** Set up the initial stack contents for a (new) user process.
 	**
 	** We reserve one longword at the bottom of the stack as
-	** scratch space.  Above that, we simulate a call to exit() by
-	** pushing the address of exit() as a "return address".  Finally,
-	** above that we place an context_t area that is initialized with
+	** scratch space.
+	**
+	** Above that we place an context_t area that is initialized with
 	** the standard initial register contents.
 	**
-	** The low end of the stack will contain these values:
+	** The low end of the stack (high addr) will contain these values:
 	**
 	**      esp ->  ?       <- context save area
 	**              ...     <- context save area
 	**              ?       <- context save area
-	**              exit    <- return address for main()
 	**              filler  <- last word in stack
 	**
 	** When this process is dispatched, the context restore
@@ -183,29 +178,25 @@ Status _create_process( Pcb *pcb, Program entry ) {
 	** the exit() stub.
 	*/
 
-	// first, compute a pointer to the second-to-last longword
-
-	ptr = ((Uint32 *) (stack + 1)) - 2;
-
 	// next, set up the process context
 
-	context = ((Context *) ptr) - 1;
-	pcb->context = context;
+	context = &pcb->context;
 
 	// initialize all the fields that should be non-zero, starting
 	// with the segment registers
 
-	context->cs = GDT_CODE;
-	context->ss = GDT_STACK;
-	context->ds = GDT_DATA;
-	context->es = GDT_DATA;
-	context->fs = GDT_DATA;
-	context->gs = GDT_DATA;
+	context->cs = GDT_USER_CODE;
+	context->ss = GDT_USER_DATA;
+//	context->ds = GDT_USER_DATA;
+//	context->es = GDT_USER_DATA;
+//	context->fs = GDT_USER_DATA;
+//	context->gs = GDT_USER_DATA;
 
 	// EFLAGS must be set up to re-enable IF when we switch
 	// "back" to this context
 
 	context->eflags = DEFAULT_EFLAGS;
+//	context->eflags = DEFAULT_EFLAGS & ~EFLAGS_IF;
 
 	// EIP must contain the entry point of the process; in
 	// essence, we're pretending that this is where we were
@@ -213,13 +204,23 @@ Status _create_process( Pcb *pcb, Program entry ) {
 
 	context->eip = USER_ENTRY;
 
-//	context->esp = USER_STACK;
-	context->esp = (Uint32)((Context*)((Uint32*)(stack+1)-2)-1);
+	// Initial esp should be the user-mode address of the beginning of
+	// the stack, minus the 4 byte buffer, minus the 4 byte return address.
+	context->esp = USER_STACK - 8;
 
 	return( SUCCESS );
 
 }
 
+//static void tss_info(void) {
+//	c_printf("TSS info: esp0=%08x  test=%08x  (%08x)\n"
+//	         "          ss0=%04x (%04x) cs=%04x (%04x) ds=%04x (%04x) ss=%04x (%04x)\n",
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[1], ((Uint32*)(TSS_ESP0))[0], TARGET_STACK,
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[2], GDT_DATA,
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[19], GDT_CODE | 3,
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[21], GDT_DATA | 3,
+//	         ((Uint32*)(TSS_START+BOOT_ADDRESS))[20], GDT_DATA | 3);
+//}
 
 /*
 ** _init - system initialization routine
@@ -263,12 +264,13 @@ void _init( void ) {
 	_q_init();		// must be first
 	_pcb_init();
 	_stack_init();
-	_sio_init();
-	_fd_init();
 	_syscall_init();
 	_sched_init();
 	_clock_init();
 	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size());
+	_heap_init();
+	_fd_init();
+	_sio_init();
 	_ata_init();
 
 	c_puts( "\n" );
@@ -280,7 +282,9 @@ void _init( void ) {
 	** longword in the system stack.
 	*/
 
-	_system_esp = ((Uint32 *) ( (&_system_stack) + 1)) - 2;
+	*((Uint32*)(TSS_ESP0)) = (Uint32)(((Uint32 *) ( (&_system_stack) + 1)) - 2);
+
+	//tss_info();
 
 	/*
 	** Install the ISRs
@@ -289,6 +293,7 @@ void _init( void ) {
 	__install_isr( INT_VEC_TIMER, _isr_clock );
 	__install_isr( INT_VEC_SYSCALL, _isr_syscall );
 	__install_isr( INT_VEC_SERIAL_PORT_1, _isr_sio );
+	__install_isr(INT_VEC_GENERAL_PROTECTION, __gp_isr);
 
 	/*
 	** Create the initial process
@@ -346,4 +351,10 @@ void _init( void ) {
 	*/
 
 	c_puts( "System initialization complete.\n" );
+}
+
+void __gp_isr(int vector, int code) {
+	c_printf("*** GENERAL PROTECTION FAULT ***\n pid=%04x vec=0x%08x code=0x%08x\n", _current->pid, vector, code);
+//	_kpanic("(#GP)", "", 0);
+	_sys_exit(_current);
 }

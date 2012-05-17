@@ -69,6 +69,13 @@ SYSCALL(vbe_print_char)
 SYSCALL(vbe_clearscreen)
 SYSCALL(fopen)
 SYSCALL(fclose)
+SYSCALL(grow_heap)
+SYSCALL(get_heap_size)
+SYSCALL(get_heap_base)
+SYSCALL(write_buf)
+SYSCALL(sys_sum)
+SYSCALL(set_test)
+
 // This is a bogus system call; it's here so that we can test
 // our handling of out-of-range syscall codes in the syscall ISR.
 

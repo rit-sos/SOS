@@ -17,12 +17,13 @@
 #include "c_io.h"
 #include "queues.h"
 #include "fd.h"
+#include "mman.h"
 /*
 ** PRIVATE DEFINITIONS
 */
 
 //number of global file descriptors to allocate
-#define N_FDS	16
+#define N_FDS	10
 
 
 
@@ -33,8 +34,7 @@
 /*
 ** PRIVATE GLOBAL VARIABLES
 */
-
-static Queue *_fd_free_queue;
+Queue *_fd_free_queue;
 /*
 ** PUBLIC GLOBAL VARIABLES
 */
@@ -42,9 +42,7 @@ static Queue *_fd_free_queue;
 Queue *_reading;
 Queue *_writing;
 
-Fd _fds[N_FDS];		// all fds in the system
-Fd *_stdin;		// standard in
-Fd *_stdout;		// standard out
+Fd _fds[N_FDS]; //table of all fds in the system
 
 /*
  ** PRIVATE FUNCTIONS
@@ -74,7 +72,7 @@ inline int buffer_size(Buffer *b){
 }
 
 
-/*
+/**
  ** PUBLIC FUNCTIONS
  */
 
@@ -85,6 +83,15 @@ inline int buffer_size(Buffer *b){
  **
  ** returns new fd on success, NULL on failure
  */
+int _fd_lookup(Fd *fd){
+	int i;
+	i = fd-_fds;
+	if(i>=N_FDS || i < 0){
+		i=-1;
+	}
+	return i;
+
+}
 
 Fd *_fd_alloc(Flags flags){
 	Fd *fd;
@@ -96,33 +103,39 @@ Fd *_fd_alloc(Flags flags){
 		fd->flags=flags;
 
 		if (flags != FD_W){
-			//TODO: dynamically allocate read
-
+			fd->outbuffer=(Buffer *) _kmalloc(sizeof(Buffer));
 		}
 		if (flags != FD_R){
-			//TODO: dynamically allocate write
+			fd->inbuffer=(Buffer *)_kmalloc(sizeof(Buffer));
 		}
 
+		fd->read_index=0;	
+		fd->write_index=0;	
+		fd->inbuffer->in=0;	
+		fd->inbuffer->out=0;	
+		fd->outbuffer->in=0;	
+		fd->outbuffer->out=0;	
 	}
-	fd->read_index=0;	
-	fd->write_index=0;	
-	fd->inbuffer.in=0;	
-	fd->inbuffer.out=0;	
-
 	return fd;
 
 }
 
 
-Status _fd_dealloc(Fd *toFree){
+Status _fd_dealloc(Fd *fd){
 	Key key;
-	if(toFree == NULL){
-		return( BAD_PARAM ); 
+	if(fd == NULL){
+		return( BAD_PARAM );
 	}
-	toFree->flags = FD_UNUSED;
+	if (fd->flags != FD_W){
+		_kfree(fd->outbuffer);
+	}
+	if (fd->flags != FD_R){
+		_kfree(fd->inbuffer);
+	}
+	fd->flags = FD_UNUSED;
 
 	key.i = 0;
-	return( _q_insert( _fd_free_queue, (void *) toFree, key) );
+	return( _q_insert( _fd_free_queue, (void *) fd, key) );
 }
 
 
@@ -130,23 +143,34 @@ Status _fd_dealloc(Fd *toFree){
 void _fd_init(void){
 	int i;
 	Status status;
+	Key key;
 
-	// allocate fd queue
+	key.i = 0;
 
-	status = _q_alloc( &_fd_free_queue, NULL );
-	if( status != SUCCESS ) {
-		_kpanic( "_fd_init", "File Descriptor queue alloc status %s", status );
+	status = _q_alloc(&_fd_free_queue, NULL);
+	if(status != SUCCESS){
+		_kpanic("_fd_init", "couldn't allocate queue", status);
 	}
-
-	//insert all but sio and cio into queue
+	//insert each into queue
 	for( i = 2; i < N_FDS; ++i ) {
-		status = _fd_dealloc( &_fds[i] );
-		if( status != SUCCESS ) {
+		status =  _q_insert( _fd_free_queue, (void *) &_fds[i], key);
+		if(status != SUCCESS){
+			_kpanic("_fd_init", "couldn't insert into queue", status);
 		}
 	}
 
+
 	//set up cio	
 
+	_fds[CIO_FD].inbuffer=(Buffer *)_kmalloc(sizeof(Buffer));
+	c_printf("CIO inbuffer: %x\n", _fds[CIO_FD].inbuffer);
+	if(_fds[CIO_FD].inbuffer == NULL){
+		_kpanic("_fd_init", "couldn't allocate CIO FD",status);
+	}
+	_fds[CIO_FD].outbuffer=(Buffer *)_kmalloc(sizeof(Buffer));
+	if(_fds[CIO_FD].outbuffer == NULL){
+		_kpanic("_fd_init", "couldn't allocate CIO FD",status);
+	}
 	_fds[CIO_FD].startRead=NULL;
 	_fds[CIO_FD].startWrite=&c_startWrite;
 	_fds[CIO_FD].flags= FD_RW;
@@ -180,12 +204,12 @@ Status _fd_write(Fd *fd, char c){
 	//if outbuffer is not full
 	status = SUCCESS;
 
-	if(!buffer_full(&fd->outbuffer)){
-		
-		buffer_put(&fd->outbuffer,c);
+	if(!buffer_full(fd->outbuffer)){
+
+		buffer_put(fd->outbuffer,c);
 		fd->write_index++;
-		
-		if (fd->startWrite!= NULL && buffer_size(&fd->outbuffer) >= fd->txwatermark){ //if we need to request a write
+
+		if (fd->startWrite!= NULL && buffer_size(fd->outbuffer) >= fd->txwatermark){ //if we need to request a write
 			//start the write
 			status = fd->startWrite(fd);
 		}	
@@ -224,9 +248,9 @@ int _fd_read(Fd *fd){
 	}
 
 	//if inbuffer is not empty
-	if(!buffer_empty(&fd->inbuffer)){
+	if(!buffer_empty(fd->inbuffer)){
 		fd->read_index++;
-		return (int) buffer_get(&fd->inbuffer);
+		return (int) buffer_get(fd->inbuffer);
 	}else{
 		return -1;
 	}
@@ -240,7 +264,7 @@ int _fd_read(Fd *fd){
  ** returns the number of queued characters
  */
 int _fd_available(Fd *fd){
-	return buffer_size(&fd->inbuffer);
+	return buffer_size(fd->inbuffer);
 }
 /*
  ** _fd_flush_rx(file)
@@ -249,10 +273,8 @@ int _fd_available(Fd *fd){
  **
  */
 void _fd_flush_rx(Fd *fd){
-	int i, chars;
-	while(! buffer_empty(&fd->inbuffer)){
-		buffer_get(&fd->inbuffer);	
-	}
+	fd->inbuffer->in=0;
+	fd->inbuffer->out=0;
 }
 /*
  ** _fd_flush_tx(file)
@@ -261,11 +283,8 @@ void _fd_flush_rx(Fd *fd){
  **
  */
 void _fd_flush_tx(Fd *fd){
-	int i, chars;
-	chars = buffer_size(&fd->outbuffer);
-	for (i=0;i< chars; i++){
-		buffer_get(&fd->outbuffer);	
-	}
+	fd->outbuffer->in=0;
+	fd->outbuffer->out=0;
 }
 
 
@@ -288,38 +307,42 @@ void _fd_readDone(Fd *fd){
 	Pcb *pcb;
 	Key key;
 	Status status;
-	int *ptr;
 	char c;
 
-	key.u = fd-_fds;
+
+	key.u = _fd_lookup(fd);
 	//unblock process waiting on reading 
 
-	while(!_q_empty(_reading)){
-		status = _q_remove_by_key( _reading, (void **) &pcb, key );
-		if (status==SUCCESS){
-			pcb->state=READY;
-			//put the newest char into the blocked process
-			ptr = (int *) (ARG(pcb)[2]);
-			c=buffer_get(&fd->inbuffer);
-			*ptr = c & 0xff;
-			RET(pcb) = SUCCESS;
-			//schedule the previously blocked process
-			_sched(pcb);
-			//return here so we don't put the car in the buffer.
+	status = _q_remove_by_key( _reading, (void **) &pcb, key );
+
+	if (status==SUCCESS){
+		pcb->state=READY;
+
+		//put the newest char into the blocked process
+		c=buffer_get(fd->inbuffer);
+
+		// we'll lose a character if this fails. that's a risk i'm willing
+		// to take since we did a write test in _sys_read, meaning the
+		// destination address should certainly be writable from here.
+		if ((status = _out_param(pcb, 2, c & 0xff)) != SUCCESS) {
+			_cleanup(pcb);
+			status = MOO;
 			return;
 		}
-		if (status==NOT_FOUND){
-			break;
-		}
+
+		RET(pcb) = SUCCESS;
+
+		//schedule the previously blocked process
+		_sched(pcb);
 	}
 }
 
 void _fd_readBack(Fd *fd, char c){
-	if(!buffer_full(&fd->inbuffer)){
-		buffer_put(&fd->inbuffer,c);
+	if(!buffer_full(fd->inbuffer)){
+		buffer_put(fd->inbuffer,c);
 	}else{
 		//uh.. Crap. We're not reading fast enough.
-		c_printf("Dropped from %x ",fd-_fds); 
+		c_printf("Dropped from %x ",_fd_lookup(fd)); 
 	}
 }
 
@@ -339,12 +362,12 @@ int _fd_writeDone(Fd *fd){
 	Status status;
 	int c;
 
-	key.u = fd-_fds;
+	key.u = _fd_lookup(fd);
 
 
 	//if outbuffer is not empty
-	if(!buffer_empty(&fd->outbuffer)){
-		c = buffer_get(&fd->outbuffer);
+	if(!buffer_empty(fd->outbuffer)){
+		c = buffer_get(fd->outbuffer);
 	}else{
 		c = -1;
 	}
@@ -354,7 +377,11 @@ int _fd_writeDone(Fd *fd){
 		status = _q_remove_by_key( _writing, (void **) &pcb, key );
 		if (status==SUCCESS){
 			//attempt to put the blocked process's character into the queue
-			status=_fd_write(fd,ARG(pcb)[2]);
+
+			if ((status = _in_param(pcb, 2, &c)) != SUCCESS) {
+				_cleanup(pcb);
+				return -1;
+			}
 
 			if (status != SUCCESS){
 				c_puts("Second chance write failed!");
@@ -382,8 +409,8 @@ int _fd_getTx(Fd *fd){
 	int c;
 	c=-1;
 	//if outbuffer is not empty
-	if(!buffer_empty(&fd->outbuffer)){
-		c = buffer_get(&fd->outbuffer);
+	if(!buffer_empty(fd->outbuffer)){
+		c = buffer_get(fd->outbuffer);
 	}
 	return c;
 }

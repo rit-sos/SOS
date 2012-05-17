@@ -14,20 +14,24 @@
 #define _ULIB_H
 
 #include "headers.h"
+#include "io.h"
 
 /*
 ** General (C and/or assembly) definitions
 */
+
+#define	PRIO_HIGH	0
+#define	PRIO_STD	1
+#define	PRIO_LOW	2
+#define	PRIO_IDLE	3
+
+#define	N_PRIOS		4
 
 #ifndef __ASM__20113__
 
 /*
 ** Start of C-only definitions
 */
-
-#include "types.h"
-#include "clock.h"
-#include "pcbs.h"
 
 // pseudo-function:  sleep for a specified number of seconds
 
@@ -41,6 +45,18 @@
 /*
 ** Types
 */
+
+
+typedef struct tagHeapbuf{
+	/* size of the heap array */
+	int size;
+	struct tagHeapbuf *prev;
+	struct tagHeapbuf *next;
+	/* the end of the heap array is heapbuf.buf + heapbuf.size */
+	unsigned char buf[1];
+} __attribute__((aligned(4))) Heapbuf;
+
+#define HEAP_TAG_SIZE	(offsetof(struct tagHeapbuf, buf))
 
 /*
 ** Globals
@@ -65,7 +81,7 @@ extern const char *ustatus_strings[];
 **      status of the creation attempt
 */
 
-Status fork(Pid *pid);
+Status fork(unsigned int *pid);
 
 /*
 ** exit - terminate the calling process
@@ -136,7 +152,7 @@ Status write(int fd, char buf);
 **      status of the sleep attempt
 */
 
-Status msleep(Uint32 ms);
+Status msleep(unsigned int ms);
 
 /*
 ** kill - terminate a process with extreme prejudice
@@ -159,7 +175,7 @@ Status kill(Pid pid);
 **      SUCCESS
 */
 
-Status get_priority(Prio *prio);
+Status get_priority(unsigned int *prio);
 
 /*
 ** get_pid - retrieve the PID of the current process
@@ -171,7 +187,7 @@ Status get_priority(Prio *prio);
 **      SUCCESS
 */
 
-Status get_pid(Pid *pid);
+Status get_pid(unsigned int *pid);
 
 /*
 ** get_ppid - retrieve the parent PID of the current process
@@ -183,7 +199,7 @@ Status get_pid(Pid *pid);
 **      SUCCESS
 */
 
-Status get_ppid(Pid *pid);
+Status get_ppid(unsigned int *pid);
 
 /*
 ** get_time - retrieve the current system time
@@ -195,7 +211,7 @@ Status get_ppid(Pid *pid);
 **      SUCCESS
 */
 
-Status get_time(Time *time);
+Status get_time(unsigned int *time);
 
 /*
 ** get_state - retrieve the state of the current process
@@ -207,7 +223,7 @@ Status get_time(Time *time);
 **      SUCCESS
 */
 
-Status get_state(State *state);
+Status get_state(unsigned int *state);
 
 /*
 ** set_priority - change the priority of the current process
@@ -218,7 +234,7 @@ Status get_state(State *state);
 **      success of the change attempt
 */
 
-Status set_priority(Prio prio);
+Status set_priority(unsigned int prio);
 
 /*
 ** set_time - change the current system time
@@ -229,7 +245,7 @@ Status set_priority(Prio prio);
 **      SUCCESS
 */
 
-Status set_time(Time time);
+Status set_time(unsigned int time);
 
 /*
 ** exec - replace a process with a different program
@@ -242,7 +258,7 @@ Status set_time(Time time);
 */
 
 //Status exec(void (*entry)(void));
-Status exec(Uint32 entry_id);
+Status exec(unsigned int entry_id);
 
 /*
 ** vbe_print	- display a string on the monitor
@@ -282,7 +298,7 @@ void bogus( void );
 ** the desired status value should be printed
 */
 
-void prt_status( char *msg, Status stat );
+//void prt_status( char *msg, Status stat );
 
 /*
 ** spawn - create a new process running a different program
@@ -291,8 +307,8 @@ void prt_status( char *msg, Status stat );
 ** usage:  status = spawn( &pid, entry );
 */
 
-//Status spawn( Pid *pid, void (*entry)(void) );
-Status spawn(Pid *pid, Uint32 entry_id);
+//Status spawn( unsigned int *pid, void (*entry)(void) );
+Status spawn(unsigned int *pid, unsigned int entry_id);
 
 /*
 ** spawnp - create a new process running a different program at
@@ -301,11 +317,70 @@ Status spawn(Pid *pid, Uint32 entry_id);
 ** usage:  status = spawnp( &pid, prio, entry );
 */
 
-//Status spawnp( Pid *pid, Prio prio, void (*entry)(void) );
-Status spawnp(Pid *pid, Prio prio, Uint32 entry_id);
+//Status spawnp( unsigned int *pid, unsigned int prio, void (*entry)(void) );
+Status spawnp(unsigned int *pid, unsigned int prio, unsigned int entry_id);
+
+/*
+** grow_heap - expand the heap region
+**
+** usage: status = grow_heap();
+*/
+Status grow_heap(unsigned int *size);
+
+/*
+** get_heap_size - expand the heap region
+**
+** usage: status = get_heap_size();
+*/
+Status get_heap_size(unsigned int *size);
+
+/*
+** get_heap_base - get a pointer to the beginning of the user heap region
+**
+** usage: status = get_heap_base();
+*/
+Status get_heap_base(void *base);
+
+/*
+** write_buf - write a string from a user buffer
+**
+** usage: status = write_buf(str);
+*/
+Status write_buf(const char *str, unsigned int size);
+
+
+Status sys_sum(int *numbers, int count);
+Status set_test(int *buf, int count);
+
+void *memset(void *ptr, int byte, unsigned int size);
+
+void *memcpy(void *dst, void *src, unsigned int size);
+
+/*
+** heap_init - set up the user-space heap allocator
+**
+** usage: Called by ustrap, other code shouldn't call.
+** Further calls will cause the heap manager to forget all heap allocations,
+** making use of previously allocated heap buffers unsafe.
+*/
+void heap_init(void);
+
+/*
+** malloc - allocate memory on the heap
+**
+** usage: ptr = malloc(size);
+*/
+void *malloc(unsigned int size);
+
+/*
+** free - release memory on the heap
+**
+** usage: free(ptr);
+*/
+void free(void *ptr);
 
 Status puts(const char *str);
-void putx(Uint32 x);
+void putx(unsigned int x);
 #endif
 
 #endif

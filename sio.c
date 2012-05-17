@@ -133,6 +133,9 @@ Status _sio_startWrite(Fd *fd){
  ** _isr_sio - serial i/o ISR
  */
 
+// forward declare syscall helper
+Status _out_param(Pcb*,Int32,Uint32);
+
 void _isr_sio( int vector, int code ) {
 	int eir, lsr, msr;
 	int ch;
@@ -298,6 +301,8 @@ void _sio_init( void ) {
 	/*
 	 ** Set up our file descriptor.
 	 */
+	_fds[SIO_FD].inbuffer=(Buffer *)_kmalloc(sizeof(Buffer));
+	_fds[SIO_FD].outbuffer=(Buffer *)_kmalloc(sizeof(Buffer));
 	_fds[SIO_FD].startRead=NULL;
 	_fds[SIO_FD].startWrite=&_sio_startWrite;
 	_fds[SIO_FD].flags= FD_RW;
@@ -306,7 +311,7 @@ void _sio_init( void ) {
 
 
 	/*
-	 ** Report that we're done.
+	 ** Report that we're done->
 	 */
 	c_puts( " sio" );
 
@@ -495,9 +500,12 @@ void _sio_writec( int ch ){
 	//
 	// If we're currently transmitting, just add this to the buffer
 	//
-
-	if( _sending ) {
+	if (_sending && _outcount < BUF_SIZE ) {
 		*_outlast++ = ch;
+		// wrap around if necessary
+		if( _outlast >= (_outbuffer + BUF_SIZE) ) {
+			_outlast = _outbuffer;
+		}
 		++_outcount;
 		return;
 	}
@@ -573,6 +581,5 @@ int _sio_writes( char *buffer, int length ) {
  */
 
 void _sio_dump( void ) {
-
 	c_printf( "SIO characters available: %d\n",  _fd_available(&_fds[SIO_FD]) );
 }

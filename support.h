@@ -57,5 +57,6 @@ void ( *__install_isr( int vector, void ( *handler )( int vector, int code ) ) )
 */
 void __delay( int tenths );
 
+void __gp_isr(int vector, int code);
 
 #endif
