@@ -301,6 +301,8 @@ void _sio_init( void ) {
 	/*
 	 ** Set up our file descriptor.
 	 */
+	_fds[SIO_FD].inbuffer=(Buffer *)_kmalloc(sizeof(Buffer));
+	_fds[SIO_FD].outbuffer=(Buffer *)_kmalloc(sizeof(Buffer));
 	_fds[SIO_FD].startRead=NULL;
 	_fds[SIO_FD].startWrite=&_sio_startWrite;
 	_fds[SIO_FD].flags= FD_RW;
@@ -309,7 +311,7 @@ void _sio_init( void ) {
 
 
 	/*
-	 ** Report that we're done.
+	 ** Report that we're done->
 	 */
 	c_puts( " sio" );
 
@@ -579,6 +581,5 @@ int _sio_writes( char *buffer, int length ) {
  */
 
 void _sio_dump( void ) {
-
 	c_printf( "SIO characters available: %d\n",  _fd_available(&_fds[SIO_FD]) );
 }
