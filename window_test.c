@@ -24,9 +24,11 @@ void main( void ) {
 
 	/* print some strings */
 	windowing_print_str(0, 0, "Hello from window_test\n");
-
+	windowing_print_str(0, 2, "This is a very very very very very very very very very very "
+			"very very very very very very very very very long string\n");
 
 	windowing_print_str(0, 4, "window_test exiting in ");
+
 	int i;
 	for( i = DELAY_TIME; i > 0; i-- )
 	{
@@ -54,7 +56,7 @@ void main( void ) {
 
 	sleep(5);
 
-	windowing_cleanup();
+	//windowing_cleanup();
 
 	exit();
 }

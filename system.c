@@ -92,6 +92,8 @@ void _cleanup( Pcb *pcb ) {
 		return;
 	}
 
+	_windowing_free_by_pid(pcb->pid);
+
 	if ((status = _mman_proc_exit(pcb)) != SUCCESS) {
 		_kpanic("_cleanup", "_mman_proc_exit(pcb)", status);
 	}
@@ -290,7 +292,7 @@ void _init( void ) {
 	_clock_init();
 	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size());
 	_heap_init();
-	_ata_init();
+	//_ata_init();
 
 	c_puts( "\n" );
 

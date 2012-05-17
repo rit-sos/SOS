@@ -17,8 +17,8 @@
 
 #define DELAY_LONG 100000000
 //#define SPAWN_A
-#define SPAWN_MMAN
-#define SPAWN_DISK
+//#define SPAWN_MMAN
+//#define SPAWN_DISK
 #define SPAWN_WINDOW_TEST
 
 /*

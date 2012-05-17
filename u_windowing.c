@@ -11,7 +11,7 @@
 /*
  * Userspace frame buffer
  */
-Uint8 _user_buf[WINDOW_WIDTH*WINDOW_HEIGHT*3];
+Uint32 *_user_buf = (void*)0; //[WINDOW_WIDTH*WINDOW_HEIGHT];
 
 /* 
  * Window for this user
@@ -34,8 +34,12 @@ Status windowing_init( Uint flags )
 {
 	Status status = s_windowing_get_window( &_user_win );
 
-	flags = flags;
+	_user_flags = flags;
 
+	if( status == SUCCESS )
+	{
+		_user_buf = malloc(WINDOW_WIDTH*WINDOW_HEIGHT*sizeof(Uint32));
+	}
 	return status;
 }
 
@@ -59,7 +63,7 @@ void windowing_flip_screen(void)
 {
 	if( _user_win > 0 )
 	{
-		s_windowing_copy_rect( _user_win, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, _user_buf );
+		s_windowing_copy_rect( _user_win, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, (Uint8*)_user_buf );
 	}
 }
 
@@ -70,10 +74,11 @@ void windowing_draw_pixel(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b)
 {
 	if( _user_win > 0 )
 	{
-		Uint8 *pixel = (&_user_buf[3*(x + WINDOW_WIDTH*y)]);
-		pixel[0] = r;
-		pixel[1] = g;
-		pixel[2] = b;
+		if( x < WINDOW_WIDTH && y < WINDOW_HEIGHT )
+		{
+			Uint32 *pixel = &_user_buf[x + WINDOW_WIDTH*y];
+			*pixel = b | g<<8 | r<<16;
+		}
 	}
 }
 
@@ -131,6 +136,7 @@ void windowing_draw_line(Uint x0_u, Uint y0_u, Uint x1_u, Uint y1_u, Uint8 r, Ui
 		dy = y1-y0;
 		dx = abs(x1-x0);
 
+
 		NE = 2*(dy-dx);
 		E = 2*dy;
 
@@ -170,10 +176,15 @@ void windowing_print_char(Uint x, Uint y, const char c)
 {
 	if( _user_win > 0 )
 	{
-		_draw_char( c, x, y, WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, windowing_draw_pixel );
+		if( x < WINDOW_WIDTH && y < WINDOW_HEIGHT )
+		{
+			_draw_char( c, x*(CHAR_WIDTH+1), y*(CHAR_HEIGHT+1),
+					WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
 
-		if( _user_flags & WIN_AUTO_FLIP )
-			windowing_flip_screen();
+			if( _user_flags & WIN_AUTO_FLIP )
+				s_windowing_copy_rect( _user_win, x*(CHAR_WIDTH+1), y*(CHAR_HEIGHT+1), 
+						CHAR_WIDTH+1, CHAR_HEIGHT+1, (Uint8*)_user_buf );
+		}
 	}
 }
 
@@ -206,8 +217,6 @@ void windowing_print_str(Uint x, Uint y, const char *str)
 				}
 			}
 		}
-		if( _user_flags & WIN_AUTO_FLIP )
-			windowing_flip_screen();
 	}
 }
 

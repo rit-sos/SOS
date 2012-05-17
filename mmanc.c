@@ -137,7 +137,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 	Uint32 src, dst, free_src, free_dst;
 	Status status;
 
-	c_printf("[%04x] handle_cow( %08x, %08x )\n", pcb ? pcb->pid : 0xffff, pcb, vpg);
+	//c_printf("[%04x] handle_cow( %08x, %08x )\n", pcb ? pcb->pid : 0xffff, pcb, vpg);
 
 	if (!pcb) {
 		return BAD_PARAM;
@@ -155,7 +155,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		/*
 		** This is no longer a COW page, just mark it writable.
 		*/
-		c_printf("handle_cow: un-cow vpg=%08x, ppg=%08x\n", vpg, src);
+		//c_printf("handle_cow: un-cow vpg=%08x, ppg=%08x\n", vpg, src);
 
 		pte = &((Pagetbl_entry*)(pgdir[(vpg >> 10) & 0x03ff].dword & PD_FRAME))[vpg & 0x03ff];
 		pte->cow = 0;
@@ -170,7 +170,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		** We need to copy the user COW page to a fresh physical page.
 		*/
 
-		c_printf("handle_cow: MOOve vpg=%08x, ppg=%08x\n", vpg, src);
+		//c_printf("handle_cow: MOOve vpg=%08x, ppg=%08x\n", vpg, src);
 
 		/* map COW page into kernel */
 		CHK(_mman_alloc(NULL, &ksrc, PAGESIZE, MAP_VIRT_ONLY));
@@ -204,7 +204,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 
 Cleanup:
 	/* unmap COW and new phys page in kernel */
-	c_printf("handle_cow: %s\n", _kstatus(status));
+	//c_printf("handle_cow: %s\n", _kstatus(status));
 
 	if (free_src) {
 		_mman_free(NULL, ksrc, PAGESIZE);
@@ -254,14 +254,14 @@ void _mman_pagefault_isr(int vec, int code) {
 	/* first get the faulting address */
 	cr2 = _mman_get_cr2();
 
-	c_printf("*** Page Fault ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
+	//c_printf("*** Page Fault ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
 
 	if (code & PF_USER) {
 		pte = get_pte(_current->pgdir, cr2 >> 12);
 		if (code & PF_PRESENT) {
 			if ((code & PF_WRITE) && pte.user && pte.cow) {
 				/* Case 4 */
-				c_putchar('4');
+				//c_putchar('4');
 				if (handle_cow(_current, cr2 >> 12) != SUCCESS) {
 					/* no choice but to crash the user process */
 					_sys_exit(_current);
@@ -593,10 +593,6 @@ Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 fla
 	Pagetbl_entry *tbl;
 	Status status;
 	Uint32 idx;
-
-	if (pgdir == _kpgdir && virt == 0x20000) {
-		c_printf("kernel mapping vpg 0x20000 to ppg %08x, flags=%08x\n", phys, flags);
-	}
 
 	if (!pgdir) {
 		return BAD_PARAM;

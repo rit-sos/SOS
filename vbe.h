@@ -97,6 +97,11 @@ char _vbe_get_char( Uint x, Uint y );
  */
 char _vbe_get_char_win( Uint x, Uint y, Uint x_start, Uint y_start );
 
+/* 
+ * get address of start of row
+ */
+Uint32* _vbe_get_row_start( Uint y );
+
 #endif
 
 

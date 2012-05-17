@@ -109,6 +109,11 @@ void _windowing_draw_line ( Window win, Uint x0_u, Uint y0_u, Uint x1_u, Uint y1
  */
 void _windowing_copy_rect( Window win, Uint x0, Uint y0, Uint w, Uint h, Uint8 *buf );
 
+/* 
+ * get address of start of row
+ */
+Uint32* _windowing_get_row_start( Window win, Uint y );
+
 #endif
 
 

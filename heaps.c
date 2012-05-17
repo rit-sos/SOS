@@ -104,28 +104,31 @@ void *_kmalloc(Uint32 size) {
 		/* case #4: reached the end of the list, so append */
 		if (!curr) {
 			ptr = (void*)prev->buf + prev->size;
-
-			/* is the new pointer past the end of the heap? */
-			if (ptr + real_size > _heap_end_ptr) {
-				/* is there any hope of fitting it? */
-				if (ptr + real_size <= (void*)(KERNEL_HEAP_BASE+HEAP_CHUNK_SIZE*KERNEL_MAX_CHUNKS)-_heap_extent) {
-					/* try to grow the heap */
-					do {
-						if (_heap_grow(NULL) != SUCCESS) {
-							return NULL;
-						} else {
-							_heap_end_ptr += HEAP_CHUNK_SIZE;
-						}
-					} while(ptr + real_size > _heap_end_ptr);
-				} else {
-					/* give up before we ask for tons of memory we don't need */
-					return NULL;
-				}
-			}
-
-			/* update the extent */
-			_heap_extent += real_size;
 		}
+	}
+	
+	if (!curr) {
+		/* is the new pointer past the end of the heap? */
+		if (ptr + real_size > _heap_end_ptr) {
+			/* is there any hope of fitting it? */
+			if (ptr + real_size <= (void*)(KERNEL_HEAP_BASE+HEAP_CHUNK_SIZE*KERNEL_MAX_CHUNKS)-_heap_extent) {
+				/* try to grow the heap */
+				do {
+					c_printf("kernel growing heap\n");
+					if (_heap_grow(NULL) != SUCCESS) {
+						return NULL;
+					} else {
+						_heap_end_ptr += HEAP_CHUNK_SIZE;
+					}
+				} while(ptr + real_size > _heap_end_ptr);
+			} else {
+				/* give up before we ask for tons of memory we don't need */
+				return NULL;
+			}
+		}
+
+		/* update the extent */
+		_heap_extent += real_size;
 	}
 
 	/* set up the new heap tag and return a pointer to the new buffer */

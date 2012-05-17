@@ -99,6 +99,23 @@ void _windowing_free_window( Window win )
 }
 
 /*
+ * _windowing_free_by_pid(Pid pid)
+ *
+ * Free windows from the specified pid
+ */
+void _windowing_free_by_pid( Pid pid )
+{
+	int i;
+	for( i = 0; i < WIN_DIV_X * WIN_DIV_Y; i++ )
+	{
+		if( win_owners[i] == pid )
+		{
+			_windowing_free_window(i);
+		}
+	}
+}
+
+/*
  * _windowing_write_char(Window, x, y, color, c)
  *
  * Write a character at (x,y) in the specified window
@@ -326,17 +343,25 @@ void _windowing_copy_rect( Window win, Uint x0, Uint y0, Uint w, Uint h, Uint8 *
 	{
 		for( y = y0; y < y0+h; y++ )
 		{
-			_windowing_draw_pixel(
-					win,
-					x, y, 
-					buf[3*(x+w*y) + 0],
-					buf[3*(x+w*y) + 1],
-					buf[3*(x+w*y) + 2] 
+			_windowing_draw_pixel( win, x, y, 
+					buf[4*(x+WINDOW_WIDTH*y) + 2],
+					buf[4*(x+WINDOW_WIDTH*y) + 1],
+					buf[4*(x+WINDOW_WIDTH*y) + 0] 
 					);
 		}
 	}
 
 	return;
+}
+
+/**
+ * get start of the row for this user
+ */
+Uint32* _windowing_get_row_start( Window win, Uint y )
+{
+	if( y > WINDOW_HEIGHT )
+		return NULL;
+	return _vbe_get_row_start( y+Y_START(win) ) + X_START(win);
 }
 
 

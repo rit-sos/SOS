@@ -796,11 +796,14 @@ static void _sys_get_heap_base(Pcb *pcb) {
 static void _sys_windowing_get_window( Pcb *pcb ) {
 	Window win;
 	Status status;
-
+ 
 	win = _windowing_get_window( pcb->pid );
 
 	// return window
 	if((status = _out_param(pcb, 1, win)) != SUCCESS) {
+		c_printf("Can't return window\n");
+		if( win != -1 )
+			_windowing_free_window(win);
 		_sys_exit(pcb);
 		return;
 	}
@@ -821,6 +824,7 @@ static void _sys_windowing_free_window( Pcb *pcb ) {
 	Uint32 win;
 
 	if( (status = _in_param(pcb, 1, &win)) != SUCCESS ) {
+		c_printf("_sys_windowing_free_window: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
@@ -841,23 +845,28 @@ static void _sys_windowing_print_str( Pcb *pcb ) {
 	Uint32 win, x, y;
 	const char* str;
 
+
 	if( _in_param(pcb, 1, &win) != SUCCESS )
 	{
+		c_printf("_sys_windowing_free_window: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 	if( _in_param(pcb, 2, &x) != SUCCESS )
 	{
+		c_printf("_sys_windowing_free_window: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 	if( _in_param(pcb, 3, &y) != SUCCESS )
 	{
+		c_printf("_sys_windowing_free_window: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 	if( _in_param(pcb, 4, (Uint32*)&str) != SUCCESS )
 	{
+		c_printf("_sys_windowing_free_window: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
@@ -897,16 +906,19 @@ static void _sys_vbe_print_char( Pcb *pcb ) {
 	Status status;
 
 	if ((status = _in_param(pcb, 1, &x)) != SUCCESS) {
+		c_printf("_sys_vbe_print_char: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if ((status = _in_param(pcb, 2, &y)) != SUCCESS) {
+		c_printf("_sys_vbe_print_char: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if ((status = _in_param(pcb, 3, &c)) != SUCCESS) {
+		c_printf("_sys_vbe_print_char: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
@@ -928,22 +940,27 @@ static void _sys_windowing_print_char( Pcb *pcb ) {
 	Uint32 win, x, y, c;
 	Status status;
 
+
 	if ((status = _in_param(pcb, 1, &win)) != SUCCESS) {
+		c_printf("_sys_windowing_print_char: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if ((status = _in_param(pcb, 2, &x)) != SUCCESS) {
+		c_printf("_sys_windowing_print_char: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if ((status = _in_param(pcb, 3, &y)) != SUCCESS) {
+		c_printf("_sys_windowing_print_char: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if ((status = _in_param(pcb, 4, &c)) != SUCCESS) {
+		c_printf("_sys_windowing_print_char: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
@@ -996,22 +1013,27 @@ static void _sys_windowing_clearscreen( Pcb *pcb ) {
 	Uint32 win, r, g, b;
 	Status status;
 
+
 	if ((status = _in_param(pcb, 1, &win)) != SUCCESS) {
+		c_printf("_sys_windowing_clearscreen: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if ((status = _in_param(pcb, 2, &r)) != SUCCESS) {
+		c_printf("_sys_windowing_clearscreen: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if ((status = _in_param(pcb, 3, &g)) != SUCCESS) {
+		c_printf("_sys_windowing_clearscreen: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if ((status = _in_param(pcb, 4, &b)) != SUCCESS) {
+		c_printf("_sys_windowing_clearscreen: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
@@ -1078,6 +1100,7 @@ static void _sys_write_buf(Pcb *pcb) {
 static void _sys_windowing_draw_line( Pcb *pcb ) {
 	Uint32 win, x0, y0, x1, y1, r, g, b;
 	Status status;
+
 
 	if ((status = _in_param(pcb, 1, &win)) != SUCCESS) {
 		_sys_exit(pcb);
@@ -1181,48 +1204,59 @@ static void _sys_windowing_copy_rect( Pcb *pcb ) {
 
 	if( (status = _in_param(pcb, 1, &win)) != SUCCESS )
 	{
+		c_printf("_sys_windowing_copy_rect: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if( (status = _in_param(pcb, 2, &x)) != SUCCESS )
 	{
+		c_printf("_sys_windowing_copy_rect: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if( (status = _in_param(pcb, 3, &y)) != SUCCESS )
 	{
+		c_printf("_sys_windowing_copy_rect: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if( (status = _in_param(pcb, 4, &w)) != SUCCESS )
 	{
+		c_printf("_sys_windowing_copy_rect: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if( (status = _in_param(pcb, 5, &h)) != SUCCESS )
 	{
+		c_printf("_sys_windowing_copy_rect: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
 	if( (status = _in_param(pcb, 6, &u_buf)) != SUCCESS )
 	{
+		c_printf("_sys_windowing_copy_rect: Can't read param\n");
 		_sys_exit(pcb);
 		return;
 	}
 
-	/*
-	 * TODO: copy in w*h*3 bytes from userspace then copy the buffer
-	 */
-	Uint8 *k_buf = (Uint8*)_kmalloc(w*h*3);
-
-	return _mman_get_user_data(pcb, (Uint32*)k_buf, (Uint32*)u_buf, w*h*3);
-
-	_windowing_copy_rect( (Window)win, x, y, w, h, k_buf );
+	Uint32 i;
+	for( i = y; i < y+h; i++ )
+	{
+		Uint32 *ptr = _windowing_get_row_start(win, i)+x;
+		if( ptr != NULL )
+			if( (status = _mman_get_user_data(pcb, 
+							ptr, (Uint32*)(u_buf)+i*WINDOW_WIDTH+x, 
+							w*sizeof(Uint32))) != SUCCESS )
+			{
+				_sys_exit(pcb);
+				return;
+			}
+	}
 
 	RET(pcb) = SUCCESS;
 }

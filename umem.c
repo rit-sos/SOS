@@ -130,32 +130,36 @@ void *malloc(unsigned int size) {
 			prev = curr;
 			curr = curr->next;
 		}
-	
+
 		/* case #4: reached the end of the list, so append */
 		if (!curr) {
 			ptr = (void*)prev->buf + prev->size;
-
-			/* is the new pointer past the end of the heap? */
-			if (ptr + real_size > heap_end_ptr) {
-				/* is there any hope of fitting it? */
-				if (ptr + real_size <= (void*)(USER_HEAP_BASE+HEAP_CHUNK_SIZE*USER_MAX_CHUNKS)-heap_extent) {
-					/* try to grow the heap */
-					do {
-						if (grow_heap(&heap_grow_size) != SUCCESS) {
-							return NULL;
-						} else {
-							heap_end_ptr = heap_start_ptr + heap_grow_size;
-						}
-					} while(ptr + real_size > heap_end_ptr);
-				} else {
-					/* give up before we ask for tons of memory we don't need */
-					return NULL;
-				}
-			}
-
-			/* update the extent */
-			heap_extent += real_size;
 		}
+	}	
+
+	if (!curr) {
+
+		/* is the new pointer past the end of the heap? */
+		if (ptr + real_size > heap_end_ptr) {
+			/* is there any hope of fitting it? */
+			if (ptr + real_size <= (void*)(USER_HEAP_BASE+HEAP_CHUNK_SIZE*USER_MAX_CHUNKS)-heap_extent) {
+				/* try to grow the heap */
+				do {
+					puts("growing heap\n");
+					if (grow_heap(&heap_grow_size) != SUCCESS) {
+						return NULL;
+					} else {
+						heap_end_ptr += HEAP_CHUNK_SIZE;
+					}
+				} while(ptr + real_size > heap_end_ptr);
+			} else {
+				/* give up before we ask for tons of memory we don't need */
+				return NULL;
+			}
+		}
+
+		/* update the extent */
+		heap_extent += real_size;
 	}
 
 	/* set up the new heap tag and return a pointer to the new buffer */

@@ -72,12 +72,7 @@ void _vbe_init(void)
 	// this gives readable size strings
 	_vbe_set_font_scale(1);
 
-	char str[] = "VBE Initialization Complete\r\n";
-	char *s;
-	for( s = str; *s != '\0'; s++ )
-	{
-		_sio_writec(*s);
-	}
+	c_printf("VBE Initialization Complete\r\n");
 }
 
 /*
@@ -323,4 +318,12 @@ char _vbe_get_char_win( Uint x, Uint y, Uint x_start, Uint y_start )
 char _vbe_get_char( Uint x, Uint y )
 {
 	return _vbe_get_char_win(x, y, 0, 0);
+}
+
+Uint32* _vbe_get_row_start( Uint y )
+{
+	if( y > _vbe_get_height())
+		return NULL;
+
+	return (Uint32*)(_vbe_framebuffer_addr()) + y*_vbe_get_width() + 1;
 }
