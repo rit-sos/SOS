@@ -50,8 +50,8 @@ typedef struct buffer{
 
 
 typedef struct Fd{
-	Buffer	inbuffer;
-	Buffer	outbuffer;
+	Buffer	*inbuffer;
+	Buffer	*outbuffer;
 	Flags flags;
 	Uint	read_index;
 	Uint	write_index;
@@ -70,7 +70,6 @@ extern Queue *_reading;
 extern Queue *_writing;
 
 extern Fd _fds[];		// all fds in the system
-extern Fd _next_fd;		// next free fd
 
 /*
 ** Prototypes
@@ -104,10 +103,18 @@ Status _fd_dealloc(Fd *toFree);
 */
 void _fd_init(void);
 
+
 /*
-** _fd_write(file, char)
+** _fd_lookup(Fd *fd)
 **
-** write to a file descriptor.. Non-blocking, lossy
+**
+** returns the index of the fd
+*/
+int _fd_lookup(Fd *fd);
+/*
+** _fd_read(file, char)
+**
+** read from a a file descriptor.
 **
 ** returns the status 
 */

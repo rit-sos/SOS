@@ -21,9 +21,9 @@
 #include "syscalls.h"
 #include "sio.h"
 #include "scheduler.h"
+#include "mman.h"
 #include "fd.h"
 #include "vbe.h"
-#include "mman.h"
 #include "c_io.h"
 #include "ata.h"
 
@@ -264,13 +264,13 @@ void _init( void ) {
 	_q_init();		// must be first
 	_pcb_init();
 	_stack_init();
-	_sio_init();
-	_fd_init();
 	_syscall_init();
 	_sched_init();
 	_clock_init();
 	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size());
 	_heap_init();
+	_fd_init();
+	_sio_init();
 	_ata_init();
 
 	c_puts( "\n" );

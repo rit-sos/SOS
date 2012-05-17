@@ -276,7 +276,7 @@ static void _sys_fopen( Pcb *pcb ) {
 	fd=_ata_fopen(_ata_primary,sectorstart,length,FD_RW);
 	
 	if(fd != NULL){
-		if ((status = _out_param(pcb, 4, fd-_fds)) != SUCCESS) {
+		if ((status = _out_param(pcb, 4, _fd_lookup(fd))) != SUCCESS) {
 			_sys_exit(pcb);
 			return;
 		}
