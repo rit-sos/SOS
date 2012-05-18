@@ -250,6 +250,9 @@
 #define	INT_VEC_MYSTERY			0x27
 #define	INT_VEC_MOUSE			0x2c
 
+// IRQ Line from PCI Config space + IRQ_OFFSET to register 
+#define IRQ_OFFSET                  0x20
+
 /*
 ** Hardware timer (Intel 8254 Programmable Interval Timer)
 */
