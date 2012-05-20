@@ -27,7 +27,7 @@
 */
 
 #define ATA_MAX_BUSSES 3
-#define ATA_DRIVES_PER_BUS 4 
+#define ATA_DRIVES_PER_BUS 4
 #define DEBUG_ATA
 /*
 ** Types
@@ -47,6 +47,7 @@ typedef struct drive{
 	ata_type type;
 	Uint32 base; //base IO port address
 	Uint32 control; //control register IO port address
+	Fd *lastRequest;
 	char model[44]; //44 bytes for model name
 	Uint8 master; //true if master, false if slave			
 }Drive;	
@@ -57,8 +58,10 @@ typedef struct bus{
 	Uint32 primary_control; 
 	Uint32 secondary_base; 
 	Uint32 secondary_control;
+	Uint32 busmaster_base;
 	Uint8 interrupt_line; 
 }Bus;
+
 /*
 ** Globals
 */
@@ -87,6 +90,7 @@ Fd* _ata_fopen(Drive *d, Uint64 sector, Uint16 len, Flags flags);
 Status _ata_fclose(Fd *fd);
 Status _ata_flush(Fd *fd);
 Status _ata_read_blocking(Fd* fd);
+Status _ata_read_start(Fd* fd);
 Status _ata_write_blocking(Fd* fd);
 int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );
 int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );

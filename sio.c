@@ -178,22 +178,16 @@ void _isr_sio( int vector, int code ) {
 
 			case UA4_EIR_TX_INT_PENDING:
 				// if there is another character, send it
-				if( _sending && _outcount > 0 ) {
-					__outb( UA4_TXD, *_outnext );
-					++_outnext;
-					// wrap around if necessary
-					if( _outnext >= (_outbuffer + BUF_SIZE) ) {
-						_outnext = _outbuffer;
-					}
-					--_outcount;
+				ch=_fd_getTx(&_fds[SIO_FD]);
+				if( ch != -1){
+					__outb( UA4_TXD, ch & 0xFF );
+					_sending = 1;
 				} else {
-					// no more data - reset the output vars
-					_outcount = 0;
-					_outlast = _outnext = _outbuffer;
-					_sending = 0;
 					// disable TX interrupts
 					_sio_disable( SIO_TX );
+					_sending = 0;
 				}
+				_fd_writeDone(&_fds[SIO_FD]);
 				break;
 
 			case UA4_EIR_NO_INT:

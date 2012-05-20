@@ -27,11 +27,10 @@ void main( void ) {
 	if( status != SUCCESS ) {
 		//prt_status( "User A, write 1 status %s\n", status );
 	}
-	
 	status = fopen(0,5,&fd);
 	if( status != SUCCESS ) {
 		puts("open failed!");
-		exit();	
+		exit();
 	}
 	puts("Fd value:");
 	putx((Uint32)fd);
@@ -44,16 +43,17 @@ void main( void ) {
 		if( status != SUCCESS ) {
 			prt_status( "Disk user, read status %s\n", status );
 		}
-		status = write(fd, i < 550 ? 'i' : 'j');
+		/*status = write(fd, i < 550 ? 'i' : 'j');
 		if( status != SUCCESS ) {
 			puts( "Disk user, write failed");
 		}
+		*/
 	}
 	read(CIO_FD,&c);
 
 	for(i=0;i<512*2-1;i++){
 		status = read(fd,&c);
-		status = write(SIO_FD, c);	
+		status = write(SIO_FD, c);
 	}
 
 	read(CIO_FD,&c);
@@ -70,16 +70,19 @@ void main( void ) {
 		puts("reopening closed fd failed!\n");
 		exit();
 	}
-	for( i = 0; i < 512 *2 ; ++i ) {
+	puts("reopening closed fd success!\n");
+	for( i = 0; i < 512 *3 ; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
 		status = read(fd,&c);
-		status = write(SIO_FD, c);	
+		status = write(SIO_FD, c);
 	}
 
+	puts("waiting\n");
 	for( i = 0; i < 20 ; ++i ) {
 		status = read(CIO_FD,&c);
-		status = write(CIO_FD, c);	
+		status = write(CIO_FD, c);
 	}
+	puts("USER_DISK done\n");
 
 }
