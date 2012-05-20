@@ -348,14 +348,12 @@ static void _sys_read( Pcb *pcb ) {
 	// if there was a character, return it to the process;
 	// otherwise, block the process until one comes in
 
-
 	if( ch >= 0 ) {
 
 		if ((status = _out_param(pcb, 2, ch & 0xff)) != SUCCESS) {
 			_sys_exit(pcb);
 			return;
 		}
-
 		RET(pcb) = SUCCESS;
 
 	} else if (_fds[fd].flags & FD_EOF){
@@ -746,8 +744,8 @@ static void _sys_exec( Pcb *pcb ) {
 }
 
 /*
-** Kernel entry point for user heap manager
-*/
+ ** Kernel entry point for user heap manager
+ */
 static void _sys_grow_heap(Pcb*);
 static void _sys_get_heap_size(Pcb*);
 static void _sys_get_heap_base(Pcb*);
@@ -799,8 +797,8 @@ static void _sys_vbe_print( Pcb *pcb ) {
 	return;
 
 	/* ARG(pcb)[3] is a pointer */
-//	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char *)ARG(pcb)[3] );
-//	RET(pcb) = SUCCESS;
+	//	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char *)ARG(pcb)[3] );
+	//	RET(pcb) = SUCCESS;
 }
 
 /*
