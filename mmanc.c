@@ -472,12 +472,18 @@ Status _mman_get_user_data(Pcb *pcb, /* out */ void *buf, void *virt, Uint32 siz
 		num_pages++;
 	}
 
+	if (num_pages == 0 )
+	{
+		num_pages = 1;
+	}
+
 	if (num_pages > MAX_TRANSFER_PAGES) {
 		return BAD_PARAM;
 	}
 
 	/* find available virtual address range */
 	if ((status = _mman_alloc(NULL, &kvaddr, PAGESIZE * num_pages, MAP_VIRT_ONLY)) != SUCCESS) {
+		c_printf("Can't allocate %x pages\n", num_pages);
 		return status;
 	}
 
@@ -1165,9 +1171,26 @@ Status _mman_alloc_at(Pcb *pcb, void *ptr, Uint32 size, Uint32 flags) {
 	}
 }
 
-Status _mman_alloc_framebuffer(void *videoBuf, Uint size) {
+Status _mman_alloc_framebuffer(Pcb *pcb, void *videoBuf, Uint size) {
 	Uint32 i, pages, addr;
 	Status status;
+
+	Uint32        *virt_map;
+	Pagedir_entry *pgdir;
+	Uint32		   flags;
+
+	if( pcb == NULL )
+	{
+		virt_map = _virt_map;
+		pgdir = (Pagedir_entry*)_kpgdir;
+		flags = MAP_WRITE;
+	}
+	else
+	{
+		virt_map = pcb->virt_map;
+		pgdir = pcb->pgdir;
+		flags = MAP_WRITE | MAP_USER;
+	}
 
 	pages = size >> 12;
 	if (size & 0x0fff) {
@@ -1177,11 +1200,13 @@ Status _mman_alloc_framebuffer(void *videoBuf, Uint size) {
 	addr = ((Uint32)videoBuf) >> 12;
 
 	for (i = 0; i < pages; i++, addr++) {
-		if ((status = _mman_map_page((Pagedir_entry*)_kpgdir, addr, addr, MAP_WRITE)) != SUCCESS) {
+		if ((status = _mman_map_page(pgdir, addr, addr, flags)) != SUCCESS) {
 			return status;
 		}
-		PAGE_ADDREF(addr);
-		SET_PAGE_BIT(_virt_map, addr);
+		if( pcb == NULL )
+			PAGE_ADDREF(addr);
+
+		SET_PAGE_BIT(virt_map, addr);
 	}
 
 	return SUCCESS;
@@ -1273,7 +1298,7 @@ void _mman_init(void *videoBuf, Uint size) {
 		_virt_map[i] = 0xffffffff;
 	}
 
-	if ((_mman_alloc_framebuffer(videoBuf, size)) != SUCCESS) {
+	if ((_mman_alloc_framebuffer(NULL, videoBuf, size)) != SUCCESS) {
 		_kpanic("_mman_init", "_mman_alloc_framebuffer", FAILURE);
 	}
 

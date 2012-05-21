@@ -253,26 +253,9 @@ void _init( void ) {
 	_vbe_init();
 	_windowing_init();
 	/* now init c_io with a window mapped to init */
-	c_io_init( _windowing_get_window( init_ID + 1 ) );
+	c_io_init( _windowing_get_window( 1 ) );
 	c_setscroll( 0, 7, 99, 99 );
 	c_puts_at( 0, 6, "================================================================================" );
-
-	/*
-	 * pretty color debug
-	 */
-	Window win = _windowing_get_window( init_ID + 1 );
-	int i, j;
-
-	for( i = 0; i < WINDOW_WIDTH; i++ )
-	{
-		for( j = 0; j < WINDOW_HEIGHT; j++ )
-		{
-			Uint color = i + j * WINDOW_WIDTH;
-			_windowing_draw_pixel(win, i, j, color & 0xFF, ~color & 0xFF, (color >> 8) & 0xFF );
-		}
-	}
-
-	_windowing_free_window( win );
 
 	/*
 	** 20113-SPECIFIC CODE STARTS HERE

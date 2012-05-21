@@ -82,6 +82,7 @@ SYSCALL(s_windowing_print_char)
 SYSCALL(s_windowing_clearscreen)
 SYSCALL(s_windowing_draw_line)
 SYSCALL(s_windowing_copy_rect)
+SYSCALL(s_map_framebuffer)
 
 // This is a bogus system call; it's here so that we can test
 // our handling of out-of-range syscall codes in the syscall ISR.

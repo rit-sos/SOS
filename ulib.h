@@ -317,6 +317,13 @@ Status s_windowing_draw_line(Window win, Uint x0, Uint y0, Uint x1, Uint y1, cha
 Status s_windowing_copy_rect(Window win, Uint x0, Uint y0, Uint w, Uint h, Uint8 *buf);
 
 /*
+** s_map_framebuffer - map the framebuffer into memory
+**
+** returns:	SUCCESS
+*/
+Status s_map_framebuffer( Uint32 **framebuffer );
+
+/*
 ** bogus - a bogus system call, for testing our syscall ISR
 **
 ** usage:	bogus();

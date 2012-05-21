@@ -11,7 +11,7 @@
 /*
  * Userspace frame buffer
  */
-Uint32 *_user_buf = (void*)0; //[WINDOW_WIDTH*WINDOW_HEIGHT];
+Uint32 *_user_buf = NULL;
 
 /* 
  * Window for this user
@@ -22,6 +22,11 @@ Window _user_win = -1;
  * Flags
  */
 Uint _user_flags = 0;
+
+/*
+ * framebuffer addr
+ */
+Uint32* _framebuffer = NULL;
 
 /*
  * windowing_init:			Initialize user windowing
@@ -38,6 +43,7 @@ Status windowing_init( Uint flags )
 
 	if( status == SUCCESS )
 	{
+		s_map_framebuffer( &_framebuffer );
 		_user_buf = malloc(WINDOW_WIDTH*WINDOW_HEIGHT*sizeof(Uint32));
 	}
 	return status;
@@ -48,7 +54,7 @@ Status windowing_init( Uint flags )
  */
 void windowing_cleanup(void)
 {
-	if( _user_win > 0 )
+	if( _user_win >= 0 )
 	{
 		/* clear display and then free the window */
 		s_windowing_clearscreen( _user_win, 0, 0, 0 );
@@ -61,9 +67,59 @@ void windowing_cleanup(void)
  */
 void windowing_flip_screen(void)
 {
-	if( _user_win > 0 )
+	if( !(_user_flags & WIN_FLIP_PIXEL) )
+		windowing_flip_rect( 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT );
+}
+
+/*
+ * windowinng_flip_rect:	Flip part of the user frame buffer to video memory
+ */
+void windowing_flip_rect( Uint x, Uint y, Uint w, Uint h )
+{
+	int i, j;
+	if( _user_win >= 0 && 
+			x < WINDOW_WIDTH && y < WINDOW_HEIGHT && 
+			x+w <= WINDOW_WIDTH && y+h <= WINDOW_HEIGHT )
 	{
-		s_windowing_copy_rect( _user_win, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, (Uint8*)_user_buf );
+		if( _user_flags & WIN_SYSCALL )
+		{
+			s_windowing_copy_rect( _user_win, x, y, w, h, (Uint8*)_user_buf );
+		}
+		else
+		{
+			Uint fx = x+X_START(_user_win);
+			Uint fy = y+Y_START(_user_win);
+
+			for( i = 0; i < w; i++ )
+			{
+				for( j = 0; j < h; j++ )
+				{
+					_framebuffer[ fx+i + SCREEN_WIDTH*(fy+j) ] = 
+						_user_buf[ x+i + WINDOW_WIDTH*(y+j) ];
+				}
+			}
+		}
+	}
+}
+
+/*
+ * windowing_clear_screen:	Clear the frame buffer to the specified value
+ */
+void windowing_clear_screen(Uint8 r, Uint8 g, Uint8 b)
+{
+	int x, y;
+	if( _user_win >= 0 )
+	{
+		for( x = 0; x < WINDOW_WIDTH; x++ )
+		{
+			for( y = 0; y < WINDOW_HEIGHT; y++ )
+			{
+				windowing_draw_pixel( x, y, r, g, b );
+			}
+		}
+
+		if( _user_flags & WIN_AUTO_FLIP && !(_user_flags & WIN_FLIP_PIXEL) )
+			windowing_flip_screen();
 	}
 }
 
@@ -72,12 +128,15 @@ void windowing_flip_screen(void)
  */
 void windowing_draw_pixel(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b)
 {
-	if( _user_win > 0 )
+	if( _user_win >= 0 )
 	{
 		if( x < WINDOW_WIDTH && y < WINDOW_HEIGHT )
 		{
 			Uint32 *pixel = &_user_buf[x + WINDOW_WIDTH*y];
 			*pixel = b | g<<8 | r<<16;
+
+			if( _user_flags & WIN_FLIP_PIXEL )
+				windowing_flip_rect(x, y, 1, 1);
 		}
 	}
 }
@@ -92,13 +151,14 @@ inline void swap( int *x, int *y )
 	*y = t;
 }
 
-#define abs(x)	( (x)>0 ? (x) : -(x) )
+#define abs(x)		( (x)>0 ? (x) : -(x) )
+#define min(x, y)	( (x)<(y) ? (x) : (y) )
 /*
  * windowing_draw_line:		Draw a line onto the user frame buffer
  */
 void windowing_draw_line(Uint x0_u, Uint y0_u, Uint x1_u, Uint y1_u, Uint8 r, Uint8 g, Uint8 b)
 {
-	if( _user_win > 0 )
+	if( _user_win >= 0 )
 	{
 		int x0 = x0_u;
 		int x1 = x1_u;
@@ -164,8 +224,8 @@ void windowing_draw_line(Uint x0_u, Uint y0_u, Uint x1_u, Uint y1_u, Uint8 r, Ui
 			}
 
 		}
-		if( _user_flags & WIN_AUTO_FLIP )
-			windowing_flip_screen();
+		if( _user_flags & WIN_AUTO_FLIP && !(_user_flags & WIN_FLIP_PIXEL) )
+			windowing_flip_rect( min(x0_u, x1_u), min(y0_u, y1_u), abs(y1_u-y0_u), abs(x1_u-x0_u) );
 	}
 }
 
@@ -174,16 +234,16 @@ void windowing_draw_line(Uint x0_u, Uint y0_u, Uint x1_u, Uint y1_u, Uint8 r, Ui
  */
 void windowing_print_char(Uint x, Uint y, const char c)
 {
-	if( _user_win > 0 )
+	if( _user_win >= 0 )
 	{
 		if( x < WINDOW_WIDTH && y < WINDOW_HEIGHT )
 		{
 			_draw_char( c, x*(CHAR_WIDTH+1), y*(CHAR_HEIGHT+1),
 					WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
 
-			if( _user_flags & WIN_AUTO_FLIP )
-				s_windowing_copy_rect( _user_win, x*(CHAR_WIDTH+1), y*(CHAR_HEIGHT+1), 
-						CHAR_WIDTH+1, CHAR_HEIGHT+1, (Uint8*)_user_buf );
+			if( _user_flags & WIN_AUTO_FLIP && !(_user_flags & WIN_FLIP_PIXEL) )
+				windowing_flip_rect( x*(CHAR_WIDTH+1), y*(CHAR_HEIGHT+1), 
+						CHAR_WIDTH+1, CHAR_HEIGHT+1 );
 		}
 	}
 }
@@ -193,7 +253,7 @@ void windowing_print_char(Uint x, Uint y, const char c)
  */
 void windowing_print_str(Uint x, Uint y, const char *str)
 {
-	if( _user_win > 0 )
+	if( _user_win >= 0 )
 	{
 		// current location to display at
 		Uint x_disp = x, y_disp = y;

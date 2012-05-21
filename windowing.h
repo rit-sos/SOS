@@ -30,9 +30,14 @@
 /*
  * Pixel resolutions of each window
  */
-#define WINDOW_WIDTH	(SCREEN_WIDTH/WIN_DIV_X)
+#define WINDOW_WIDTH	((SCREEN_WIDTH/WIN_DIV_X)-1)
 #define WINDOW_HEIGHT	(SCREEN_HEIGHT/WIN_DIV_Y)
 
+#define X_OFFSET(win)	( (((win)%WIN_DIV_X)*WIN_CHAR_RES_X) )
+#define Y_OFFSET(win)	( (((win)/WIN_DIV_X)*WIN_CHAR_RES_Y) )
+
+#define X_START(win)	( (((win)%WIN_DIV_X)*(WINDOW_WIDTH+1)) + ((win)%WIN_DIV_X) )
+#define Y_START(win)	( (((win)/WIN_DIV_X)*WINDOW_HEIGHT) + ((win)/WIN_DIV_X) )
 
 #ifdef __KERNEL__20113__
 /*
@@ -55,6 +60,13 @@ Window _windowing_get_window( Pid pid );
  * Mark the specified window as being free
  */
 void _windowing_free_window( Window win );
+
+/*
+ * _windowing_free_by_pid(Pid pid)
+ *
+ * Free windows from the specified pid
+ */
+void _windowing_free_by_pid( Pid pid );
 
 /*
  * _windowing_write_char(Window, x, y, color, c)

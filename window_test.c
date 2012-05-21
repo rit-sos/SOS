@@ -14,13 +14,13 @@
 void main( void ) {
 	Status status;
 
-	sleep(3);
-
 	status = windowing_init( WIN_AUTO_FLIP );
 	if( status == FAILURE )
+	{
 		exit();
+	}
 
-	sleep(3);
+	sleep(1);
 
 	/* print some strings */
 	windowing_print_str(0, 0, "Hello from window_test\n");
@@ -28,6 +28,8 @@ void main( void ) {
 			"very very very very very very very very very long string\n");
 
 	windowing_print_str(0, 4, "window_test exiting in ");
+
+	windowing_flip_screen();
 
 	int i;
 	for( i = DELAY_TIME; i > 0; i-- )
@@ -44,6 +46,7 @@ void main( void ) {
 		c = (i % 10);
 		windowing_print_char(25, 4, c+'0');
 
+		windowing_flip_screen();
 		sleep(1);
 	}
 
@@ -53,10 +56,23 @@ void main( void ) {
 	windowing_draw_line(0, 				WINDOW_HEIGHT, 		WINDOW_WIDTH, 	0,				255, 255, 255);
 	windowing_draw_line(WINDOW_WIDTH/2,	0, 					WINDOW_WIDTH/2,	WINDOW_HEIGHT,	255, 255, 255);
 	windowing_draw_line(0, 				WINDOW_HEIGHT/2, 	WINDOW_WIDTH, 	WINDOW_HEIGHT/2,255, 255, 255);
+	windowing_flip_screen();
 
 	sleep(5);
 
-	//windowing_cleanup();
+	int x, y;
+	for( i = 0; ; i++ )
+	{
+		for( x = 0; x < WINDOW_WIDTH; x++ )
+		{
+			for( y = 0; y < WINDOW_HEIGHT; y++ )
+			{
+				windowing_draw_pixel(x, y, ((x+y+i)>>16) & 0xFF, ((x+y+i)>>8) & 0xFF, (x+y+i) & 0xFF);
+			}
+		}
+		windowing_flip_screen();
+	}
+	windowing_cleanup();
 
 	exit();
 }
