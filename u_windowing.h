@@ -11,6 +11,8 @@
 
 /* automatically flip the buffer to video memory after each operation */
 #define WIN_AUTO_FLIP	(1<<0)
+#define WIN_FLIP_PIXEL	(1<<1)
+#define WIN_SYSCALL		(1<<2)
 
 /*
  * windowing_init:			Initialize user windowing
@@ -30,6 +32,16 @@ void windowing_cleanup(void);
  * windowinng_flip_screen:	Flip the user frame buffer to video memory
  */
 void windowing_flip_screen(void);
+
+/*
+ * windowinng_flip_rect:	Flip part of the user frame buffer to video memory
+ */
+void windowing_flip_rect( Uint x, Uint y, Uint w, Uint h );
+
+/*
+ * windowing_clear_screen:	Clear the frame buffer to the specified value
+ */
+void windowing_clear_screen(Uint8 r, Uint8 g, Uint8 b);
 
 /*
  * windowing_draw_pixel:	Draw a pixel onto the user frame buffer

@@ -15,7 +15,7 @@
 #define SCREEN_WIDTH	(1280)
 #define SCREEN_HEIGHT	(1024)
 
-#ifndef __ASM__20113__
+#if !defined(__ASM__20113__) && defined(__KERNEL__20113__)
 /* 
  * _vbe_init()
  * 

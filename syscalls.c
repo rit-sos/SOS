@@ -13,7 +13,6 @@
 
 #include "headers.h"
 
-#include "pcbs.h"
 #include "scheduler.h"
 #include "sio.h"
 #include "syscalls.h"
@@ -23,6 +22,7 @@
 #include "fd.h"
 #include "ata.h"
 #include "windowing.h"
+#include "mman.h"
 
 #include "startup.h"
 
@@ -1253,6 +1253,7 @@ static void _sys_windowing_copy_rect( Pcb *pcb ) {
 							ptr, (Uint32*)(u_buf)+i*WINDOW_WIDTH+x, 
 							w*sizeof(Uint32))) != SUCCESS )
 			{
+				c_printf("_sys_windowing_copy_rect: %x %x %x %x %s\n", x, y, w, h, _kstatus(status));
 				_sys_exit(pcb);
 				return;
 			}
@@ -1260,6 +1261,35 @@ static void _sys_windowing_copy_rect( Pcb *pcb ) {
 
 	RET(pcb) = SUCCESS;
 }
+
+/*
+ * _sys_map_framebuffer
+ *
+ * Map the framebuffer into this processes address space
+ */
+static void _sys_map_framebuffer( Pcb *pcb ) {
+
+	if( pcb == NULL )
+		return;
+
+	c_printf("_sys_map_framebuffer: start\n");
+	if( _mman_alloc_framebuffer( pcb, (void*)_vbe_framebuffer_addr(), _vbe_framebuffer_size() ) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+
+	c_printf("_sys_map_framebuffer: pages mapped\n");
+	if( _out_param(pcb, 1, (Uint32)_vbe_framebuffer_addr()) != SUCCESS )
+	{
+		_sys_exit(pcb);
+		return;
+	}
+
+	c_printf("_sys_map_framebuffer: done\n");
+	RET(pcb) = SUCCESS;
+}
+
 
 static void _sys_set_test(Pcb *pcb) {
 	Int32 *buf;
@@ -1370,6 +1400,7 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_s_windowing_clearscreen ]		= _sys_windowing_clearscreen;
 	_syscall_tbl[ SYS_s_windowing_draw_line ]		= _sys_windowing_draw_line;
 	_syscall_tbl[ SYS_s_windowing_copy_rect ]		= _sys_windowing_copy_rect;
+	_syscall_tbl[ SYS_s_map_framebuffer ]			= _sys_map_framebuffer;
 
 	// report that we're done
 

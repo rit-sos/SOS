@@ -10,11 +10,13 @@
 #define	__KERNEL__20113__
 
 #include "vbe.h"
+#include "pcbs.h"
 #include "windowing.h"
 #include "vbe_structs.h"
 #include "graphics_font.h"
 #include "system.h"
 #include "sio.h"
+#include "mman.h"
 
 // for vbe structure addresses
 #include "bootstrap.h"
@@ -325,5 +327,5 @@ Uint32* _vbe_get_row_start( Uint y )
 	if( y > _vbe_get_height())
 		return NULL;
 
-	return (Uint32*)(_vbe_framebuffer_addr()) + y*_vbe_get_width() + 1;
+	return (Uint32*)(_vbe_framebuffer_addr()) + y*_vbe_get_width();
 }

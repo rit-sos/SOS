@@ -19,6 +19,9 @@ void _draw_char( char c, Uint x, Uint y, Uint w, Uint h, Uint scale, Uint8 r, Ui
 {
 	Uint8 *c_map = GET_CHAR_FONT_PTR(c);
 
+	// shift all fonts over 1 pixel
+	x++;
+
 	int i, j;
 	int kx, ky;
 	// For each pixel in the character

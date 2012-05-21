@@ -16,11 +16,6 @@
 
 #define abs(x)			( (x) > 0 ? (x) : (-(x)) )
 
-#define X_OFFSET(win)	( (((win)%WIN_DIV_X)*WIN_CHAR_RES_X) )
-#define Y_OFFSET(win)	( (((win)/WIN_DIV_X)*WIN_CHAR_RES_Y) )
-
-#define X_START(win)	( (((win)%WIN_DIV_X)*WINDOW_WIDTH) + ((win)%WIN_DIV_X) )
-#define Y_START(win)	( (((win)/WIN_DIV_X)*WINDOW_HEIGHT) + ((win)/WIN_DIV_X) )
 
 /* common precondition check for all functions */
 #define IF_WINDOW_INVALID(win) \
@@ -53,6 +48,7 @@ void _windowing_init(void)
 		for( j = 1; j < WIN_DIV_Y ; j++ )
 		{
 			_vbe_draw_pixel(i, j * _vbe_get_height() / WIN_DIV_Y, 127, 127, 127);
+			_vbe_draw_pixel(i, (j * _vbe_get_height() / WIN_DIV_Y)-1, 127, 127, 127);
 		}
 	}
 
@@ -363,18 +359,4 @@ Uint32* _windowing_get_row_start( Window win, Uint y )
 		return NULL;
 	return _vbe_get_row_start( y+Y_START(win) ) + X_START(win);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
