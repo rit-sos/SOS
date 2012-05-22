@@ -163,11 +163,14 @@ static void set_idt_entry( int entry, void ( *handler )( void ) ){
 
 	g->offset_15_0 = (int)handler & 0xffff;
 	g->segment_selector = GDT_CODE;
+
+	/* the syscall interrupt needs to be callable from user code */
 	if (entry == INT_VEC_SYSCALL) {
 		g->flags = IDT_PRESENT | IDT_DPL_3 | IDT_INT32_GATE;
 	} else {
 		g->flags = IDT_PRESENT | IDT_DPL_0 | IDT_INT32_GATE;
 	}
+
 	g->offset_31_16 = (int)handler >> 16 & 0xffff;
 }
 

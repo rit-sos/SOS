@@ -88,6 +88,16 @@ void _kmemcpy( void *destination, void *source, Uint32 length );
 
 void _kpanic( char *mod, char *msg, Status code );
 
+/*
+** _kstrcmp - compare two null-terminated ascii strings
+*/
+Int32 _kstrcmp( const char *s1, const char *s2 );
+
+/*
+** _kstrlen - get the length of a null-terminated ascii string
+*/
+Int32 _kstrlen( const char *str );
+
 #endif
 
 #endif

@@ -24,6 +24,7 @@
 #include "vbe.h"
 #include "fd.h"
 #include "ata.h"
+#include "shm.h"
 
 #include "startup.h"
 
@@ -68,7 +69,6 @@ Queue *_sleeping;
 
 Status _in_param(Pcb *pcb, Int32 index, /*out */ Uint32 *ret) {
 	Uint32 *ptr = ((Uint32*)(pcb->context.esp)) + index;
-//	c_printf("[%04d] _in_param: esp=%08x ptr=%08x\n", pcb->pid, pcb->context.esp, ptr);
 
 	if (((Uint32)ptr) % 4 == 0) {
 		return _mman_get_user_data(pcb, ret, ptr, sizeof(Uint32));
@@ -82,21 +82,16 @@ Status _out_param(Pcb *pcb, Int32 index, Uint32 val) {
 	Status status;
 	void *ptr;
 
-//	c_printf("out_param: pid=%d val=%d\n", pcb->pid, val);
-
 	// first get the pointer from the user stack
 	if ((status = _in_param(pcb, index, (Uint32*)&ptr)) == SUCCESS) {
 		if (((Uint32)ptr) % 4 == 0) {
 			// then try to write to the pointed-to buffer
 			status = _mman_set_user_data(pcb, ptr, &val, sizeof(Uint32));
-//			c_printf("_mman_set_user_data: %s\n", _kstatus(status));
 		} else {
 			c_printf("[%04d] _out_param: unaligned ptr %08x\n", pcb->pid, ptr);
 			status = BAD_PARAM;
 		}
 	}
-
-//	c_printf("[%04x] out_param: %08x\n", pcb->pid, status);
 
 	return status;
 }
@@ -163,6 +158,8 @@ static void _sys_fork( Pcb *pcb ) {
 	if (status != SUCCESS) {
 		goto Cleanup;
 	}
+
+	status = _shm_copy(new, pcb);
 
 	// fix unique fields
 	new->pid = _next_pid++;
@@ -752,6 +749,13 @@ static void _sys_grow_heap(Pcb*);
 static void _sys_get_heap_size(Pcb*);
 static void _sys_get_heap_base(Pcb*);
 
+/*
+** _sys_grow_heap - grow the size of a user heap
+**
+** implements: Status grow_heap(unsigned int *new_size);
+**
+** returns: status and new size
+*/
 static void _sys_grow_heap(Pcb *pcb) {
 	Status status;
 
@@ -763,6 +767,13 @@ static void _sys_grow_heap(Pcb *pcb) {
 	}
 }
 
+/*
+** _sys_get_heap_size - get the current size of a user heap
+**
+** implements: Status get_heap_size(unsigned int *size);
+**
+** returns: SUCCESS and size
+*/
 static void _sys_get_heap_size(Pcb *pcb) {
 	Status status;
 
@@ -774,6 +785,13 @@ static void _sys_get_heap_size(Pcb *pcb) {
 	RET(pcb) = SUCCESS;
 }
 
+/*
+** _sys_get_heap_base - get a pointer to the base of the heap
+**
+** implements: Status get_heap_base(void *ptr);
+**
+** returns: SUCCESS and pointer to heap base
+*/
 static void _sys_get_heap_base(Pcb *pcb) {
 	Status status;
 
@@ -867,6 +885,13 @@ static void _sys_vbe_clearscreen( Pcb *pcb ) {
 	RET(pcb) = SUCCESS;
 }
 
+/*
+** _sys_write_buf - read a string from user program and print it out
+**
+** implements: Status write_buf(const char *str);
+**
+** returns: status
+*/
 static void _sys_write_buf(Pcb *pcb) {
 	void *ptr, *buf;
 	Uint32 size;
@@ -914,6 +939,14 @@ static void _sys_write_buf(Pcb *pcb) {
 	RET(pcb) = SUCCESS;
 }
 
+/*
+** _sys_sys_sum - sum an input array of integers.
+** Used to test the implementation of _mman_get_user_data().
+**
+** implements: Status _sys_sum(int *buf, int count);
+**
+** returns: status, and prints the sum
+*/
 static void _sys_sys_sum(Pcb *pcb) {
 	Int32 *buf, sum;
 	void *ptr;
@@ -957,6 +990,14 @@ static void _sys_sys_sum(Pcb *pcb) {
 	RET(pcb) = SUCCESS;
 }
 
+/*
+** _sys_set_test: copy a large buffer into user space to test
+** _mman_set_user_data().
+**
+** implements: Status _sys_set_test(int *buf, int count);
+**
+** returns: status and a large buffer of integers
+*/
 static void _sys_set_test(Pcb *pcb) {
 	Int32 *buf;
 	void *ptr;
@@ -997,6 +1038,174 @@ static void _sys_set_test(Pcb *pcb) {
 
 	RET(pcb) = SUCCESS;
 
+}
+
+/*
+** _sys_shm_create - create a new shared memory mapping
+**
+** implements: Status shm_create(const char *name, unsigned int min_size,
+**                               unsigned int flags, void **ptr);
+**
+** returns: status and pointer to new shared memory region
+*/
+static void _sys_shm_create(Pcb *pcb) {
+	char *str;
+	void *ptr;
+	Uint32 length;
+	Uint32 size;
+	Uint32 flags;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &length)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 3, &size)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 4, &flags)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _out_param(pcb, 5, 0)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if (length >= 255) {
+		RET(pcb) = BAD_PARAM;
+		return;
+	}
+
+	str = _kmalloc(length + 1);
+
+	if (!str) {
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	_kmemclr(str, length + 1);
+
+	if ((status = _mman_get_user_data(pcb, str, ptr, length)) != SUCCESS) {
+		_kfree(str);
+		_sys_exit(pcb);
+		return;
+	}
+
+	RET(pcb) = _shm_create(pcb, str, size, flags, &ptr);
+
+	_kfree(str);
+
+	if ((status = _out_param(pcb, 5, (Uint32)ptr)) != SUCCESS) {
+		_sys_exit(pcb);
+	}
+}
+
+/*
+** _sys_shm_open - open an existing shared memory region by name and
+** map it into the calling process's address space.
+**
+** implements: Status shm_open(const char *name, void **ptr);
+**
+** returns: status and pointer to mapping
+*/
+static void _sys_shm_open(Pcb *pcb) {
+	char *str;
+	void *ptr;
+	Uint32 length;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &length)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _out_param(pcb, 3, 0)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if (length >= 255) {
+		RET(pcb) = BAD_PARAM;
+		return;
+	}
+
+	str = _kmalloc(length + 1);
+
+	if (!str) {
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	_kmemclr(str, length + 1);
+
+	if ((status = _mman_get_user_data(pcb, str, ptr, length)) != SUCCESS) {
+		_kfree(str);
+		_sys_exit(pcb);
+		return;
+	}
+
+	RET(pcb) = _shm_open(pcb, str, &ptr);
+
+	_kfree(str);
+
+	if ((status = _out_param(pcb, 3, (Uint32)ptr)) != SUCCESS) {
+		_sys_exit(pcb);
+	}
+}
+
+/*
+** _sys_shm_close - release a shared memory region
+**
+** implements: Status shm_close(const char *name);
+**
+** returns: status
+*/
+static void _sys_shm_close(Pcb *pcb) {
+	char *str;
+	void *ptr;
+	Uint32 length;
+	Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &length)) != SUCCESS) {
+		_sys_exit(pcb);
+		return;
+	}
+
+	if (length >= 255) {
+		RET(pcb) = BAD_PARAM;
+		return;
+	}
+
+	str = _kmalloc(length + 1);
+
+	if (!str) {
+		RET(pcb) = ALLOC_FAILED;
+		return;
+	}
+
+	RET(pcb) = _shm_close(pcb, str);
+
+	_kfree(str);
 }
 
 /*
@@ -1056,6 +1265,9 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_write_buf ]     = _sys_write_buf;
 	_syscall_tbl[ SYS_sys_sum ]       = _sys_sys_sum;
 	_syscall_tbl[ SYS_set_test ]      = _sys_set_test;
+	_syscall_tbl[ SYS_shm_create ]    = _sys_shm_create;
+	_syscall_tbl[ SYS_shm_open ]      = _sys_shm_open;
+	_syscall_tbl[ SYS_shm_close ]     = _sys_shm_close;
 
 	//	these are syscalls we elected not to implement
 	//	_syscall_tbl[ SYS_set_pid ]    = _sys_set_pid;

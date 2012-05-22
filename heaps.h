@@ -42,11 +42,30 @@ struct pcb;
 /*
 ** Heap manipulation functions
 */
+
+/*
+** Module init
+*/
 void _heap_init(void);
+
+/*
+** Create a new heap for a process
+*/
 Status _heap_create(struct pcb *pcb);
+
+/*
+** Grow a process's heap
+*/
 Status _heap_grow(struct pcb *pcb);
+
+/*
+** Destroy a process's heap
+*/
 Status _heap_destroy(struct pcb *pcb);
 
+/*
+** Heap buffer tag, used to manage the heap list
+*/
 typedef struct tagHeapbuf{
 	/* size of the heap array */
 	int size;
@@ -58,8 +77,26 @@ typedef struct tagHeapbuf{
 
 #define HEAP_TAG_SIZE	(offsetof(struct tagHeapbuf, buf))
 
+/*
+** Create a new heap allocation on the kernel heap. Like malloc().
+**
+** Usage: ptr = _kmalloc(size);
+*/
 void *_kmalloc(Uint32 size);
+
+/*
+** Release a heap allocation on the kernel heap. Like free().
+**
+** Usage: _kfree(ptr);
+*/
 void _kfree(void *ptr);
+
+/*
+** Resize a heap allocation on the kernel heap. Like realloc().
+**
+** Usage: ptr = _krealloc(ptr, new_size);
+*/
+void *_krealloc(void *ptr, Uint32 size);
 
 #endif
 

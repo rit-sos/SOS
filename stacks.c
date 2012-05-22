@@ -43,7 +43,6 @@ static Queue *_stack_free_queue;
 */
 
 Stack _system_stack;	// stack for the OS
-Uint32 *_system_esp;	// OS stack pointer
 
 /*
 ** PRIVATE FUNCTIONS

@@ -35,6 +35,13 @@ name:                             ; \
 	int	$INT_VEC_SYSCALL  ; \
 	ret
 
+#define WRAPPED_SYSCALL(name) \
+	.globl	real_##name              ; \
+real_##name:                             ; \
+	movl	$SYS_##name, %eax ; \
+	int	$INT_VEC_SYSCALL  ; \
+	ret
+
 /*
 ** for debugging purposes, this could be changed to expand into
 ** (e.g., for write) something like this:
@@ -75,6 +82,9 @@ SYSCALL(get_heap_base)
 SYSCALL(write_buf)
 SYSCALL(sys_sum)
 SYSCALL(set_test)
+WRAPPED_SYSCALL(shm_create)
+WRAPPED_SYSCALL(shm_open)
+WRAPPED_SYSCALL(shm_close)
 
 // This is a bogus system call; it's here so that we can test
 // our handling of out-of-range syscall codes in the syscall ISR.

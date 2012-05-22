@@ -46,7 +46,9 @@
 ** Types
 */
 
-
+/*
+** Node in a list of heap allocations, describing a single allocation.
+*/
 typedef struct tagHeapbuf{
 	/* size of the heap array */
 	int size;
@@ -348,12 +350,46 @@ Status get_heap_base(void *base);
 */
 Status write_buf(const char *str, unsigned int size);
 
-
+/*
+** sys_sum - print the sum of an array of integers
+**
+** usage: status = sys_sum(buf, count);
+*/
 Status sys_sum(int *numbers, int count);
+
+/*
+** set_test - get a large array of integers back from the kernel
+**
+** usage: status = set_test(buf, count);
+*/
 Status set_test(int *buf, int count);
 
+/*
+** Create and open a new shared memory region
+*/
+Status shm_create(const char *name, unsigned int min_size, unsigned int flags, void **ptr);
+Status real_shm_create(const char *name, unsigned int name_len, unsigned int min_size, unsigned int flags, void **ptr);
+
+/*
+** Open (map and addref) an existing shared memory region
+*/
+Status shm_open(const char *name, void **ptr);
+Status real_shm_open(const char *name, unsigned int name_len, void **ptr);
+
+/*
+** Release a shared memory region
+*/
+Status shm_close(const char *name);
+Status real_shm_close(const char *name, unsigned int name_len);
+
+/*
+** Set each byte of a buffer to a given byte value.
+*/
 void *memset(void *ptr, int byte, unsigned int size);
 
+/*
+** Copy a buffer to another buffer.
+*/
 void *memcpy(void *dst, void *src, unsigned int size);
 
 /*
@@ -378,6 +414,20 @@ void *malloc(unsigned int size);
 ** usage: free(ptr);
 */
 void free(void *ptr);
+
+/*
+** realloc - allocate a larger or smaller buffer for the same data
+**
+** usage: ptr = realloc(ptr, new_size);
+*/
+void *realloc(void *ptr, unsigned int size);
+
+/*
+** strlen - get the offset of the first '\0' in a buffer
+**
+** usage: length = strlen(str);
+*/
+int strlen(const char *str);
 
 Status puts(const char *str);
 void putx(unsigned int x);

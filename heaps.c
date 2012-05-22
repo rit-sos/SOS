@@ -45,11 +45,7 @@ void _heap_init(void) {
 */
 
 /*
-** malloc - allocate memory on the heap
-**
-** usage: ptr = malloc(size);
-**
-** Simple, slow first-fit allocator
+** Create a new heap allocation on the kernel heap. Like malloc().
 */
 void *_kmalloc(Uint32 size) {
 	void *ptr;
@@ -104,28 +100,30 @@ void *_kmalloc(Uint32 size) {
 		/* case #4: reached the end of the list, so append */
 		if (!curr) {
 			ptr = (void*)prev->buf + prev->size;
-
-			/* is the new pointer past the end of the heap? */
-			if (ptr + real_size > _heap_end_ptr) {
-				/* is there any hope of fitting it? */
-				if (ptr + real_size <= (void*)(KERNEL_HEAP_BASE+HEAP_CHUNK_SIZE*KERNEL_MAX_CHUNKS)-_heap_extent) {
-					/* try to grow the heap */
-					do {
-						if (_heap_grow(NULL) != SUCCESS) {
-							return NULL;
-						} else {
-							_heap_end_ptr += HEAP_CHUNK_SIZE;
-						}
-					} while(ptr + real_size > _heap_end_ptr);
-				} else {
-					/* give up before we ask for tons of memory we don't need */
-					return NULL;
-				}
-			}
-
-			/* update the extent */
-			_heap_extent += real_size;
 		}
+	}
+
+	if (!curr) {
+		/* is the new pointer past the end of the heap? */
+		if (ptr + real_size > _heap_end_ptr) {
+			/* is there any hope of fitting it? */
+			if (ptr + real_size <= (void*)(KERNEL_HEAP_BASE+HEAP_CHUNK_SIZE*KERNEL_MAX_CHUNKS)-_heap_extent) {
+				/* try to grow the heap */
+				do {
+					if (_heap_grow(NULL) != SUCCESS) {
+						return NULL;
+					} else {
+						_heap_end_ptr += HEAP_CHUNK_SIZE;
+					}
+				} while(ptr + real_size > _heap_end_ptr);
+			} else {
+				/* give up before we ask for tons of memory we don't need */
+				return NULL;
+			}
+		}
+
+		/* update the extent */
+		_heap_extent += real_size;
 	}
 
 	/* set up the new heap tag and return a pointer to the new buffer */
@@ -149,6 +147,9 @@ void *_kmalloc(Uint32 size) {
 	return tag->buf;
 }
 
+/*
+** Release a heap allocation on the kernel heap. Like free().
+*/
 void _kfree(void *ptr) {
 	Heapbuf *tag;
 
@@ -187,7 +188,56 @@ void _kfree(void *ptr) {
 }
 
 /*
+** Resize a heap allocation on the kernel heap. Like realloc().
+*/
+void *_krealloc(void *ptr, Uint32 size) {
+	Heapbuf *tag;
+	void *new;
+
+	/* don't do anything if the input doesn't make sense */
+	if (!size || size > HEAP_CHUNK_SIZE*KERNEL_MAX_CHUNKS) {
+		return ptr;
+	}
+
+	/* if we got NULL, then just do malloc */
+	if (!ptr) {
+		return _kmalloc(size);
+	}
+
+	tag = (ptr - HEAP_TAG_SIZE);
+
+	/* are we increasing the size or decreasing? */
+	if (size < tag->size) {
+		/* decreasing is easy, just set the size in the tag and return */
+		tag->size = size;
+		return ptr;
+	} else if (tag->next == NULL || (void*)(tag->next) - (void*)(tag->buf) >= size) {
+		/* in this case, there's room to grow the current buffer */
+		tag->size = size;
+		return ptr;
+	} else {
+		/* unfortunately we need to copy in this case */
+		new = _kmalloc(size);
+
+		if (!new) {
+			_kfree(ptr);
+			return NULL;
+		}
+
+		_kmemcpy(new, ptr, tag->size);
+
+		_kfree(ptr);
+		return new;
+	}
+}
+
+
+/*
 ** User heap syscall helpers
+*/
+
+/*
+** Create a new heap for a process
 */
 Status _heap_create(struct pcb *pcb) {
 	Status status;
@@ -204,6 +254,9 @@ Status _heap_create(struct pcb *pcb) {
 	return status;
 }
 
+/*
+** Grow a process's heap
+*/
 Status _heap_grow(struct pcb *pcb) {
 	Heapinfo *info;
 	void *ptr;
@@ -228,6 +281,9 @@ Status _heap_grow(struct pcb *pcb) {
 	return status;
 }
 
+/*
+** Destroy a process's heap
+*/
 Status _heap_destroy(struct pcb *pcb) {
 	Status status;
 

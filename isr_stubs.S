@@ -8,6 +8,9 @@
 ** Contributor:	Jon Coles, Warren R. Carithers, Margaret Reek, and
 **		numerous 4003-506 classes.
 **
+** Contributor: Corey Bloodstein (cmb4247)
+**      Rewrote ISR save/restore code to handle ring switching.
+**
 ** Description:	Stubs for ISRs.
 **
 **	This module provides the stubs needed for interrupts to save
@@ -98,18 +101,6 @@ isr_save:
 	movl	%eax, %fs
 	movl	%eax, %gs
 
-#if 0
-	pushl	%gs
-	pushl	%fs
-	pushl	%es
-	pushl	%ds
-	pushl	%cs
-	pushl	%ss
-	pushl	$segfmt
-	call	c_printf
-	jmp		.
-#endif
-
 	call	_mman_kernel_mode
 
 	/*
@@ -186,18 +177,6 @@ restore_ctx:
 
 	/* get rid of pid/ppid/time/fmt/etc */
 	addl	$20, %esp
-
-#if 0
-	movl	$1, %ebx
-delay_outer:
-	movl	$0x00ffffff, %eax
-delay_inner:
-	decl	%eax
-	jne		delay_inner
-	decl	%ebx
-	jne		delay_outer
-#endif
-
 #endif
 
 	/* give the process back its address space */
@@ -208,14 +187,6 @@ delay_inner:
 
 	/* skip vector and code */
 	addl	$8, %esp
-
-#if 0
-	pushl	%esp
-	pushl	$testfmt
-	call	c_printf
-	addl	$4, %esp
-	jmp		.
-#endif
 
 	pushl	%eax
 	movl	$GDT_USER_DATA, %eax
@@ -239,13 +210,6 @@ delay_inner:
 /*
 ** MOD for 20113 SP2
 */
-segfmt:
-	.ascii	"System segments on entry:\n"
-	.string	" ss=%08x  cs=%08x  ds=%08x  es=%08x  fs=%08x  gs=%08x\n"
-
-testfmt:
-	.ascii	"System esp on exit is %08x\n"
-	.string	"Restoring eip=%08x  cs=%08x efl=%08x esp=%08x  ss=%08x\n"
 
 fmt:	.ascii	"time %08x pids %08x\n"
 /*

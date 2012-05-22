@@ -119,3 +119,23 @@ void _kpanic( char *mod, char *msg, Status code ) {
 	__panic( "KERNEL PANIC" );
 
 }
+
+Int32 _kstrcmp( const char *s1, const char *s2 ) {
+	const char *p1 = s1, *p2 = s2;
+
+	while (*p1 && *p2 && *p1 == *p2) {
+		++p1; ++p2;
+	}
+
+	return *p1 - *p2;
+}
+
+Int32 _kstrlen( const char *str) {
+	Int32 i = 0;
+
+	while (str[i]) {
+		++i;
+	}
+
+	return i;
+}

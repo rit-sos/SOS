@@ -145,6 +145,12 @@ unsigned int spawn(unsigned int *pid, unsigned int entry_id) {
 	return( spawnp(pid,PRIO_STD,entry_id) );
 }
 
+int strlen(const char *str) {
+	int i = 0;
+	while (str[i]) ++i;
+	return i;
+}
+
 unsigned int puts(const char *str) {
 	unsigned int status = SUCCESS;
 	const char *p = str;

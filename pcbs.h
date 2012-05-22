@@ -5,7 +5,10 @@
 **
 ** Author:	4003-506 class of 20113
 **
-** Contributor:
+** Contributor: Corey Bloodstein (cmb4247)
+**      Moved context to a pcb local structure.
+**      Added memory management structures (pgdir, virt_map).
+**      Added heap and shared memory structures.
 **
 ** Description:	PCB module definitions
 */
@@ -62,6 +65,7 @@
 #include "clock.h"
 #include "stacks.h"
 #include "mman.h"
+#include "shm.h"
 
 /*
 ** Types
@@ -111,7 +115,7 @@ typedef struct pcb {
 	Context		context;	// kernel-mode process context
 							// (this also contains the user esp)
 	Heapinfo	heapinfo;	// heap allocation information
-//	Shminfo		shminfo;	// shared memory information
+	Shminfo		shminfo;	// shared memory information
 	// four-byte fields
 	Stack		*stack;		// kernel-mode address of stack
 	Memmap_ptr	virt_map;	// kernel-mode address of process VM usage map

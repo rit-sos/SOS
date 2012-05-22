@@ -1,3 +1,13 @@
+/*
+** mmanc.c
+**
+** Memory management implementation. Handles virtual and physical allocations,
+** page mappings, page reference counts, copy on write, process address space
+** copying, etc, etc...
+**
+** Corey Bloodstein (cmb4247)
+*/
+
 #define __KERNEL__20113__
 
 #include "headers.h"
@@ -10,59 +20,6 @@
 #include "syscalls.h"
 #include "startup.h"
 
-#define CHECK_PAGE_BIT(M,X)	((M)[(X)>>5] &  (0x80000000 >> ((X) & 0x1f)) != 0)
-#define CLEAR_PAGE_BIT(M,X)	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f)))
-#define SET_PAGE_BIT(M,X)	((M)[(X)>>5] |= (0x80000000 >> ((X) & 0x1f)))
-
-/*
-#define CLEAR_PAGE_BIT(M,X)		{											\
-	if (((M) == _phys_map || (M) == _virt_map) && (X) < 0x0c00) {			\
-		_mman_panic((M), (X));												\
-	}																		\
-	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f))); }
-
-static void _mman_panic(Uint32 *map, Uint32 page) {
-	Uint32 *ptr;														\
-	c_printf("how did we get here? map=%08x, page=%08x, stack follows:\n",map,page); \
-	for (ptr = (Uint32*)_get_ebp(); ptr; ptr = (Uint32*)*ptr) {
-		c_printf("> %08x <\n", ptr[1]);	
-		break;
-	}
-	for(;;);
-	_kpanic("mman", "bad bad", FAILURE);
-}
-*/
-
-#define PAGE_REFCOUNT(X)	(((Uint32*)REFCOUNT_BASE)[(X)])
-#define PAGE_ADDREF(X)		(SET_PAGE_BIT(_phys_map,(X)),++(PAGE_REFCOUNT((X))))
-#define PAGE_RELEASE(X)		(--(PAGE_REFCOUNT((X))))
-
-/*
-#define PAGE_ADDREF(X)			(											\
-	SET_PAGE_BIT(_phys_map,(X)),											\
-	++(PAGE_REFCOUNT((X))),													\
-	(void)(((X) < 0xc00 && (X) != 0x24 && (X) != 0x23 && (X) != 0x3d)		\
-		? c_printf("page=%08x ref=%d\n",(X),PAGE_REFCOUNT((X))) : 0),		\
-	PAGE_REFCOUNT((X)))
-
-#define PAGE_RELEASE(X)			(											\
-	(X) == 0x22 ? _mman_panic(_phys_map,(X)),0 : --(PAGE_REFCOUNT((X))))
-*/
-
-#define PAGE_ADDREF_V(P,X,W)	{											\
-	Uint32 l_ppg;															\
-	if ((status = _mman_translate_page((P), (X), &l_ppg, (W))) != SUCCESS)	\
-		goto Cleanup;														\
-	PAGE_ADDREF(l_ppg); }
-
-#define PAGE_RELEASE_V(P,X,W)	{											\
-	Uint32 l_ppg;															\
-	if ((status = _mman_translate_page((P), (X), &l_ppg, (W))) != SUCCESS)	\
-		goto Cleanup;														\
-	PAGE_RELEASE(l_ppg); }
-
-//	c_printf("PAGE_RELEASE_V(%08x) => PAGE_RELEASE(%08x)\n", (X), l_ppg);
-
 Pagedir *_pgdirs;
 Pagetbl *_pgtbls;
 Memmap *_maps;
@@ -70,24 +27,24 @@ Memmap *_maps;
 /*
 ** kernel page directory
 */
-volatile Pagedir _kpgdir PAGE_ALIGNED;
+Pagedir _kpgdir PAGE_ALIGNED;
 
 /*
 ** Special page table for the first 4MB of the kernel's address space.
 ** If the kernel needs more than 4MB for anything, _kalloc() can be
 ** used to map in outside pages.
 */
-volatile Pagetbl _kpgtbl PAGE_ALIGNED;
+Pagetbl _kpgtbl PAGE_ALIGNED;
 
 /*
 ** Special page table for the pages that hold the allocation maps
 */
-volatile Pagetbl _kmappgtbl PAGE_ALIGNED;
+Pagetbl _kmappgtbl PAGE_ALIGNED;
 
 /*
 ** Page table for everything else, particularly refcounts (2MB)
 */
-volatile Pagetbl _kextrapgtbl PAGE_ALIGNED;
+Pagetbl _kextrapgtbl PAGE_ALIGNED;
 
 /*
 ** Special page filled with zeroes that can be used to pre-fill
@@ -112,6 +69,9 @@ Memmap_ptr _phys_map;
 /* kernel virtual address space usage */
 Memmap_ptr _virt_map;
 
+/*
+** Get a pagetable entry from a page directory by virtual page number
+*/
 static Pagetbl_entry get_pte(Pagedir_entry *pgdir, Uint32 vpg) {
 	Pagedir_entry pde;
 	Pagetbl_entry pte;
@@ -129,6 +89,9 @@ static Pagetbl_entry get_pte(Pagedir_entry *pgdir, Uint32 vpg) {
 
 #define CHK(X) if ((status = (X)) != SUCCESS) goto Cleanup
 
+/*
+** Handle a copy on write page fault
+*/
 static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 	void *ksrc, *kdst;
 	Pagedir_entry *pgdir;
@@ -137,7 +100,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 	Uint32 src, dst, free_src, free_dst;
 	Status status;
 
-	c_printf("[%04x] handle_cow( %08x, %08x )\n", pcb ? pcb->pid : 0xffff, pcb, vpg);
+//	c_printf("[%04x] handle_cow( %08x, %08x )\n", pcb ? pcb->pid : 0xffff, pcb, vpg);
 
 	if (!pcb) {
 		return BAD_PARAM;
@@ -155,7 +118,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		/*
 		** This is no longer a COW page, just mark it writable.
 		*/
-		c_printf("handle_cow: un-cow vpg=%08x, ppg=%08x\n", vpg, src);
+//		c_printf("handle_cow: un-cow vpg=%08x, ppg=%08x\n", vpg, src);
 
 		pte = &((Pagetbl_entry*)(pgdir[(vpg >> 10) & 0x03ff].dword & PD_FRAME))[vpg & 0x03ff];
 		pte->cow = 0;
@@ -170,7 +133,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 		** We need to copy the user COW page to a fresh physical page.
 		*/
 
-		c_printf("handle_cow: MOOve vpg=%08x, ppg=%08x\n", vpg, src);
+//		c_printf("handle_cow: MOOve vpg=%08x, ppg=%08x\n", vpg, src);
 
 		/* map COW page into kernel */
 		CHK(_mman_alloc(NULL, &ksrc, PAGESIZE, MAP_VIRT_ONLY));
@@ -204,7 +167,7 @@ static Status handle_cow(Pcb *pcb, Uint32 vpg) {
 
 Cleanup:
 	/* unmap COW and new phys page in kernel */
-	c_printf("handle_cow: %s\n", _kstatus(status));
+//	c_printf("handle_cow: %s\n", _kstatus(status));
 
 	if (free_src) {
 		_mman_free(NULL, ksrc, PAGESIZE);
@@ -219,6 +182,14 @@ Cleanup:
 
 #undef CHK
 
+/*
+** Pagefault handler ISR.
+**
+** vec should always be INT_VEC_PAGE_FAULT
+**
+** Code is a combination of PF_USER, PF_WRITE, and PF_PRESENT indicating
+** the fault. The faulting address is in cr2.
+*/
 void _mman_pagefault_isr(int vec, int code) {
 	Uint32 cr2;
 	Pagetbl_entry pte;
@@ -261,14 +232,12 @@ void _mman_pagefault_isr(int vec, int code) {
 		if (code & PF_PRESENT) {
 			if ((code & PF_WRITE) && pte.user && pte.cow) {
 				/* Case 4 */
-				c_putchar('4');
 				if (handle_cow(_current, cr2 >> 12) != SUCCESS) {
 					/* no choice but to crash the user process */
 					_sys_exit(_current);
 				}
 			} else {
 				/* Case 2 or 3 */
-				c_putchar('2');
 				c_printf("[%04x] Segmentation Fault: "
 					"%06x %d %d %d %d %d %d %d %d %d %d %d %d\n",
 					_current->pid, pte.frame, pte.disk, pte.shared, pte.cow,
@@ -281,7 +250,11 @@ void _mman_pagefault_isr(int vec, int code) {
 			_kpanic("mman", "_mman_pagefault_isr: disk paging not implemented", FAILURE);
 		} else {
 			/* Case 1 */
-			c_putchar('1');
+			c_printf("[%04x] Segmentation Fault: "
+					"%06x %d %d %d %d %d %d %d %d %d %d %d %d\n",
+					_current->pid, pte.frame, pte.disk, pte.shared, pte.cow,
+					pte.global, pte.reserved, pte.dirty, pte.accessed,
+					pte.cachewrt, pte.cachedis, pte.user, pte.write, pte.present);
 			_sys_exit(_current);
 		}
 	} else {
@@ -305,6 +278,9 @@ void _mman_pagefault_isr(int vec, int code) {
 
 static int pcnt;
 
+/*
+** Allocate a new page directory or page table
+*/
 Status _mman_pgdir_alloc(Pagedir_entry **pgdir) {
 	if (++pcnt % 100 == 0) {
 		c_printf("_mman_pgdir_alloc: %d\n", pcnt);
@@ -312,6 +288,9 @@ Status _mman_pgdir_alloc(Pagedir_entry **pgdir) {
 	return _q_remove(_pgdir_queue, (void**)pgdir);
 }
 
+/*
+** Release an unused page directory or page table.
+*/
 Status _mman_pgdir_free(Pagedir_entry *pgdir) {
 	int i, start;
 
@@ -333,14 +312,26 @@ Status _mman_pgdir_free(Pagedir_entry *pgdir) {
 	return _q_insert(_pgdir_queue, pgdir, (Key)0);
 }
 
+/*
+** Allocate a new address space bitmap
+*/
 Status _mman_map_alloc(Memmap_ptr *map) {
 	return _q_remove(_map_queue, (void**)map);
 }
 
+/*
+** Release an unused address space bitmap
+*/
 Status _mman_map_free(Memmap_ptr map) {
 	return _q_insert(_map_queue, map, (Key)0);
 }
 
+/*
+** Copy a process's page directory into a new process's page directory for
+** fork(). All writable pages are marked copy on write in both the source
+** and destination page directories, and pages are addref'd appropriately.
+** Shared writable pages are not COW'd.
+*/
 Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *src, Memmap_ptr srcmap) {
 	int i, j;
 	Pagetbl_entry *tbl;
@@ -365,11 +356,7 @@ Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *sr
 			for (j = 0; j < PAGESIZE / 4; j++) {
 				/* if it exists, */
 				if (tbl[j].present) {
-					if (tbl[j].shared) {
-						/* addref the shared mapping */
-						//_shm_addref(tbl[j].frame);
-						_kpanic("mman", "_mman_pgdir_copy encountered PT_SHARED page", FAILURE);
-					} else if (tbl[j].write) {
+					if (!tbl[j].shared && tbl[j].write) {
 						/* create a new cow mapping */
 						tbl[j].write = 0;
 						tbl[j].cow = 1;
@@ -390,9 +377,15 @@ Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *sr
 }
 
 /*
+** Translate a virtual page to a physical page.
+**
 ** Note: these are page numbers, not addresses.
 ** To translate an address, call _mman_translate_addr.
 ** Also, this translation is relative to the passed-in pgdir.
+**
+** "write" indicates whether the page should be writable (PT_WRITE).
+**
+** If pgdir != _kpgdir, the PT_USER flag is also checked.
 */
 Status _mman_translate_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 *phys, Uint32 write) {
 	Pagedir_entry pde;
@@ -584,8 +577,7 @@ Cleanup:
 }
 
 /*
-** Add a mapping to a process's page directory.
-** These are page numbers, not addresses.
+** Map a virtual page to a physical page. Does not addref the pages.
 ** See mman.h for flag definitions.
 */
 Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 flags) {
@@ -647,6 +639,9 @@ Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 fla
 	return SUCCESS;
 }
 
+/*
+** Unmap a virtual page from an address space. Does not release the pages.
+*/
 Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt) {
 	Pagedir_entry pde;
 	Pagetbl_entry *tbl;
@@ -883,6 +878,11 @@ Status _mman_free(Pcb *pcb, void *ptr, Uint32 size) {
 	return SUCCESS;
 }
 
+/*
+** Copy a process's memory mangement state for fork().
+** Calls _mman_pgdir_copy to do most of the work, but extra logic is
+** included here for setting up the new stack.
+*/
 Status _mman_proc_copy(Pcb *new, Pcb *old) {
 	Pagetbl_entry *tbl;
 	Uint32 stack;
@@ -951,7 +951,6 @@ Cleanup:
 Status _mman_alloc(Pcb *pcb, void **ptr, Uint32 size, Uint32 flags) {
 	Uint32 i, j, k;
 	Uint32 bit, status, vpg, num_pages;
-	Pagedir_entry *pgdir;
 	Uint32 *virt_map, *map;
 
 	if (!ptr) {
@@ -975,10 +974,8 @@ Status _mman_alloc(Pcb *pcb, void **ptr, Uint32 size, Uint32 flags) {
 	** this is for the kernel
 	*/
 	if (pcb) {
-		pgdir = pcb->pgdir;
 		virt_map = pcb->virt_map;
 	} else {
-		pgdir = (Pagedir_entry*)_kpgdir;
 		virt_map = _virt_map;
 	}
 
@@ -1046,6 +1043,11 @@ Status _mman_alloc(Pcb *pcb, void **ptr, Uint32 size, Uint32 flags) {
 	return status;
 }
 
+/*
+** Allocate physical memory to back a virtual memory region. If MAP_ZERO,
+** use zero-mapped pages. Addrefs the physical page and marks the virtual
+** pages as in-use.
+*/
 Status _mman_alloc_at(Pcb *pcb, void *ptr, Uint32 size, Uint32 flags) {
 	int i, j, k;
 	Pagedir_entry *pgdir;
@@ -1169,6 +1171,9 @@ Status _mman_alloc_at(Pcb *pcb, void *ptr, Uint32 size, Uint32 flags) {
 	}
 }
 
+/*
+** Set up the framebuffer
+*/
 Status _mman_alloc_framebuffer(void *videoBuf, Uint size) {
 	Uint32 i, pages, addr;
 	Status status;
@@ -1191,6 +1196,9 @@ Status _mman_alloc_framebuffer(void *videoBuf, Uint size) {
 	return SUCCESS;
 }
 
+/*
+** Module init, sets up kernel page directory and turns on paging.
+*/
 void _mman_init(void *videoBuf, Uint size) {
 	Uint32 i, addr;
 	Memmap *map;
@@ -1293,18 +1301,28 @@ void _mman_init(void *videoBuf, Uint size) {
 	c_puts (" mman");
 }
 
+/*
+** Switch to the kernel page directory
+*/
 void _mman_kernel_mode(void) {
 	_mman_set_cr3((Pagedir_entry*)_kpgdir);
 	_mman_enable_paging();
 //	c_printf("_mman_kernel_mode\n");
 }
 
+/*
+** Switch to the current user process's (as defined by _current)
+** page directory.
+*/
 void _mman_restore_pgdir(void) {
 //	c_printf("_mman_restore_pgdir => %08x\n", _current->pgdir);
 	_mman_set_cr3(_current->pgdir);
 	_mman_enable_paging();
 }
 
+/*
+** Print out some information about mman state.
+*/
 void _mman_info(void) {
 	Uint32 cr0, cr2, cr3;
 
