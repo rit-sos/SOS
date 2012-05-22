@@ -13,14 +13,21 @@
 
 #define DELAY_STD	25000
 
-
 void main( void );
 
 
 void main( void ) {
 	int i, j;
 	int fd;
-	int c;	
+	int c;
+	int *data;
+
+	data = malloc(sizeof(int) *512 *3);
+	if(data == NULL){
+		puts("error mallocing..");
+		exit();
+	}
+
 	Status status;
 	puts("hello from USER_DISK\n");
 	status = write(CIO_FD, 'D' );
@@ -35,19 +42,27 @@ void main( void ) {
 	puts("Fd value:");
 	putx((Uint32)fd);
 
-	//status = read(fd,&c); //read one so we can make the fd dirty
+
+	for(i=0;i<512*2;i++){
+		status = read(fd, &c);
+		data[i] = c;
+		status = write(SIO_FD, c);
+	}
+
+
+	status = write(SIO_FD, '\n');
 
 	for( i = 0; i < 512 + 256 ; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
 		if( status != SUCCESS ) {
-			prt_status( "Disk user, read status %s\n", status );
+			//prt_status( "Disk user, read status %s\n", status );
 		}
-		/*status = write(fd, i < 550 ? 'i' : 'j');
+		status = write(fd, data[i] +1);
 		if( status != SUCCESS ) {
 			puts( "Disk user, write failed");
 		}
-		*/
+
 	}
 	read(CIO_FD,&c);
 

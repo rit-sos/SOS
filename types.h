@@ -48,7 +48,7 @@ typedef unsigned char	Uint8;
 typedef enum stat {
 	SUCCESS=0, FAILURE, BAD_PARAM, EMPTY_QUEUE, NOT_EMPTY_QUEUE,
 	ALLOC_FAILED, NOT_FOUND, NO_QUEUES, BAD_PRIO, ALREADY_EXISTS,
-	OUT_OF_BOUNDS, EOF, STATUS_SENTINEL, MOO = 0
+	OUT_OF_BOUNDS, EOF,  MOO = 0, STATUS_SENTINEL
 } Status;
 
 // Key type (used for ordering things)

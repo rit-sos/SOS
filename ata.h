@@ -28,6 +28,7 @@
 
 #define ATA_MAX_BUSSES 3
 #define ATA_DRIVES_PER_BUS 4
+#define ATA_MAX_REQUESTS 16
 #define DEBUG_ATA
 /*
 ** Types
@@ -42,15 +43,29 @@ typedef enum ata_type{
 	LBA28
 }ata_type;
 
+typedef enum state{
+	IDLE,
+	READING,
+	WRITING
+}ata_state;
+
 typedef struct drive{
 	Uint64 sectors;
-	ata_type type;
 	Uint32 base; //base IO port address
 	Uint32 control; //control register IO port address
-	Fd *lastRequest;
+	ata_type type;
+	ata_state state;
 	char model[44]; //44 bytes for model name
-	Uint8 master; //true if master, false if slave			
-}Drive;	
+	Uint8 master; //true if master, false if slave
+}Drive;
+
+typedef struct ata_fd_data{
+	Drive *d;
+	Uint64 sector_start;
+	Uint64 sector_end;
+	Uint64 read_sector;
+	Uint64 write_sector;
+}Ata_fd_data;
 
 typedef struct bus{
 	Drive drives[ATA_DRIVES_PER_BUS];
@@ -91,7 +106,9 @@ Status _ata_fclose(Fd *fd);
 Status _ata_flush(Fd *fd);
 Status _ata_read_blocking(Fd* fd);
 Status _ata_read_start(Fd* fd);
+Status _ata_read_finish(Fd* fd);
 Status _ata_write_blocking(Fd* fd);
+Status _ata_write_start(Fd* fd);
 int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );
 int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf );
 

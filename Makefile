@@ -91,7 +91,7 @@ USER_SRC = $(patsubst %,%.c,$(USERS))
 
 KERNEL_BITS = startup.o system.o klibc.o klibs.o pcbs.o queues.o scheduler.o \
 	clock.o sio.o stacks.o syscalls.o kmap.o isr_stubs.o support.o c_io.o \
-	mmanc.o mmans.o fd.o vbe.o graphics_font.o ata.o pci.o heaps.o
+	mmanc.o mmans.o fd.o vbe.o graphics_font.o ata.o ata_blocking.o pci.o heaps.o ioreq.o ata_pio.o
 
 USER_BASE = 0x10000000
 
@@ -219,24 +219,13 @@ depend: realclean
 0.o: clock.h stacks.h klib.h
 ata.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 ata.o: clock.h stacks.h klib.h pci.h ata.h fd.h io.h queues.h ./startup.h
-ata.o: c_io.h
+ata.o: ./include/x86arch.h c_io.h ioreq.h
 bitbang.o: bitbang.h headers.h defs.h types.h support.h system.h mman.h
 bitbang.o: heaps.h pcbs.h clock.h stacks.h klib.h
 BuildImage.o: /usr/include/stdio.h /usr/include/features.h
-BuildImage.o: /usr/include/bits/predefs.h /usr/include/sys/cdefs.h
-BuildImage.o: /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h
-BuildImage.o: /usr/include/gnu/stubs-32.h /usr/include/bits/types.h
-BuildImage.o: /usr/include/bits/typesizes.h /usr/include/libio.h
-BuildImage.o: /usr/include/_G_config.h /usr/include/wchar.h
-BuildImage.o: /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h
-BuildImage.o: /usr/include/stdlib.h /usr/include/sys/types.h
-BuildImage.o: /usr/include/time.h /usr/include/endian.h
-BuildImage.o: /usr/include/bits/endian.h /usr/include/bits/byteswap.h
-BuildImage.o: /usr/include/sys/select.h /usr/include/bits/select.h
-BuildImage.o: /usr/include/bits/sigset.h /usr/include/bits/time.h
-BuildImage.o: /usr/include/sys/sysmacros.h /usr/include/bits/pthreadtypes.h
+BuildImage.o: /usr/include/libio.h /usr/include/_G_config.h
+BuildImage.o: /usr/include/wchar.h /usr/include/stdlib.h
 BuildImage.o: /usr/include/alloca.h /usr/include/unistd.h
-BuildImage.o: /usr/include/bits/posix_opt.h /usr/include/bits/confname.h
 BuildImage.o: /usr/include/getopt.h /usr/include/string.h
 BuildImage.o: /usr/include/xlocale.h
 c_io.o: io.h fd.h headers.h defs.h types.h support.h system.h mman.h heaps.h
@@ -249,6 +238,8 @@ e100.o: pci.h headers.h defs.h types.h support.h system.h mman.h heaps.h
 e100.o: pcbs.h clock.h stacks.h klib.h
 fd.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 fd.o: clock.h stacks.h klib.h scheduler.h queues.h c_io.h fd.h io.h
+files.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
+files.o: clock.h stacks.h klib.h scheduler.h queues.h fd.h io.h
 graphics_font.o: graphics_font.h headers.h defs.h types.h support.h system.h
 graphics_font.o: mman.h heaps.h pcbs.h clock.h stacks.h klib.h
 heaps.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
@@ -257,6 +248,8 @@ heap_test.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
 heap_test.o: pcbs.h clock.h stacks.h klib.h
 init.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 init.o: clock.h stacks.h klib.h
+ioreq.o: fd.h io.h headers.h defs.h types.h support.h system.h mman.h heaps.h
+ioreq.o: pcbs.h clock.h stacks.h klib.h queues.h ata.h ioreq.h
 klibc.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 klibc.o: clock.h stacks.h klib.h c_io.h fd.h io.h queues.h
 mmanc.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
@@ -266,12 +259,8 @@ mman_test.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
 mman_test.o: pcbs.h clock.h stacks.h klib.h
 offsets.o: heaps.h pcbs.h headers.h defs.h types.h support.h system.h mman.h
 offsets.o: klib.h clock.h stacks.h /usr/include/stdio.h
-offsets.o: /usr/include/features.h /usr/include/bits/predefs.h
-offsets.o: /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h
-offsets.o: /usr/include/gnu/stubs.h /usr/include/gnu/stubs-32.h
-offsets.o: /usr/include/bits/types.h /usr/include/bits/typesizes.h
-offsets.o: /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h
-offsets.o: /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h
+offsets.o: /usr/include/features.h /usr/include/libio.h
+offsets.o: /usr/include/_G_config.h /usr/include/wchar.h
 pcbs.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 pcbs.o: clock.h stacks.h klib.h queues.h c_io.h fd.h io.h
 pci.o: pci.h headers.h defs.h types.h support.h system.h mman.h heaps.h
@@ -281,8 +270,6 @@ queues.o: clock.h stacks.h klib.h queues.h c_io.h fd.h io.h
 scheduler.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
 scheduler.o: pcbs.h clock.h stacks.h klib.h c_io.h fd.h io.h queues.h
 scheduler.o: scheduler.h
-shm.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
-shm.o: clock.h stacks.h klib.h
 sio.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 sio.o: clock.h stacks.h klib.h fd.h io.h queues.h sio.h c_io.h scheduler.h
 sio.o: ./startup.h ./include/uart.h ./include/x86arch.h
@@ -303,6 +290,8 @@ umem.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 umem.o: clock.h stacks.h klib.h
 user_a.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 user_a.o: clock.h stacks.h klib.h
+user_disk.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
+user_disk.o: pcbs.h clock.h stacks.h klib.h
 users.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 users.o: clock.h stacks.h klib.h users.h
 vbe.o: vbe.h headers.h defs.h types.h support.h system.h mman.h heaps.h
