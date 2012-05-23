@@ -131,6 +131,14 @@ void windowing_flip_rect( Uint x, Uint y, Uint w, Uint h )
 			}
 		}
 	}
+	else
+	{
+		puts("u_windowing: rect size out of bounds\n");
+		putx(x); puts("\n");
+		putx(y); puts("\n");
+		putx(w); puts("\n");
+		putx(h); puts("\n");
+	}
 }
 
 /*

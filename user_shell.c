@@ -50,7 +50,7 @@ int strcmp( const char *a, const char *b )
 void main(void)
 {
 	char line[256];
-	Pid pid;
+	int pid;
 	Status status;
 
 	puts("user_shell: Starting\n");
@@ -60,8 +60,10 @@ void main(void)
 		exit();
 	}
 
-	while(windowing_print_str("$: "), 1)
+	while(1)
 	{
+		windowing_print_str("$: ");
+
 		if( getLine( line, 256 ) )
 		{
 			windowing_print_str("Error reading line\n");

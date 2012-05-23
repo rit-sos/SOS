@@ -254,7 +254,7 @@ void _mman_pagefault_isr(int vec, int code) {
 	/* first get the faulting address */
 	cr2 = _mman_get_cr2();
 
-	//c_printf("*** Page Fault ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
+	c_printf("*** Page Fault ***\nvec=%02x code=%04x cr2=%08x\n", vec, code, cr2);
 
 	if (code & PF_USER) {
 		pte = get_pte(_current->pgdir, cr2 >> 12);
@@ -1203,8 +1203,7 @@ Status _mman_alloc_framebuffer(Pcb *pcb, void *videoBuf, Uint size) {
 		if ((status = _mman_map_page(pgdir, addr, addr, flags)) != SUCCESS) {
 			return status;
 		}
-		if( pcb == NULL )
-			PAGE_ADDREF(addr);
+		PAGE_ADDREF(addr);
 
 		SET_PAGE_BIT(virt_map, addr);
 	}

@@ -21,7 +21,7 @@
 #define USER_STACK	(0xd0000000)
 
 /* 2MB of 2-byte per-page refcounts */
-#define REFCOUNT_BASE	((Uint16*)0x00a00000)
+#define REFCOUNT_BASE	((Uint32*)0x00800000)
 
 /*
 ** Page directory defines and structures

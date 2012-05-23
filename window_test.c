@@ -40,7 +40,7 @@ void main( void ) {
 		char c;
 
 		c = (i % 1000) / 100;
-		windowing_set_char_pos(23, 4);
+		windowing_set_char_pos(23, 3);
 		windowing_print_char(c+'0');
 
 		c = (i % 100) / 10;
