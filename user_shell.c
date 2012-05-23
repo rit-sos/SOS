@@ -39,6 +39,9 @@ int getLine( char *line, int size )
 
 int strcmp( const char *a, const char *b )
 {
+	if( !a || !b )
+		return -1;
+
 	while( *a != '\0' && *b != '\0' && *a == *b )
 	{
 		a++;
@@ -71,8 +74,23 @@ void main(void)
 			continue;
 		}
 
-		// have a command
 		ShellProg *prog = shell_commands;
+
+		if( strcmp( line, "help" ) == 0 )
+		{
+			// print out list of programs
+			windowing_print_str("Programs:\n");
+
+			while( prog->cmd != NULL )
+			{
+				windowing_print_str(prog->cmd);
+				windowing_print_str("\n");
+				prog++;
+			}
+			// don't look for "help" program
+			continue;
+		}
+		// have a command
 		int done = 0;
 
 		while( prog->cmd != NULL && !done )
@@ -99,7 +117,8 @@ void main(void)
 			prog++;
 		}
 
-		if( !done )
+		// not a command or empty string
+		if( !done && strcmp( prog->cmd, "" ) != 0 )
 		{
 			// no such command
 			windowing_print_str("Error no such command: \"");

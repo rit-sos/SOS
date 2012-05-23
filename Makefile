@@ -215,3 +215,128 @@ depend: realclean
 
 # DO NOT DELETE
 
+e100.o: pci.h headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+e100.o: u_windowing.h windowing.h graphics_font.h vbe.h
+window_test.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+window_test.o: u_windowing.h windowing.h graphics_font.h vbe.h
+stacks.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+stacks.o: u_windowing.h windowing.h graphics_font.h vbe.h c_io.h fd.h
+stacks.o: queues.h stacks.h
+bitbang.o: bitbang.h headers.h defs.h types.h support.h ulib.h io.h clock.h
+bitbang.o: pcbs.h u_windowing.h windowing.h graphics_font.h vbe.h
+ulibc.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+ulibc.o: u_windowing.h windowing.h graphics_font.h vbe.h
+support.o: startup.h support.h c_io.h fd.h io.h headers.h defs.h types.h
+support.o: ulib.h clock.h pcbs.h u_windowing.h windowing.h graphics_font.h
+support.o: vbe.h queues.h ./include/x86arch.h bootstrap.h syscalls.h
+pcbs.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+pcbs.o: u_windowing.h windowing.h graphics_font.h vbe.h queues.h c_io.h fd.h
+vbe.o: vbe.h headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+vbe.o: u_windowing.h windowing.h graphics_font.h vbe_structs.h system.h
+vbe.o: mman.h heaps.h sio.h queues.h bootstrap.h
+offsets.o: heaps.h pcbs.h headers.h defs.h types.h support.h ulib.h io.h
+offsets.o: clock.h u_windowing.h windowing.h graphics_font.h vbe.h
+offsets.o: /usr/include/stdio.h /usr/include/features.h
+offsets.o: /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h
+offsets.o: /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h
+offsets.o: /usr/include/bits/types.h /usr/include/bits/typesizes.h
+offsets.o: /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h
+offsets.o: /usr/include/bits/wchar.h /usr/include/xlocale.h
+offsets.o: /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h
+c_io.o: io.h fd.h headers.h defs.h types.h support.h ulib.h clock.h pcbs.h
+c_io.o: u_windowing.h windowing.h graphics_font.h vbe.h queues.h c_io.h
+c_io.o: startup.h ./include/x86arch.h
+scheduler.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+scheduler.o: u_windowing.h windowing.h graphics_font.h vbe.h c_io.h fd.h
+scheduler.o: queues.h scheduler.h
+sio.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+sio.o: u_windowing.h windowing.h graphics_font.h vbe.h fd.h queues.h sio.h
+sio.o: c_io.h scheduler.h system.h mman.h heaps.h startup.h ./include/uart.h
+sio.o: ./include/x86arch.h
+ata.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+ata.o: u_windowing.h windowing.h graphics_font.h vbe.h pci.h ata.h fd.h
+ata.o: queues.h startup.h c_io.h
+mman_test.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+mman_test.o: u_windowing.h windowing.h graphics_font.h vbe.h
+heap_test.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+heap_test.o: u_windowing.h windowing.h graphics_font.h vbe.h
+users.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+users.o: u_windowing.h windowing.h graphics_font.h vbe.h users.h
+heaps.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+heaps.o: u_windowing.h windowing.h graphics_font.h vbe.h c_io.h fd.h queues.h
+heaps.o: mman.h heaps.h
+queues.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+queues.o: u_windowing.h windowing.h graphics_font.h vbe.h queues.h stacks.h
+queues.o: c_io.h fd.h
+graphics_font.o: graphics_font.h headers.h defs.h types.h support.h ulib.h
+graphics_font.o: io.h clock.h pcbs.h u_windowing.h windowing.h vbe.h
+u_windowing.o: u_windowing.h windowing.h headers.h defs.h types.h support.h
+u_windowing.o: ulib.h io.h clock.h pcbs.h graphics_font.h vbe.h
+user_a.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+user_a.o: u_windowing.h windowing.h graphics_font.h vbe.h
+klibc.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+klibc.o: u_windowing.h windowing.h graphics_font.h vbe.h c_io.h fd.h queues.h
+windowing.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+windowing.o: u_windowing.h windowing.h graphics_font.h vbe.h
+0.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+0.o: u_windowing.h windowing.h graphics_font.h vbe.h
+umem.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+umem.o: u_windowing.h windowing.h graphics_font.h vbe.h heaps.h
+user_disk.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+user_disk.o: u_windowing.h windowing.h graphics_font.h vbe.h
+system.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+system.o: u_windowing.h windowing.h graphics_font.h vbe.h system.h mman.h
+system.o: heaps.h bootstrap.h syscalls.h ./include/x86arch.h sio.h queues.h
+system.o: scheduler.h fd.h c_io.h ata.h
+bad_user.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+bad_user.o: u_windowing.h windowing.h graphics_font.h vbe.h
+init.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+init.o: u_windowing.h windowing.h graphics_font.h vbe.h
+shm.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+shm.o: u_windowing.h windowing.h graphics_font.h vbe.h mman.h shm.h c_io.h
+shm.o: fd.h queues.h
+syscalls.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+syscalls.o: u_windowing.h windowing.h graphics_font.h vbe.h scheduler.h
+syscalls.o: queues.h sio.h syscalls.h ./include/x86arch.h system.h mman.h
+syscalls.o: heaps.h c_io.h fd.h ata.h shm.h startup.h
+pci.o: pci.h headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+pci.o: u_windowing.h windowing.h graphics_font.h vbe.h startup.h
+user_shell.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+user_shell.o: u_windowing.h windowing.h graphics_font.h vbe.h user_shell.h
+clock.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+clock.o: u_windowing.h windowing.h graphics_font.h vbe.h ./include/x86arch.h
+clock.o: startup.h c_io.h fd.h queues.h scheduler.h sio.h syscalls.h
+fd.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+fd.o: u_windowing.h windowing.h graphics_font.h vbe.h scheduler.h queues.h
+fd.o: c_io.h fd.h mman.h
+shm_test.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+shm_test.o: u_windowing.h windowing.h graphics_font.h vbe.h shm.h
+mmanc.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+mmanc.o: u_windowing.h windowing.h graphics_font.h vbe.h ./include/x86arch.h
+mmanc.o: c_io.h fd.h queues.h stacks.h bootstrap.h mman.h syscalls.h
+mmanc.o: startup.h
+BuildImage.o: /usr/include/stdio.h /usr/include/features.h
+BuildImage.o: /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h
+BuildImage.o: /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h
+BuildImage.o: /usr/include/bits/types.h /usr/include/bits/typesizes.h
+BuildImage.o: /usr/include/libio.h /usr/include/_G_config.h
+BuildImage.o: /usr/include/wchar.h /usr/include/bits/wchar.h
+BuildImage.o: /usr/include/xlocale.h /usr/include/bits/stdio_lim.h
+BuildImage.o: /usr/include/bits/sys_errlist.h /usr/include/stdlib.h
+BuildImage.o: /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h
+BuildImage.o: /usr/include/endian.h /usr/include/bits/endian.h
+BuildImage.o: /usr/include/bits/byteswap.h /usr/include/sys/types.h
+BuildImage.o: /usr/include/time.h /usr/include/sys/select.h
+BuildImage.o: /usr/include/bits/select.h /usr/include/bits/sigset.h
+BuildImage.o: /usr/include/bits/time.h /usr/include/sys/sysmacros.h
+BuildImage.o: /usr/include/bits/pthreadtypes.h /usr/include/alloca.h
+BuildImage.o: /usr/include/unistd.h /usr/include/bits/posix_opt.h
+BuildImage.o: /usr/include/bits/confname.h /usr/include/getopt.h
+BuildImage.o: /usr/include/ctype.h /usr/include/string.h
+ulibs.o: syscalls.h ./include/x86arch.h
+mmans.o: headers.h defs.h types.h support.h ulib.h io.h clock.h pcbs.h
+mmans.o: u_windowing.h windowing.h graphics_font.h vbe.h offsets.h mman.h
+bootstrap.o: vbe_boot.h bootstrap.h vbe_boot.S
+isr_stubs.o: bootstrap.h offsets.h
+startup.o: bootstrap.h
+vbe_boot.o: vbe_boot.h bootstrap.h

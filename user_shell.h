@@ -25,6 +25,8 @@ ShellProg shell_commands[] =
 	MK_COMMAND(window_test),
 	MK_COMMAND(heap_test),
 	MK_COMMAND(mman_test),
+	MK_COMMAND(bad_user),
+	MK_COMMAND(shm_test),
 
 	// must be at the end
 	END_COMMAND
