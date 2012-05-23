@@ -217,9 +217,6 @@ depend: realclean
 
 0.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 0.o: clock.h stacks.h shm.h klib.h
-ata_blocking.o: ata.h headers.h defs.h types.h support.h system.h mman.h
-ata_blocking.o: heaps.h pcbs.h clock.h stacks.h shm.h klib.h fd.h io.h
-ata_blocking.o: queues.h
 ata.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 ata.o: clock.h stacks.h shm.h klib.h ./include/x86arch.h ./startup.h pci.h
 ata.o: ata.h fd.h io.h queues.h c_io.h windowing.h graphics_font.h vbe.h
@@ -249,8 +246,6 @@ e100.o: pcbs.h clock.h stacks.h shm.h klib.h
 fd.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 fd.o: clock.h stacks.h shm.h klib.h scheduler.h queues.h c_io.h fd.h io.h
 fd.o: windowing.h graphics_font.h vbe.h
-files.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
-files.o: clock.h stacks.h shm.h klib.h scheduler.h queues.h fd.h io.h
 graphics_font.o: graphics_font.h headers.h defs.h types.h support.h system.h
 graphics_font.o: mman.h heaps.h pcbs.h clock.h stacks.h shm.h klib.h
 heaps.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h

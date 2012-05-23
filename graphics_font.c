@@ -25,20 +25,20 @@ void _draw_char( char c, Uint x, Uint y, Uint w, Uint h, Uint scale, Uint8 r, Ui
 	int i, j;
 	int kx, ky;
 	// For each pixel in the character
-	for( i = 0; i < scale * CHAR_WIDTH; i+=scale )
+	for( i = 0; i < CHAR_WIDTH; i+=scale )
 	{
-		for( j = 0; j < scale * CHAR_HEIGHT; j+= scale )
+		for( j = 0; j < CHAR_HEIGHT; j+= scale )
 		{
 			// make sure its a valid pixel location
-			if( x+i+scale <= w && y+j+scale <= w )
+			if( x+i+WIN_FONT_SCALE <= w && y+j+WIN_FONT_SCALE <= w )
 			{
 				// scale it to the set scale factor
-				for( kx = 0; kx < scale; kx++ )
+				for( kx = 0; kx < WIN_FONT_SCALE; kx++ )
 				{
-					for( ky = 0; ky < scale; ky++ )
+					for( ky = 0; ky < WIN_FONT_SCALE; ky++ )
 					{
 						// draw
-						if( c_map[i/scale] & BIT(j/scale) )
+						if( c_map[i/WIN_FONT_SCALE] & BIT(j/WIN_FONT_SCALE) )
 						{
 							// if this pixel is part of the character, draw it
 							put_pixel(x+i+kx, y+(CHAR_HEIGHT-(j-ky)), r, g, b);

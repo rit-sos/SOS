@@ -29,27 +29,13 @@
 static VbeModeInfoBlock *vbe_mode_info 	= NULL;
 static VbeInfoBlock	 	*vbe_info 		= NULL;
 
-/* scale factor for font size */
-static Uint _vbe_font_scale = 1;
-
 /* character display size */
-static Uint _vbe_char_res_x = 0;
-static Uint _vbe_char_res_y = 0;
+static Uint _vbe_char_res_x = SCREEN_WIDTH/(CHAR_WIDTH+WIN_FONT_SCALE);
+static Uint _vbe_char_res_y = SCREEN_HEIGHT/(CHAR_HEIGHT+WIN_FONT_SCALE);
 
 /* storage for characters on display */
 static char _vbe_screen_text[N_CHARS];
 
-void _vbe_set_font_scale( Uint scale )
-{
-	// This gives a good sized font
-	_vbe_font_scale = scale;
-
-	/* character resolution */
-	_vbe_char_res_x = vbe_mode_info->XResolution / (_vbe_font_scale * (CHAR_WIDTH + 1));
-	_vbe_char_res_y = vbe_mode_info->YResolution / (_vbe_font_scale * (CHAR_HEIGHT + 1));
-
-}
-	
 /* 
  * _vbe_init()
  * 
@@ -70,9 +56,6 @@ void _vbe_init(void)
 	{
 		_vbe_screen_text[i] = ' ';
 	}
-
-	// this gives readable size strings
-	_vbe_set_font_scale(1);
 
 	c_printf("VBE Initialization Complete\r\n");
 }
@@ -237,8 +220,8 @@ void _vbe_write_char(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b, const char c )
  */
 void _vbe_write_char_win(Uint x, Uint y, Uint x_start, Uint y_start, Uint8 r, Uint8 g, Uint8 b, const char c )
 {
-	Uint x_idx = x + (x_start/((CHAR_WIDTH + 1)*_vbe_font_scale));
-	Uint y_idx = y + (y_start/((CHAR_HEIGHT + 1)*_vbe_font_scale));
+	Uint x_idx = x + (x_start/((CHAR_WIDTH + WIN_FONT_SCALE)));
+	Uint y_idx = y + (y_start/((CHAR_HEIGHT + WIN_FONT_SCALE)));
 	// First, lets only draw if needed
 	if( _vbe_screen_text[x_idx + y_idx*_vbe_char_res_x] == c )
 		return;
@@ -247,11 +230,8 @@ void _vbe_write_char_win(Uint x, Uint y, Uint x_start, Uint y_start, Uint8 r, Ui
 	_vbe_screen_text[x_idx + y_idx*_vbe_char_res_x] = c;
 
 	// move char position into screen coords
-	x *= (CHAR_WIDTH+1)*_vbe_font_scale;
-	y *= (CHAR_HEIGHT+1)*_vbe_font_scale;
-
-	// adjust position to compensate for starting just off screen for some reason
-	y += (CHAR_HEIGHT+1)*_vbe_font_scale/2;
+	x *= (CHAR_WIDTH+WIN_FONT_SCALE);
+	y *= (CHAR_HEIGHT+WIN_FONT_SCALE);
 
 	// offset for window
 	x += x_start;
@@ -263,7 +243,7 @@ void _vbe_write_char_win(Uint x, Uint y, Uint x_start, Uint y_start, Uint8 r, Ui
 		Uint16 x_res = vbe_mode_info->XResolution;
 		Uint16 y_res = vbe_mode_info->YResolution;
 
-		_draw_char( c, x, y, x_res, y_res, _vbe_font_scale, r, g, b, _vbe_draw_pixel );
+		_draw_char( c, x, y, x_res, y_res, WIN_FONT_SCALE, r, g, b, _vbe_draw_pixel );
 	}
 }
 
@@ -302,8 +282,8 @@ void _vbe_char_scroll(Uint min_y, Uint max_y, Uint lines)
  */
 char _vbe_get_char_win( Uint x, Uint y, Uint x_start, Uint y_start )
 {
-	Uint x_idx = x + (x_start/((CHAR_WIDTH + 1)*_vbe_font_scale));
-	Uint y_idx = y + (y_start/((CHAR_HEIGHT + 1)*_vbe_font_scale));
+	Uint x_idx = x + (x_start/((CHAR_WIDTH + WIN_FONT_SCALE)));
+	Uint y_idx = y + (y_start/((CHAR_HEIGHT + WIN_FONT_SCALE)));
 
 	if( x_idx < _vbe_char_res_x && y_idx < _vbe_char_res_y )
 		return _vbe_screen_text[x_idx + y_idx * _vbe_char_res_x];
