@@ -1189,7 +1189,7 @@ Status _mman_alloc_framebuffer(Pcb *pcb, void *videoBuf, Uint size) {
 	{
 		virt_map = pcb->virt_map;
 		pgdir = pcb->pgdir;
-		flags = MAP_WRITE | MAP_USER;
+		flags = MAP_WRITE | MAP_USER | MAP_SHARED;
 	}
 
 	pages = size >> 12;

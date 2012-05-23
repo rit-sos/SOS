@@ -62,6 +62,7 @@ void main(void)
 
 	while(1)
 	{
+		puts("$: ");
 		windowing_print_str("$: ");
 
 		if( getLine( line, 256 ) )

@@ -96,7 +96,7 @@ void windowing_flip_screen(void)
 	{
 		for( j = 0; j < WIN_CHAR_RES_Y; j++ )
 		{
-			_draw_char( _user_chars[i+WIN_CHAR_RES_Y*j] , i*(CHAR_WIDTH+1), j*(CHAR_HEIGHT+1),
+			_draw_char( _user_chars[i+WIN_CHAR_RES_X*j] , i*(CHAR_WIDTH+1), j*(CHAR_HEIGHT+1),
 					WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
 		}
 	}
@@ -130,14 +130,6 @@ void windowing_flip_rect( Uint x, Uint y, Uint w, Uint h )
 				}
 			}
 		}
-	}
-	else
-	{
-		puts("u_windowing: rect size out of bounds\n");
-		putx(x); puts("\n");
-		putx(y); puts("\n");
-		putx(w); puts("\n");
-		putx(h); puts("\n");
 	}
 }
 
