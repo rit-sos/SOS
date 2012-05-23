@@ -293,7 +293,7 @@ void _init( void ) {
 	_heap_init();
 	_fd_init();
 	_sio_init();
-//	_ata_init();
+	_ata_init();
 
 	c_puts( "\n" );
 
