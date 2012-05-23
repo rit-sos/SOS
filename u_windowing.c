@@ -96,8 +96,9 @@ void windowing_flip_screen(void)
 	{
 		for( j = 0; j < WIN_CHAR_RES_Y; j++ )
 		{
-			_draw_char( _user_chars[i+WIN_CHAR_RES_X*j] , i*(CHAR_WIDTH+1), j*(CHAR_HEIGHT+1),
-					WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
+			_draw_char( _user_chars[i+WIN_CHAR_RES_X*j] , i*(CHAR_WIDTH+WIN_FONT_SCALE), 
+					j*(CHAR_HEIGHT+WIN_FONT_SCALE), WINDOW_WIDTH, WINDOW_HEIGHT, 
+					WIN_FONT_SCALE, 255, 255, 255, &windowing_draw_pixel );
 		}
 	}
 }
@@ -271,12 +272,13 @@ void windowing_print_char(const char c)
 			{
 				_user_chars[x_disp + WIN_CHAR_RES_X*y_disp] = c;
 
-				_draw_char( c, x_disp*(CHAR_WIDTH+1), y_disp*(CHAR_HEIGHT+1),
-						WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
+				_draw_char( c, x_disp*(CHAR_WIDTH+WIN_FONT_SCALE), y_disp*(CHAR_HEIGHT+WIN_FONT_SCALE),
+						WINDOW_WIDTH, WINDOW_HEIGHT, WIN_FONT_SCALE, 255, 255, 255, &windowing_draw_pixel );
 
 				if( _user_flags & WIN_AUTO_FLIP )
-					windowing_flip_rect( x_disp*(CHAR_WIDTH+1), y_disp*(CHAR_HEIGHT+1), 
-							CHAR_WIDTH+1, CHAR_HEIGHT+1 );
+					windowing_flip_rect( x_disp*(CHAR_WIDTH+WIN_FONT_SCALE), 
+							y_disp*(CHAR_HEIGHT+WIN_FONT_SCALE), 
+							CHAR_WIDTH+WIN_FONT_SCALE, CHAR_HEIGHT+WIN_FONT_SCALE );
 			}
 
 			// increment display position
@@ -341,4 +343,13 @@ void windowing_set_char_pos( Uint x, Uint y )
 	if( y_disp > WIN_CHAR_RES_Y ) y_disp = WIN_CHAR_RES_Y - 1;
 }
 
-
+/*
+ * windowing_move_char_pos:	Set the position for characters
+ */
+void windowing_move_char_pos( int x, int y )
+{
+	if( (int)x_disp + x > WIN_CHAR_RES_X )	x_disp = WIN_CHAR_RES_X - 1;
+	if( (int)y_disp + x > WIN_CHAR_RES_Y )	y_disp = WIN_CHAR_RES_Y - 1;
+	if( (int)x_disp + x < 0 ) 				x_disp = 0;
+	if( (int)y_disp + x < 0 ) 				y_disp = 0;
+}

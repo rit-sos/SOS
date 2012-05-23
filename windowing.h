@@ -24,20 +24,25 @@
 /*
  * Number of characters that can fit in each section
  */
-#define WIN_CHAR_RES_X	(SCREEN_WIDTH/WIN_DIV_X/(CHAR_WIDTH+1))
-#define WIN_CHAR_RES_Y	(SCREEN_HEIGHT/WIN_DIV_Y/(CHAR_HEIGHT+1))
+#define WIN_FONT_SCALE	(1)
+#define CHAR_WIDTH		(_CHAR_WIDTH*WIN_FONT_SCALE)
+#define CHAR_HEIGHT		(_CHAR_HEIGHT*WIN_FONT_SCALE)
 
 /*
  * Pixel resolutions of each window
  */
-#define WINDOW_WIDTH	((SCREEN_WIDTH/WIN_DIV_X)-1)
-#define WINDOW_HEIGHT	((SCREEN_HEIGHT/WIN_DIV_Y)-1)
+#define WINDOW_WIDTH	((SCREEN_WIDTH-2*(WIN_DIV_X))/WIN_DIV_X)
+#define WINDOW_HEIGHT	((SCREEN_HEIGHT-2*(WIN_DIV_Y))/WIN_DIV_Y)
+
+#define WIN_CHAR_RES_X	(WINDOW_WIDTH/(CHAR_WIDTH+WIN_FONT_SCALE))
+#define WIN_CHAR_RES_Y	(WINDOW_HEIGHT/(CHAR_HEIGHT+WIN_FONT_SCALE))
 
 #define X_OFFSET(win)	( (((win)%WIN_DIV_X)*WIN_CHAR_RES_X) )
 #define Y_OFFSET(win)	( (((win)/WIN_DIV_X)*WIN_CHAR_RES_Y) )
 
-#define X_START(win)	( (((win)%WIN_DIV_X)*(WINDOW_WIDTH+1)) + ((win)%WIN_DIV_X) )
-#define Y_START(win)	( (((win)/WIN_DIV_X)*(WINDOW_HEIGHT+1)) + ((win)/WIN_DIV_X) )
+#define X_START(win)	( (((win)%WIN_DIV_X)*(WINDOW_WIDTH+WIN_DIV_X)) + ((win)%WIN_DIV_X) )
+#define Y_START(win)	( (((win)/WIN_DIV_X)*(WINDOW_HEIGHT+WIN_DIV_Y)) + ((win)/WIN_DIV_X) )
+
 
 #ifdef __KERNEL__20113__
 /*

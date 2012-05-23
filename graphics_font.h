@@ -18,8 +18,8 @@
 // GET_CHAR_FONT_PTR('a')[1] is the second col, etc
 #define GET_CHAR_FONT_PTR(i)	(&(font_map[5*i]))
 
-#define CHAR_WIDTH	(5)
-#define CHAR_HEIGHT	(8)
+#define _CHAR_WIDTH		(5)
+#define _CHAR_HEIGHT	(8)
 
 // 5 bytes per character, 127 characters
 //extern Uint8 font_map[];
