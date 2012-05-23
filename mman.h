@@ -1,3 +1,12 @@
+/*
+** mman.h
+**
+** Memory management definition, structures, and routines.
+** Implementations in mmanc.c and mmans.S
+**
+** Corey Bloodstein (cmb4247)
+*/
+
 #ifndef _MMAN_H
 #define _MMAN_H
 
@@ -9,7 +18,7 @@
 /* this should be somewhere above kernel and kernel data */
 #ifndef USER_ENTRY
 #error USER_ENTRY is not defined
-#elif (USER_ENTRY < 0x00200000)
+#elif (USER_ENTRY < 0x00c00000)
 #error USER_ENTRY is below the end of kernel data
 #endif
 
@@ -20,8 +29,68 @@
 /* grow stack down from here */
 #define USER_STACK	(0xd0000000)
 
-/* 2MB of 2-byte per-page refcounts */
+/* 4MB of 4-byte per-page refcounts */
 #define REFCOUNT_BASE	((Uint32*)0x00800000)
+
+/* maximum number of pages allowed in a (get|set)_user_data */
+#define MAX_TRANSFER_PAGES	16
+
+/*
+** Macros for manipulating memory maps
+*/
+#define CHECK_PAGE_BIT(M,X)	((M)[(X)>>5] &  (0x80000000 >> ((X) & 0x1f)) != 0)
+#define CLEAR_PAGE_BIT(M,X)	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f)))
+#define SET_PAGE_BIT(M,X)	((M)[(X)>>5] |= (0x80000000 >> ((X) & 0x1f)))
+
+/*
+#define CLEAR_PAGE_BIT(M,X)		{											\
+	if (((M) == _phys_map || (M) == _virt_map) && (X) < 0x0c00) {			\
+		_mman_panic((M), (X));												\
+	}																		\
+	((M)[(X)>>5] &= ~(0x80000000 >> ((X) & 0x1f))); }
+
+static void _mman_panic(Uint32 *map, Uint32 page) {
+	Uint32 *ptr;														\
+	c_printf("how did we get here? map=%08x, page=%08x, stack follows:\n",map,page); \
+	for (ptr = (Uint32*)_get_ebp(); ptr; ptr = (Uint32*)*ptr) {
+		c_printf("> %08x <\n", ptr[1]);	
+		break;
+	}
+	for(;;);
+	_kpanic("mman", "bad bad", FAILURE);
+}
+*/
+
+/*
+** Macros for manipulating physical page reference counts
+*/
+#define PAGE_REFCOUNT(X)	(((Uint32*)REFCOUNT_BASE)[(X)])
+#define PAGE_ADDREF(X)		(SET_PAGE_BIT(_phys_map,(X)),++(PAGE_REFCOUNT((X))))
+#define PAGE_RELEASE(X)		(--(PAGE_REFCOUNT((X))))
+
+/*
+#define PAGE_ADDREF(X)			(											\
+	SET_PAGE_BIT(_phys_map,(X)),											\
+	++(PAGE_REFCOUNT((X))),													\
+	(void)(((X) < 0xc00 && (X) != 0x24 && (X) != 0x23 && (X) != 0x3d)		\
+		? c_printf("page=%08x ref=%d\n",(X),PAGE_REFCOUNT((X))) : 0),		\
+	PAGE_REFCOUNT((X)))
+
+#define PAGE_RELEASE(X)			(											\
+	(X) == 0x22 ? _mman_panic(_phys_map,(X)),0 : --(PAGE_REFCOUNT((X))))
+*/
+
+#define PAGE_ADDREF_V(P,X,W)	{											\
+	Uint32 l_ppg;															\
+	if ((status = _mman_translate_page((P), (X), &l_ppg, (W))) != SUCCESS)	\
+		goto Cleanup;														\
+	PAGE_ADDREF(l_ppg); }
+
+#define PAGE_RELEASE_V(P,X,W)	{											\
+	Uint32 l_ppg;															\
+	if ((status = _mman_translate_page((P), (X), &l_ppg, (W))) != SUCCESS)	\
+		goto Cleanup;														\
+	PAGE_RELEASE(l_ppg); }
 
 /*
 ** Page directory defines and structures
@@ -137,44 +206,216 @@ typedef Uint32 *Memmap_ptr;
 
 #ifndef __ASM__20113__
 struct pcb;
-
-#define MAX_TRANSFER_PAGES	16
-
-/* exposed internal functions */
-Uint32 _mman_set_cr3(Pagedir_entry *pgdir);
-Uint32 _mman_get_cr0(void);
-Uint32 _mman_get_cr2(void);
-Uint32 _mman_get_cr3(void);
-Uint32 _mman_enable_paging(void);
-Uint32 _invlpg(void *ptr);
-void _mman_pagefault_isr(int vec, int code);
-Status _mman_pgdir_alloc(Pagedir_entry **pgdir);
-Status _mman_map_alloc(Memmap_ptr *map);
-Status _mman_map_free(Memmap_ptr map);
-
-/* exposed semi-internal functions */
-Status _mman_translate_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 *phys, Uint32 write);
-Status _mman_translate_addr(Pagedir_entry *pgdir, void *virt, void **phys, Uint32 write);
-Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 flags);
-Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt);
-Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *src, Memmap_ptr srcmap);
-void _mman_info(void);
-
-/* non-internal functions */
-void _mman_init(void *videoBuf, Uint size);
-Status _mman_proc_init(struct pcb *pcb);
-Status _mman_proc_copy(struct pcb *new, struct pcb *old);
-Status _mman_proc_exit(struct pcb *pcb);
-Status _mman_get_user_data(struct pcb *pcb, void *buf, void *virt, Uint32 size);
-Status _mman_set_user_data(struct pcb *pcb, void *virt, void *buf, Uint32 size);
-Status _mman_alloc(struct pcb *pcb, void **ptr, Uint32 size, Uint32 flags);
-Status _mman_alloc_at(struct pcb *pcb, void *ptr, Uint32 size, Uint32 flags);
-Status _mman_free(struct pcb *pcb, void *ptr, Uint32 size);
-
 extern struct pcb *_current;
 
+extern Pagedir _kpgdir PAGE_ALIGNED;
+extern Memmap_ptr _phys_map PAGE_ALIGNED;
+
+/*
+** Internal helper functions
+*/
+
+/*
+** (Assembly routine)
+** 
+** Set the cr3 register to a new value.
+**
+** The cr3 register is used to give the MMU the physical address of the
+** base of the page directory. Thus, calling this function switches the
+** current page directory.
+*/
+Uint32 _mman_set_cr3(Pagedir_entry *pgdir);
+
+/*
+** (Assembly routine)
+**
+** Get the contents of cr0.
+*/
+Uint32 _mman_get_cr0(void);
+
+/*
+** (Assembly routine)
+**
+** Get the contents of cr2.
+**
+** During a page fault, cr2 contains the faulting virtual address.
+*/
+Uint32 _mman_get_cr2(void);
+
+/*
+** (Assembly routine)
+**
+** Get the contents of cr3. See _mman_set_cr3 for details.
+*/
+Uint32 _mman_get_cr3(void);
+
+/*
+** (Assembly routine)
+**
+** Set the paging and supervisor write fault bits in cr0.
+*/
+Uint32 _mman_enable_paging(void);
+
+/*
+** (Assembly routine)
+**
+** Invalidate a TLB entry for a given virtual address in the current
+** virtual address space. Call to prevent a cached translation from
+** being used when kernel virtual pages change their corresponding
+** physical pages (present to present remapping).
+*/
+Uint32 _invlpg(void *ptr);
+
+/*
+** Pagefault handler ISR.
+**
+** vec should always be INT_VEC_PAGE_FAULT
+**
+** Code is a combination of PF_USER, PF_WRITE, and PF_PRESENT indicating
+** the fault. The faulting address is in cr2.
+*/
+void _mman_pagefault_isr(int vec, int code);
+
+/*
+** Allocate a new page directory or page table
+*/
+Status _mman_pgdir_alloc(Pagedir_entry **pgdir);
+
+/*
+** Allocate a new address space bitmap
+*/
+Status _mman_map_alloc(Memmap_ptr *map);
+
+/*
+** Release an unused page directory or page table
+*/
+Status _mman_pgdir_free(Pagedir_entry *pgdir);
+
+/*
+** Release an unused address space bitmap
+*/
+Status _mman_map_free(Memmap_ptr map);
+
+/*
+** Set up the framebuffer
+*/
+Status _mman_alloc_framebuffer(struct pcb *pcb, void *videoBuf, Uint size);
+
+/*
+** Semi-internal functions that are used elsewhere
+*/
+
+/*
+** Translate a virtual page to a physical page.
+**
+** Note: these are page numbers, not addresses.
+** To translate an address, call _mman_translate_addr.
+** Also, this translation is relative to the passed-in pgdir.
+**
+** "write" indicates whether the page should be writable (PT_WRITE).
+**
+** If pgdir != _kpgdir, the PT_USER flag is also checked.
+*/
+Status _mman_translate_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 *phys, Uint32 write);
+
+/*
+** Translate a virtual address to a physical address for a given process's
+** address space (pgdir).
+*/
+Status _mman_translate_addr(Pagedir_entry *pgdir, void *virt, void **phys, Uint32 write);
+
+/*
+** Map a virtual page to a physical page. Does not addref the pages.
+*/
+Status _mman_map_page(Pagedir_entry *pgdir, Uint32 virt, Uint32 phys, Uint32 flags);
+
+/*
+** Unmap a virtual page from an address space. Does not release the pages.
+*/
+Status _mman_unmap_page(Pagedir_entry *pgdir, Uint32 virt);
+
+/*
+** Allocate a region in virtual address space, and optionally call
+** _mman_alloc_at to finish the job. Does not addref the pages.
+*/
+Status _mman_alloc(struct pcb *pcb, void **ptr, Uint32 size, Uint32 flags);
+
+/*
+** Allocate physical memory to back a virtual memory region. If MAP_ZERO,
+** use zero-mapped pages. Addrefs the physical page and marks the virtual
+** pages as in-use.
+*/
+Status _mman_alloc_at(struct pcb *pcb, void *ptr, Uint32 size, Uint32 flags);
+
+/*
+** Release a region of virtual memory. Releases the physical pages and marks
+** them as free if their refcounts reach zero. Marks the virtual pages as
+** free.
+*/
+Status _mman_free(struct pcb *pcb, void *ptr, Uint32 size);
+
+/*
+** Copy a process's page directory into a new process's page directory for
+** fork(). All writable pages are marked copy on write in both the source
+** and destination page directories, and pages are addref'd appropriately.
+** Shared writable pages are not COW'd.
+*/
+Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *src, Memmap_ptr srcmap);
+
+/*
+** Print out some information about mman state.
+*/
+void _mman_info(void);
+
+
+/*
+** Functions intended to be called from outside of the module
+*/
+
+/*
+** Module init, sets up kernel page directory and turns on paging.
+*/
+void _mman_init(void *videoBuf, Uint size);
+
+/*
+** Sets up a new process's page directory. Used to create init, also
+** called during exec().
+*/
+Status _mman_proc_init(struct pcb *pcb);
+
+/*
+** Copy a process's memory mangement state for fork().
+** Calls _mman_pgdir_copy to do most of the work, but extra logic is
+** included here for setting up the new stack.
+*/
+Status _mman_proc_copy(struct pcb *new, struct pcb *old);
+
+/*
+** Clean up an exiting process's memory mangement information.
+*/
+Status _mman_proc_exit(struct pcb *pcb);
+
+/*
+** Copy a user buffer into kernel virtual address space.
+*/
+Status _mman_get_user_data(struct pcb *pcb, void *buf, void *virt, Uint32 size);
+
+/*
+** Copy a kernel buffer into a user process's address space.
+*/
+Status _mman_set_user_data(struct pcb *pcb, void *virt, void *buf, Uint32 size);
+
+/*
+** Switch to the current user process's (as defined by _current)
+** page directory.
+*/
 void _mman_restore_pgdir(void);
+
+/*
+** Switch to the kernel page directory
+*/
 void _mman_kernel_mode(void);
+
 
 #endif
 

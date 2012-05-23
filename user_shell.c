@@ -50,7 +50,7 @@ int strcmp( const char *a, const char *b )
 void main(void)
 {
 	char line[256];
-	int pid;
+	Uint pid;
 	Status status;
 
 	puts("user_shell: Starting\n");

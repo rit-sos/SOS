@@ -5,7 +5,10 @@
 **
 ** Author:	4003-506 class of 20113
 **
-** Contributor:
+** Contributor: Corey Bloodstein (cmb4247)
+**      Changed _create_process to use mman/VM.
+**      Added _get_proc_address.
+**      Added fault handler.
 **
 ** Description:	Miscellaneous OS support functions
 */
@@ -95,8 +98,12 @@ void _cleanup( Pcb *pcb ) {
 
 	_windowing_free_by_pid(pcb->pid);
 
+	if ((status = _shm_cleanup(pcb)) != SUCCESS) {
+		_kpanic("_cleanup", "_shm_cleanup: %s", status);
+	}
+
 	if ((status = _mman_proc_exit(pcb)) != SUCCESS) {
-		_kpanic("_cleanup", "_mman_proc_exit(pcb)", status);
+		_kpanic("_cleanup", "_mman_proc_exit(pcb): %s", status);
 	}
 
 	if( pcb->stack != NULL ) {
@@ -266,17 +273,23 @@ void _init( void ) {
 	*/
 	c_puts( "Module init: " );
 
+	/* core init */
 	_q_init();		// must be first
 	_pcb_init();
 	_stack_init();
+
+	/* memory init */
+	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size());
+	_heap_init();
+
+	/* module init (may use heap) */
+	_shm_init();
+	_sio_init();
+	_fd_init();
 	_syscall_init();
 	_sched_init();
 	_clock_init();
-	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size());
-	_heap_init();
-	_fd_init();
-	_sio_init();
-//	_ata_init();
+	//_ata_init();
 
 	c_puts( "\n" );
 
@@ -298,7 +311,16 @@ void _init( void ) {
 	__install_isr( INT_VEC_TIMER, _isr_clock );
 	__install_isr( INT_VEC_SYSCALL, _isr_syscall );
 	__install_isr( INT_VEC_SERIAL_PORT_1, _isr_sio );
-	__install_isr(INT_VEC_GENERAL_PROTECTION, __gp_isr);
+
+	__install_isr(INT_VEC_DIVIDE_ERROR, __fault_isr);
+	__install_isr(INT_VEC_INTO_DETECTED_OVERFLOW, __fault_isr);
+	__install_isr(INT_VEC_INVALID_OPCODE, __fault_isr);
+	__install_isr(INT_VEC_SEGMENT_NOT_PRESENT, __fault_isr);
+	__install_isr(INT_VEC_STACK_FAULT, __fault_isr);
+	__install_isr(INT_VEC_GENERAL_PROTECTION, __fault_isr);
+	__install_isr(INT_VEC_ALIGNMENT_CHECK, __fault_isr);
+	__install_isr(INT_VEC_MACHINE_CHECK, __fault_isr);
+	__install_isr(INT_VEC_SIMD_FP_EXCEPTION, __fault_isr);
 
 	/*
 	** Create the initial process
@@ -358,8 +380,7 @@ void _init( void ) {
 	c_puts( "System initialization complete.\n" );
 }
 
-void __gp_isr(int vector, int code) {
-	c_printf("*** GENERAL PROTECTION FAULT ***\n pid=%04x vec=0x%08x code=0x%08x\n", _current->pid, vector, code);
-//	_kpanic("(#GP)", "", 0);
+void __fault_isr(int vector, int code) {
+	c_printf("*** FAULT ***\n pid=%04x vec=0x%08x code=0x%08x\n", _current->pid, vector, code);
 	_sys_exit(_current);
 }
