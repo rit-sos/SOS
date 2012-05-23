@@ -18,7 +18,6 @@
 #define DELAY_LONG 100000000
 //#define SPAWN_A
 //#define SPAWN_MMAN
-//#define SPAWN_DISK
 //#define SPAWN_WINDOW_TEST
 #define SPAWN_SHELL
 //#define SPAWN_BAD
@@ -73,6 +72,8 @@
 //void init( void ) {
 void main(void) {
 	int i;
+	int c;
+
 	unsigned int pid;
 	unsigned int time;
 	unsigned int status;
@@ -81,6 +82,8 @@ void main(void) {
 	puts("init: my main lives at ");
 	putx((unsigned int)&main);
 	puts("\n");
+
+	fclose(CIO_FD); //flush CIO
 
 	//puts("hello from ring 3 init\n");
 
@@ -134,15 +137,10 @@ void main(void) {
 #ifdef SPAWN_DISK
 	status = fork( &pid );
 	if( status != SUCCESS ) {
-		puts("fork failed\n");
-		prt_status( "init: can't fork() user disk, status %s\n", status );
 	} else if( pid == 0 ) {
-		puts("i'm the child\n");
 		status = exec(user_disk_ID );
-		prt_status( "init: can't exec() user disk, status %s\n", status );
 		exit();
 	}
-	puts("i'm the parent\n");
 #endif
 
 #ifdef SPAWN_BAD

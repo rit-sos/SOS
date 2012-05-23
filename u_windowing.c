@@ -89,6 +89,9 @@ void windowing_cleanup(void)
  */
 void windowing_flip_screen(void)
 {
+	if( _user_flags & WIN_AUTO_FLIP )
+		return;
+
 	windowing_flip_rect( 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT );
 
 	int i, j;
@@ -96,8 +99,9 @@ void windowing_flip_screen(void)
 	{
 		for( j = 0; j < WIN_CHAR_RES_Y; j++ )
 		{
-			_draw_char( _user_chars[i+WIN_CHAR_RES_X*j] , i*(CHAR_WIDTH+1), j*(CHAR_HEIGHT+1),
-					WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
+			_draw_char( _user_chars[i+WIN_CHAR_RES_X*j] , i*(CHAR_WIDTH+WIN_FONT_SCALE), 
+					j*(CHAR_HEIGHT+WIN_FONT_SCALE), WINDOW_WIDTH, WINDOW_HEIGHT, 
+					WIN_FONT_SCALE, 255, 255, 255, &windowing_draw_pixel );
 		}
 	}
 }
@@ -108,7 +112,7 @@ void windowing_flip_screen(void)
 void windowing_flip_rect( Uint x, Uint y, Uint w, Uint h )
 {
 	int i, j;
-	if( _user_win >= 0 && 
+	if( !(_user_flags & WIN_AUTO_FLIP) &&  _user_win >= 0 && 
 			x < WINDOW_WIDTH && y < WINDOW_HEIGHT && 
 			x+w <= WINDOW_WIDTH && y+h <= WINDOW_HEIGHT )
 	{
@@ -148,9 +152,6 @@ void windowing_clear_screen(Uint8 r, Uint8 g, Uint8 b)
 				windowing_draw_pixel( x, y, r, g, b );
 			}
 		}
-
-		if( _user_flags & WIN_AUTO_FLIP )
-			windowing_flip_screen();
 	}
 }
 
@@ -165,6 +166,13 @@ void windowing_draw_pixel(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b)
 		{
 			Uint32 *pixel = &_user_buf[x + WINDOW_WIDTH*y];
 			*pixel = b | g<<8 | r<<16;
+
+			Uint fx = x+X_START(_user_win);
+			Uint fy = y+Y_START(_user_win);
+
+			if( _user_flags & WIN_AUTO_FLIP )
+				_framebuffer[ fx + SCREEN_WIDTH*(fy) ] = 
+					_user_buf[ x + WINDOW_WIDTH*(y) ];
 
 		}
 	}
@@ -253,8 +261,6 @@ void windowing_draw_line(Uint x0_u, Uint y0_u, Uint x1_u, Uint y1_u, Uint8 r, Ui
 			}
 
 		}
-		if( _user_flags & WIN_AUTO_FLIP )
-			windowing_flip_rect( min(x0_u, x1_u), min(y0_u, y1_u), abs(y1_u-y0_u), abs(x1_u-x0_u) );
 	}
 }
 
@@ -271,12 +277,8 @@ void windowing_print_char(const char c)
 			{
 				_user_chars[x_disp + WIN_CHAR_RES_X*y_disp] = c;
 
-				_draw_char( c, x_disp*(CHAR_WIDTH+1), y_disp*(CHAR_HEIGHT+1),
-						WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
-
-				if( _user_flags & WIN_AUTO_FLIP )
-					windowing_flip_rect( x_disp*(CHAR_WIDTH+1), y_disp*(CHAR_HEIGHT+1), 
-							CHAR_WIDTH+1, CHAR_HEIGHT+1 );
+				_draw_char( c, x_disp*(CHAR_WIDTH+WIN_FONT_SCALE), y_disp*(CHAR_HEIGHT+WIN_FONT_SCALE),
+						WINDOW_WIDTH, WINDOW_HEIGHT, WIN_FONT_SCALE, 255, 255, 255, &windowing_draw_pixel );
 			}
 
 			// increment display position
@@ -295,10 +297,18 @@ void windowing_print_char(const char c)
 					for( i = 0; i < WIN_CHAR_RES_X*WIN_CHAR_RES_Y - WIN_CHAR_RES_X; i++ )
 					{
 						_user_chars[i] = _user_chars[i+WIN_CHAR_RES_X];
+						_draw_char( c, (i%WIN_CHAR_RES_X)*(CHAR_WIDTH+WIN_FONT_SCALE), 
+								(i/WIN_CHAR_RES_X)*(CHAR_HEIGHT+WIN_FONT_SCALE),
+								WINDOW_WIDTH, WINDOW_HEIGHT, WIN_FONT_SCALE, 
+								255, 255, 255, &windowing_draw_pixel );
 					}
 					for( i = 0; i < WIN_CHAR_RES_X; i++ )
 					{
 						_user_chars[i + WIN_CHAR_RES_X*y_disp] = ' ';
+						_draw_char( c, i*(CHAR_WIDTH+WIN_FONT_SCALE), 
+								y_disp*(CHAR_HEIGHT+WIN_FONT_SCALE),
+								WINDOW_WIDTH, WINDOW_HEIGHT, WIN_FONT_SCALE, 
+								255, 255, 255, &windowing_draw_pixel );
 					}
 
 					windowing_flip_screen();
@@ -341,4 +351,16 @@ void windowing_set_char_pos( Uint x, Uint y )
 	if( y_disp > WIN_CHAR_RES_Y ) y_disp = WIN_CHAR_RES_Y - 1;
 }
 
+/*
+ * windowing_move_char_pos:	Set the position for characters
+ */
+void windowing_move_char_pos( int x, int y )
+{
+	if( (int)x_disp + x > WIN_CHAR_RES_X )	x_disp = WIN_CHAR_RES_X - 1;
+	else if( (int)x_disp + x < 0 ) 			x_disp = 0;
+	else									x_disp += x;
 
+	if( (int)y_disp + y > WIN_CHAR_RES_Y )	y_disp = WIN_CHAR_RES_Y - 1;
+	else if( (int)y_disp + y < 0 ) 			y_disp = 0;
+	else									y_disp += y;
+}

@@ -298,9 +298,17 @@ static void _sys_fclose( Pcb *pcb ) {
 		_sys_exit(pcb);
 		return;
 	}
-
-	status = _ata_fclose(&_fds[fd]);
-
+	if(fd == CIO_FD){
+		_fd_flush_tx(&_fds[fd]);
+		_fd_flush_rx(&_fds[fd]);
+		status = SUCCESS;
+	}else if (fd ==SIO_FD){
+		_fd_flush_tx(&_fds[fd]);
+		_fd_flush_rx(&_fds[fd]);
+		status = SUCCESS;
+	}else{
+		status = _ata_fclose(&_fds[fd]);
+	}
 	RET(pcb)=status;
 }
 /*
@@ -333,7 +341,7 @@ static void _sys_read( Pcb *pcb ) {
 		_sys_exit(pcb);
 		return;
 	}
-	
+
 	if (_fds[fd].flags & FD_UNUSED){
 		RET(pcb) = FAILURE;
 		return;
@@ -344,14 +352,12 @@ static void _sys_read( Pcb *pcb ) {
 	// if there was a character, return it to the process;
 	// otherwise, block the process until one comes in
 
-
 	if( ch >= 0 ) {
 
 		if ((status = _out_param(pcb, 2, ch & 0xff)) != SUCCESS) {
 			_sys_exit(pcb);
 			return;
 		}
-
 		RET(pcb) = SUCCESS;
 
 	} else if (_fds[fd].flags & FD_EOF){
@@ -748,8 +754,8 @@ static void _sys_exec( Pcb *pcb ) {
 }
 
 /*
-** Kernel entry point for user heap manager
-*/
+ ** Kernel entry point for user heap manager
+ */
 static void _sys_grow_heap(Pcb*);
 static void _sys_get_heap_size(Pcb*);
 static void _sys_get_heap_base(Pcb*);
@@ -809,18 +815,18 @@ static void _sys_get_heap_base(Pcb *pcb) {
 }
 
 /*
-** _sys_windowing_get_window - request a window to draw to
-**
-** implements:	Status windowing_get_window(Window *win);
-**
-** returns:
-**		SUCCESS	if window was reservered
-**		FAILURE	otherwise
-*/
+ ** _sys_windowing_get_window - request a window to draw to
+ **
+ ** implements:	Status windowing_get_window(Window *win);
+ **
+ ** returns:
+ **		SUCCESS	if window was reservered
+ **		FAILURE	otherwise
+ */
 static void _sys_windowing_get_window( Pcb *pcb ) {
 	Window win;
 	Status status;
- 
+
 	win = _windowing_get_window( pcb->pid );
 
 	// return window
@@ -836,13 +842,13 @@ static void _sys_windowing_get_window( Pcb *pcb ) {
 }
 
 /*
-** _sys_windowing_free_window - free the specified window
-**
-** implements:	Status windowing_free_window(Window win);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_windowing_free_window - free the specified window
+ **
+ ** implements:	Status windowing_free_window(Window win);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_windowing_free_window( Pcb *pcb ) {
 	Status status;
 	Uint32 win;
@@ -858,13 +864,13 @@ static void _sys_windowing_free_window( Pcb *pcb ) {
 }
 
 /*
-** _sys_windowing_print_str - display a string on the monitor
-**
-** implements:	Status windowing_print_str(Window win, int x, int y, const char *);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_windowing_print_str - display a string on the monitor
+ **
+ ** implements:	Status windowing_print_str(Window win, int x, int y, const char *);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_windowing_print_str( Pcb *pcb ) {
 	Uint32 win, x, y;
 	const char* str;
@@ -913,8 +919,8 @@ static void _sys_vbe_print( Pcb *pcb ) {
 	return;
 
 	/* ARG(pcb)[3] is a pointer */
-//	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char *)ARG(pcb)[3] );
-//	RET(pcb) = SUCCESS;
+	//	_vbe_write_str( ARG(pcb)[1], ARG(pcb)[2], 255, 255, 255, (const char *)ARG(pcb)[3] );
+	//	RET(pcb) = SUCCESS;
 }
 
 /*
@@ -953,13 +959,13 @@ static void _sys_vbe_print_char( Pcb *pcb ) {
 }
 
 /*
-** _sys_windowing_print_char - display a character on the monitor
-**
-** implements:	Status windowing_print_char(Window, win, int x, int y, const char);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_windowing_print_char - display a character on the monitor
+ **
+ ** implements:	Status windowing_print_char(Window, win, int x, int y, const char);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_windowing_print_char( Pcb *pcb ) {
 	Uint32 win, x, y, c;
 	Status status;
@@ -1026,14 +1032,13 @@ static void _sys_vbe_clearscreen( Pcb *pcb ) {
 }
 
 /*
-<<<<<<< HEAD
-** _sys_windowing_clearscreen - Clear the display
-**
-** implements:	Status windowing_clearscreen(Window win, char r, char g, char b);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_windowing_clearscreen - Clear the display
+ **
+ ** implements:	Status windowing_clearscreen(Window win, char r, char g, char b);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_windowing_clearscreen( Pcb *pcb ) {
 	Uint32 win, r, g, b;
 	Status status;
@@ -1122,13 +1127,13 @@ static void _sys_write_buf(Pcb *pcb) {
 }
 
 /*
-** _sys_windowing_draw_line - Draw a line in the window
-**
-** implements:	Status windowing_draw_line(Window win, Uint x0, Uint y0, Uint x1, Uint y1, char r, char g, char b);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_windowing_draw_line - Draw a line in the window
+ **
+ ** implements:	Status windowing_draw_line(Window win, Uint x0, Uint y0, Uint x1, Uint y1, char r, char g, char b);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_windowing_draw_line( Pcb *pcb ) {
 	Uint32 win, x0, y0, x1, y1, r, g, b;
 	Status status;
@@ -1231,13 +1236,13 @@ static void _sys_sys_sum(Pcb *pcb) {
 }
 
 /*
-** _sys_windowing_copy_rect - Copy the userspace buffer into video memory
-**
-** implements:	Status windowing_copy_rect(Window win, Uint x0, Uint y0, Uint w, Uint h, Uint *buf);
-**
-** returns:
-**		SUCCESS
-*/
+ ** _sys_windowing_copy_rect - Copy the userspace buffer into video memory
+ **
+ ** implements:	Status windowing_copy_rect(Window win, Uint x0, Uint y0, Uint w, Uint h, Uint *buf);
+ **
+ ** returns:
+ **		SUCCESS
+ */
 static void _sys_windowing_copy_rect( Pcb *pcb ) {
 	Uint32 win, x, y, w, h, u_buf;
 	Status status;

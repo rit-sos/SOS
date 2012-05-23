@@ -79,15 +79,33 @@ void prt_status( char *msg, unsigned int stat ) {
 
 }
 
+
+void put_char_or_code(int fd, int ch ) {
+	int i;
+	if( ch >= ' ' && ch < 0x7f ) {
+		write(fd, ch);
+	} else {
+		write(fd,'x');
+
+		for (i = 0; i < 2; ++i, ch <<= 4) {
+			if (((ch>>28) & 0x0f) >= 10) {
+				write(fd,'a' + ((ch>>28) & 0x0f) - 10);
+			} else {
+				write(fd,'0' + ((ch>>28) & 0x0f));
+			}
+		}
+	}
+}
+
 /*
-** spawnp - create a new process running a different program
-**		at a specific priority
-**
-** usage:  status = spawnp( &pid, prio, entry );
-**
-** returns the PID of the child via the 'pid' parameter on
-** success, and the status of the creation attempt
-*/
+ ** spawnp - create a new process running a different program
+ **		at a specific priority
+ **
+ ** usage:  status = spawnp( &pid, prio, entry );
+ **
+ ** returns the PID of the child via the 'pid' parameter on
+ ** success, and the status of the creation attempt
+ */
 
 //unsigned int spawnp( unsigned int *pid, unsigned int prio, void (*entry)(void) ) {
 unsigned int spawnp(unsigned int *pid, unsigned int prio, unsigned int entry_id) {
@@ -128,14 +146,14 @@ unsigned int spawnp(unsigned int *pid, unsigned int prio, unsigned int entry_id)
 }
 
 /*
-** spawn - create a new process running a different program
-**		at standard priority
-**
-** usage:  status = spawn( &pid, entry );
-**
-** returns the PID of the child via the 'pid' parameter on
-** success, and the status of the creation attempt
-*/
+ ** spawn - create a new process running a different program
+ **		at standard priority
+ **
+ ** usage:  status = spawn( &pid, entry );
+ **
+ ** returns the PID of the child via the 'pid' parameter on
+ ** success, and the status of the creation attempt
+ */
 
 //unsigned int spawn( unsigned int *pid, void (*entry)(void) ) {
 unsigned int spawn(unsigned int *pid, unsigned int entry_id) {

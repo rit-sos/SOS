@@ -146,6 +146,7 @@ Status read( int fd, int *buf);
 
 Status write(int fd, char buf);
 
+
 /*
 ** msleep - put the current process to sleep for some length of time
 **
@@ -473,6 +474,14 @@ int strlen(const char *str);
 
 Status puts(const char *str);
 void putx(unsigned int x);
+
+/*
+** put_char_or_code - write a single printable character or its code to the file descriptor
+**
+** usage:	put_char_or_code(fd, ch);
+**
+*/
+void put_char_or_code(int fd, int ch );
 #endif
 
 #endif

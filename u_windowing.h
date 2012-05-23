@@ -59,6 +59,11 @@ void windowing_draw_line(Uint x0, Uint y0, Uint x1, Uint y1, Uint8 r, Uint8 g, U
 void windowing_set_char_pos( Uint x, Uint y );
 
 /*
+ * windowing_move_char_pos:	Set the position for characters
+ */
+void windowing_move_char_pos( int x, int y );
+
+/*
  * windowing_print_char:	Draw a character onto the user frame buffer
  */
 void windowing_print_char(const char c);

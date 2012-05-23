@@ -36,6 +36,7 @@ const char *_kstatus_strings[] = {
 	"already exists",	/* ALREADY_EXISTS */
 	"out of bounds",	/* OUT OF BOUNDS */
 	"end of file", 		/* EOF */
+	"MOO", 		/* MOO*/
 };
 
 /*

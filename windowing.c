@@ -58,6 +58,7 @@ void _windowing_init(void)
 		for( i = 1; i < WIN_DIV_X ; i++ )
 		{
 			_vbe_draw_pixel(i * _vbe_get_width() / WIN_DIV_X, j, 127, 127, 127);
+			_vbe_draw_pixel(i * (_vbe_get_width() / WIN_DIV_X)-1, j, 127, 127, 127);
 		}
 	}
 }

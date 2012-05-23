@@ -47,13 +47,11 @@
 */
 
 void _put_char_or_code( int ch ) {
-
 	if( ch >= ' ' && ch < 0x7f ) {
 		c_putchar( ch );
 	} else {
 		c_printf( "\\x%02x", ch );
 	}
-
 }
 
 
@@ -289,7 +287,7 @@ void _init( void ) {
 	_syscall_init();
 	_sched_init();
 	_clock_init();
-	//_ata_init();
+	_ata_init();
 
 	c_puts( "\n" );
 

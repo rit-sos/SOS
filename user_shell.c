@@ -21,7 +21,6 @@ int getLine( char *line, int size )
 		if( read( CIO_FD, &c ) != SUCCESS )
 		{
 			windowing_print_str("\nuser_shell: read() Error");
-			puts("\nuser_shell: read() Error");
 			return -1;
 		}
 
@@ -40,7 +39,7 @@ int getLine( char *line, int size )
 int strcmp( const char *a, const char *b )
 {
 	if( !a || !b )
-		return -1;
+		return -1;	// lets say a less than for a null string
 
 	while( *a != '\0' && *b != '\0' && *a == *b )
 	{
@@ -65,7 +64,6 @@ void main(void)
 
 	while(1)
 	{
-		puts("$: ");
 		windowing_print_str("$: ");
 
 		if( getLine( line, 256 ) )
@@ -104,11 +102,11 @@ void main(void)
 				// found our program
 				status = fork( &pid );
 				if( status != SUCCESS ) {
-					puts("fork failed\n");
+					windowing_print_str("fork failed\n");
 					//prt_status( "user_shell: can't fork(), %s\n", status );
 				} else if( pid == 0 ) {
 					status = exec( prog->id );
-					puts("exec failed\n");
+					windowing_print_str("exec failed\n");
 					//prt_status( "user_shell: can't exec(), status %s\n", status );
 					exit();
 				}
@@ -118,7 +116,7 @@ void main(void)
 		}
 
 		// not a command or empty string
-		if( !done && strcmp( prog->cmd, "" ) != 0 )
+		if( !done && (strcmp( line, "" ) != 0) )
 		{
 			// no such command
 			windowing_print_str("Error no such command: \"");

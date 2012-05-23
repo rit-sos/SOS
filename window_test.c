@@ -29,18 +29,17 @@ void main( void ) {
 	windowing_print_str("This is a very very very very very very very very very very "
 			"very very very very very very very very very long string\n");
 
-	windowing_print_str("window_test exiting in ");
+	windowing_print_str("window_test exiting in xxx");
 
 	windowing_flip_screen();
 
 	int i;
 	for( i = DELAY_TIME; i > 0; i-- )
 	{
-		// print timer starting at (23,4)
 		char c;
 
 		c = (i % 1000) / 100;
-		windowing_set_char_pos(23, 3);
+		windowing_move_char_pos(-3, 0);
 		windowing_print_char(c+'0');
 
 		c = (i % 100) / 10;
