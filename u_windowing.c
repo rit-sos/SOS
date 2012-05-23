@@ -349,7 +349,10 @@ void windowing_set_char_pos( Uint x, Uint y )
 void windowing_move_char_pos( int x, int y )
 {
 	if( (int)x_disp + x > WIN_CHAR_RES_X )	x_disp = WIN_CHAR_RES_X - 1;
-	if( (int)y_disp + x > WIN_CHAR_RES_Y )	y_disp = WIN_CHAR_RES_Y - 1;
-	if( (int)x_disp + x < 0 ) 				x_disp = 0;
-	if( (int)y_disp + x < 0 ) 				y_disp = 0;
+	else if( (int)x_disp + x < 0 ) 			x_disp = 0;
+	else									x_disp += x;
+
+	if( (int)y_disp + y > WIN_CHAR_RES_Y )	y_disp = WIN_CHAR_RES_Y - 1;
+	else if( (int)y_disp + y < 0 ) 			y_disp = 0;
+	else									y_disp += y;
 }
