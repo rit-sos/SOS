@@ -20,7 +20,9 @@
 //#define SPAWN_MMAN
 //#define SPAWN_DISK
 //#define SPAWN_WINDOW_TEST
-#define SPAWN_SHELL
+//#define SPAWN_SHELL
+//#define SPAWN_BAD
+//#define SPAWN_SHM
 
 /*
 ** USER PROCESSES
@@ -143,21 +145,15 @@ void main(void) {
 	puts("i'm the parent\n");
 #endif
 
-#ifdef SPAWN_C
-	status = fork( &pid );
+#ifdef SPAWN_BAD
+	status = spawn( &pid, bad_user_ID );
 	if( status != SUCCESS ) {
-		//prt_status( "init: can't fork() user C, status %s\n", status );
-	} else if( pid == 0 ) {
-		status = exec( user_c );
-		//prt_status( "init: can't exec() user C, status %s\n", status );
-		exit();
+		puts("spawn bad_user failed\n");
 	}
 #endif
 
-	// for most of the rest, we'll use spawn()
-
-#ifdef SPAWN_D
-	status = spawn( &pid, user_d );
+#ifdef SPAWN_SHM
+	status = spawn( &pid, shm_test_ID );
 	if( status != SUCCESS ) {
 		//prt_status( "init: can't spawn() user D, status %s\n", status );
 	}

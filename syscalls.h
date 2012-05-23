@@ -51,20 +51,23 @@
 #define SYS_write_buf		22
 #define SYS_sys_sum			23
 #define SYS_set_test		24
+#define SYS_shm_create		25
+#define SYS_shm_open		26
+#define SYS_shm_close		27
 
 /* windowing syscalls */
-#define	SYS_s_windowing_get_window		25
-#define	SYS_s_windowing_free_window		26
-#define	SYS_s_windowing_print_str		27
-#define	SYS_s_windowing_print_char		28
-#define	SYS_s_windowing_clearscreen		29
-#define	SYS_s_windowing_draw_line		30
-#define	SYS_s_windowing_copy_rect		31
-#define	SYS_s_map_framebuffer			32
+#define	SYS_s_windowing_get_window		28
+#define	SYS_s_windowing_free_window		29
+#define	SYS_s_windowing_print_str		30
+#define	SYS_s_windowing_print_char		31
+#define	SYS_s_windowing_clearscreen		32
+#define	SYS_s_windowing_draw_line		33
+#define	SYS_s_windowing_copy_rect		34
+#define	SYS_s_map_framebuffer			35
 
 // number of "real" system calls
 
-#define	N_SYSCALLS	33
+#define	N_SYSCALLS	36
 
 // dummy system call code to test the syscall ISR
 
@@ -124,7 +127,25 @@ void _sys_exit(Pcb*);
 /*
 ** Export _in_param and _out_param for other ISRs
 */
+
+/*
+** Wrapper around _mman_get_user_data to read a 4-byte (and 4-byte-aligned)
+** value from the user stack.
+**
+** Example: get the first parameter to a system call
+**   status = _in_param(pcb, 1, &val);
+*/
 Status _in_param(Pcb *pcb, Int32 index, Uint32 *buf);
+
+/*
+** Wrapper around _mman_get_user_data and _mman_set_user_data to read a
+** pointer to a return value and assign into it. For example, the user
+** would call:
+**   status = read(&ch);
+** and the syscall handler would call:
+**   status = _out_param(pcb, 1, ch);
+** to send the character to the user.
+*/
 Status _out_param(Pcb *pcb, Int32 index, Uint32 data);
 
 #endif

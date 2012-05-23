@@ -1,5 +1,23 @@
+/*
+** umem.c
+**
+** User-space memory library functions.
+**
+** Corey Bloodstein (cmb4247)
+*/
+
 #include "headers.h"
 #include "heaps.h"
+
+/*
+** The heap manager forms a doubly linked list of allocation nodes (Heapbufs).
+** Each Heapbuf has a pointer to the next and previous allocation in the list.
+** When doing a new allocation, the heap manager searches from the beginning
+** of the list, looking at the difference between the end of each heap buffer
+** and the beginning of the next heap tag to see if space exists to insert.
+** If no such space exists, it will append the allocation to the end of the list,
+** expanding the heap with grow_heap() if necessary.
+*/
 
 /*
 ** Private heap management globals
@@ -15,6 +33,9 @@ static unsigned int heap_extent;
 ** Public buffer manipulation functions
 */
 
+/*
+** Set each byte of a buffer to a given byte value.
+*/
 void *memset(void *ptr, int byte, unsigned int size) {
 	int i = size;
 	unsigned char b = byte & 0xff;
@@ -28,6 +49,9 @@ void *memset(void *ptr, int byte, unsigned int size) {
 	return out;
 }
 
+/*
+** Copy a buffer to another buffer.
+*/
 void *memcpy(void *dst, void *src, unsigned int size) {
 	int i = size;
 	void *out = dst;
@@ -75,7 +99,7 @@ void heap_init(void) {
 **
 ** usage: ptr = malloc(size);
 **
-** Simple, slow first-fit allocator
+** Simple, slow first-fit allocator.
 */
 void *malloc(unsigned int size) {
 	void *ptr;
@@ -135,21 +159,19 @@ void *malloc(unsigned int size) {
 		if (!curr) {
 			ptr = (void*)prev->buf + prev->size;
 		}
-	}	
+	}
 
 	if (!curr) {
-
 		/* is the new pointer past the end of the heap? */
 		if (ptr + real_size > heap_end_ptr) {
 			/* is there any hope of fitting it? */
 			if (ptr + real_size <= (void*)(USER_HEAP_BASE+HEAP_CHUNK_SIZE*USER_MAX_CHUNKS)-heap_extent) {
 				/* try to grow the heap */
 				do {
-					puts("growing heap\n");
 					if (grow_heap(&heap_grow_size) != SUCCESS) {
 						return NULL;
 					} else {
-						heap_end_ptr += HEAP_CHUNK_SIZE;
+						heap_end_ptr = heap_start_ptr + heap_grow_size;
 					}
 				} while(ptr + real_size > heap_end_ptr);
 			} else {
@@ -181,6 +203,47 @@ void *malloc(unsigned int size) {
 	tag->size = size;
 
 	return tag->buf;
+}
+
+void *realloc(void *ptr, unsigned int size) {
+	Heapbuf *tag;
+	void *new;
+
+	/* don't do anything if the input doesn't make sense */
+	if (!size || size > HEAP_CHUNK_SIZE*USER_MAX_CHUNKS) {
+		return ptr;
+	}
+
+	/* if we got NULL, just do malloc */
+	if (!ptr) {
+		return malloc(size);
+	}
+
+	tag = (ptr - HEAP_TAG_SIZE);
+
+	/* are we increasing the size or decreasing? */
+	if (size < tag->size) {
+		/* decreasing is easy, just set the size in the tag and return */
+		tag->size = size;
+		return ptr;
+	} else if (tag->next == NULL || (void*)(tag->next) - (void*)(tag->buf) >= size) {
+		/* in this case, there's room to grow the current buffer */
+		tag->size = size;
+		return ptr;
+	} else {
+		/* unfortunately we need to copy in this case */
+		new = malloc(size);
+
+		if (!new) {
+			free(ptr);
+			return NULL;
+		}
+
+		memcpy(new, ptr, tag->size);
+
+		free(ptr);
+		return new;
+	}
 }
 
 void free(void *ptr) {
@@ -221,3 +284,17 @@ void free(void *ptr) {
 		}
 	}
 }
+
+Status shm_create(const char *name, unsigned int min_size, unsigned int flags, void **ptr) {
+	return real_shm_create(name, strlen(name), min_size, flags, ptr);
+}
+
+Status shm_open(const char *name, void **ptr) {
+	return real_shm_open(name, strlen(name), ptr);
+}
+
+Status shm_close(const char *name) {
+	return real_shm_close(name, strlen(name));
+}
+
+

@@ -1,3 +1,10 @@
+/*
+** offsets.c
+**
+** Used to generate offsets.h, the offsets of the members of the pcb and
+** context, for use in isr_stubs.S.
+*/
+
 #define _HEADERS_H
 #define _CLOCK_H
 #define _PROCESSES_H
@@ -30,6 +37,7 @@ int main(int argc, char **argv) {
 	printf("/* PCB offsets */\n");
 	printf("#define PCB_CONTEXT		(%d)\n", offsetof(Pcb, context));
 	printf("#define PCB_HEAPINFO	(%d)\n", offsetof(Pcb, heapinfo));
+	printf("#define PCB_SHMINFO		(%d)\n", offsetof(Pcb, shminfo));
 	printf("#define PCB_STACK		(%d)\n", offsetof(Pcb, stack));
 	printf("#define PCB_VIRT_MAP	(%d)\n", offsetof(Pcb, virt_map));
 	printf("#define PCB_PGDIR		(%d)\n", offsetof(Pcb, pgdir));
