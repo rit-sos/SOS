@@ -39,7 +39,7 @@ int getLine( char *line, int size )
 int strcmp( const char *a, const char *b )
 {
 	if( !a || !b )
-		return -1;
+		return -1;	// lets say a less than for a null string
 
 	while( *a != '\0' && *b != '\0' && *a == *b )
 	{
@@ -116,7 +116,7 @@ void main(void)
 		}
 
 		// not a command or empty string
-		if( !done && strcmp( prog->cmd, "" ) != 0 )
+		if( !done && (strcmp( line, "" ) != 0) )
 		{
 			// no such command
 			windowing_print_str("Error no such command: \"");
