@@ -109,12 +109,12 @@ Fd *_fd_alloc(Flags flags){
 			fd->inbuffer=(Buffer *)_kmalloc(sizeof(Buffer));
 		}
 
-		fd->read_index=0;	
-		fd->write_index=0;	
-		fd->inbuffer->in=0;	
-		fd->inbuffer->out=0;	
-		fd->outbuffer->in=0;	
-		fd->outbuffer->out=0;	
+		fd->read_index=0;
+		fd->write_index=0;
+		fd->inbuffer->in=0;
+		fd->inbuffer->out=0;
+		fd->outbuffer->in=0;
+		fd->outbuffer->out=0;
 	}
 	return fd;
 
@@ -176,6 +176,10 @@ void _fd_init(void){
 	_fds[CIO_FD].flags= FD_RW;
 	_fds[CIO_FD].rxwatermark= 1;
 	_fds[CIO_FD].txwatermark= 1;
+	_fds[CIO_FD].inbuffer->in=0;
+	_fds[CIO_FD].inbuffer->out=0;
+	_fds[CIO_FD].outbuffer->in=0;
+	_fds[CIO_FD].outbuffer->out=0;
 
 	status = _q_alloc(&_reading,&_comp_ascend_uint);
 	if( status != SUCCESS ) {
@@ -303,7 +307,6 @@ void _fd_flush_tx(Fd *fd){
  **
  */
 void _fd_readDone(Fd *fd){
-
 	Pcb *pcb;
 	Key key;
 	Status status;
@@ -363,7 +366,6 @@ int _fd_writeDone(Fd *fd){
 	int c;
 
 	key.u = _fd_lookup(fd);
-
 
 	//if outbuffer is not empty
 	if(!buffer_empty(fd->outbuffer)){

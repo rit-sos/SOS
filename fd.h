@@ -96,7 +96,7 @@ Fd *_fd_alloc(Flags flags);
 Status _fd_dealloc(Fd *toFree);
 
 /*
-** _init_fd()
+** _fd_init(void)
 **
 ** initializes the file descriptor module
 **
