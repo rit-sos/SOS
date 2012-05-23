@@ -38,18 +38,18 @@ void handle_idle_request(Drive *d){
 		_kpanic("handle_idle_request", "remove status", status);
 	}
 
-	if (! (read_status(d) & (BSY | DRQ)) ){
+	if (! (_ata_pio_read_status(d) & (BSY | DRQ)) ){
 		if (req->read){
 			//send read request and add the data queue
 			d->state=READING;
 			req->st = WAIT_ON_DATA;
 			_q_insert(data_q, (void *) req, key);
-			send_read(req->fd->device_data);
+			_ata_pio_send_read(req->fd->device_data);
 		} else {
 			//transfer data and send write reqest
 			d->state=WRITING;
-			send_write(req->fd->device_data);
-			write_fd_block(req->fd);
+			_ata_pio_send_write(req->fd->device_data);
+			_ata_pio_write_fd_block(req->fd);
 			_fd_writeDone(req->fd);
 			_ioreq_dealloc(req);
 		}
@@ -69,7 +69,15 @@ void handle_data_request(Drive *d){
 	if(status == NOT_FOUND || status == EMPTY_QUEUE){
 		req = NULL; //wasn't found
 		//no data request on disk. Unsolicited data
-		_kpanic("handle_data_request", "Got unsolicited data..",FAILURE);
+		int i,j;
+		for (i =0; i< 4;i++){
+			for (j=0;j<4;j++){
+				if (&_busses[i].drives[j]==d){
+					c_printf("bus[%d].drive[%d] %s",i,j,d->model);
+				}
+			}
+		}
+		_kpanic("handle_data_request", "Got unsolicited data.",FAILURE);
 		return;
 	}
 

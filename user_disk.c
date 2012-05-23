@@ -43,22 +43,22 @@ void main( void ) {
 	putx((Uint32)fd);
 
 
+	status = read(CIO_FD, &c );
 	for(i=0;i<512*2;i++){
 		status = read(fd, &c);
 		data[i] = c;
-		status = write(SIO_FD, c);
+		put_char_or_code(SIO_FD, c);
 	}
 
 
 	status = write(SIO_FD, '\n');
-
 	for( i = 0; i < 512 + 256 ; ++i ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
 		if( status != SUCCESS ) {
 			//prt_status( "Disk user, read status %s\n", status );
 		}
-		status = write(fd, data[i] +1);
+		status = write(fd, i < 530 ? 'p' : 'j');
 		if( status != SUCCESS ) {
 			puts( "Disk user, write failed");
 		}
@@ -68,7 +68,7 @@ void main( void ) {
 
 	for(i=0;i<512*2-1;i++){
 		status = read(fd,&c);
-		status = write(SIO_FD, c);
+		put_char_or_code(SIO_FD, c);
 	}
 
 	read(CIO_FD,&c);
@@ -90,7 +90,7 @@ void main( void ) {
 		for( j = 0; j < DELAY_STD; ++j )
 			continue;
 		status = read(fd,&c);
-		status = write(SIO_FD, c);
+		put_char_or_code(SIO_FD, c);
 	}
 
 	puts("waiting\n");

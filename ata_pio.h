@@ -47,10 +47,12 @@
  **Commands
  */
 
-#define IDENTIFY		0xEC
+#define IDENTIFY			0xEC
+#define READ_SECTORS		0x20
+#define WRITE_SECTORS		0x30
 #define READ_SECTORS_EXT 	0x24
 #define WRITE_SECTORS_EXT 	0x34
-#define FLUSH_CACHE		0xE7
+#define FLUSH_CACHE			0xE7
 
 typedef struct Identify_packet{
 	char devtype[2];
@@ -69,21 +71,23 @@ typedef struct Identify_packet{
 extern Uint16 *block;
 
 
-void send_read(Ata_fd_data *dev_data);
-void send_write(Ata_fd_data *dev_data);
-void read_block(Uint16 *block, Drive *d);
-void write_block(Uint16 *block, Drive *d);
-void write_fd_block(Fd* fd);
-void flush_cache(Drive *d);
-void delay(Uint32 control);
-void selectDrive(Drive *d, Uint8 mode);
-void disableIRQ(Drive *d);
-void enableIRQ(Drive *d);
-void _ata_reset(Uint32 control);
-void lba_set_sectors(Drive *d, Uint64 sector, Uint16 sectorcount);
-void send_command(Drive *d, Uint8 cmd);
-char read_status(Drive *d);
-void read_busmaster(Bus *b);
-int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d );
+void _ata_pio_lba48_set_sectors(Drive *d, Uint64 sector, Uint16 sectorcount);
+void _ata_pio_lba28_set_sectors(Drive *d, Uint sector, Uint8 sectorcount);
+void _ata_pio_send_read(Ata_fd_data *dev_data);
+void _ata_pio_send_write(Ata_fd_data *dev_data);
+void _ata_pio_read_block(Uint16 *block, Drive *d);
+void _ata_pio_write_block(Uint16 *block, Drive *d);
+void _ata_pio_write_fd_block(Fd* fd);
+void _ata_pio_flush_cache(Drive *d);
+void _ata_pio_delay(Uint32 control);
+void _ata_pio_selectDrive(Drive *d, Uint8 mode);
+void _ata_pio_disableIRQ(Drive *d);
+void _ata_pio_enableIRQ(Drive *d);
+void _ata_pio_reset(Uint32 control);
+void _ata_pio_send_command(Drive *d, Uint8 cmd);
+char _ata_pio_read_status(Drive *d);
+void _ata_pio_read_busmaster(Bus *b);
+int _ata_pio_identify(int master, Uint32 base, Uint32 control, Drive* d );
+
 
 #endif

@@ -126,7 +126,7 @@ Status _ata_read_finish(Fd* fd){
 	dev_data=(Ata_fd_data *)fd->device_data;
 	data=(char *)block;
 
-	read_block(block, dev_data->d);
+	_ata_pio_read_block(block, dev_data->d);
 
 	for(i =0;i<SECTOR_SIZE;i++){
 		_fd_readBack(fd,data[i]);
@@ -155,26 +155,26 @@ void _isr_ata( int vector, int code ) {
 	}
 
 	//read the busmaster status
-	read_busmaster(&_busses[i]);
+	_ata_pio_read_busmaster(&_busses[i]);
 
 	for(j=0;j<ATA_DRIVES_PER_BUS;j++){
 		d= &_busses[i].drives[j];
-		status = read_status(d);
+		status = _ata_pio_read_status(d);
 
-		if(status & ERR){
+		if(d->type != INVALID_DRIVE && (status & ERR || status & DF) ){
 			//crap.. 
 			c_printf("isr: vector %x code %x\n", vector, code);
 			c_printf("b[%d].d[%d] Status %x\n",i,j,status);
 
-			disableIRQ(d);
+			_ata_pio_disableIRQ(d);
 			d->type = INVALID_DRIVE;
 		}
 
-		if(status & DRQ){ //drive has provided data
+		if(status & DRQ && !(status & BSY) ){ //drive has provided data
 			d->state=READING;
 			handle_data_request(d);
 		}
-		if (status == 0x50 ){ // drive is idle
+		if (status == 0x50 && !(status & BSY)){ // drive is idle
 			d->state=IDLE;
 			handle_idle_request(d);
 		}
@@ -245,7 +245,7 @@ Status _ata_flush(Fd *fd){
 	dev_data=(Ata_fd_data *)fd->device_data;
 	data=(char *)block;
 
-	disableIRQ(dev_data->d);
+	_ata_pio_disableIRQ(dev_data->d);
 
 	if(fd->write_index % SECTOR_SIZE){
 		blocks_rw = read_raw_blocking(dev_data->d,
@@ -253,7 +253,7 @@ Status _ata_flush(Fd *fd){
 				1, block);
 		if(blocks_rw != 1){
 			c_puts("error reading back block on writeback");
-			enableIRQ(dev_data->d);
+			_ata_pio_enableIRQ(dev_data->d);
 			return FAILURE;
 		}
 		for(i = 0 ; i < fd->write_index % SECTOR_SIZE;i++){
@@ -264,11 +264,11 @@ Status _ata_flush(Fd *fd){
 				1, block);
 		if(blocks_rw != 1){
 			c_puts("error writing block on writeback");
-			enableIRQ(dev_data->d);
+			_ata_pio_enableIRQ(dev_data->d);
 			return FAILURE;
 		}
 	}
-	enableIRQ(dev_data->d);
+	_ata_pio_enableIRQ(dev_data->d);
 	return SUCCESS;
 }
 
@@ -287,10 +287,10 @@ Status _ata_read_start(Fd* fd){
 	}
 
 
-	enableIRQ(dev_data->d);
 	_ioreq_enqueue(dev_data->d, fd , 1, WAIT_ON_IDLE);
+	_ata_pio_enableIRQ(dev_data->d);
 
-	if (dev_data->d->state==IDLE){
+	if (! (_ata_pio_read_status(dev_data->d) & BSY)){
 		handle_idle_request(dev_data->d);
 	}
 
@@ -308,10 +308,10 @@ Status _ata_write_start(Fd* fd){
 		fd->flags |= FD_EOF;
 		return EOF;
 	}
-	enableIRQ(dev_data->d);
 	_ioreq_enqueue(dev_data->d, fd, 0, WAIT_ON_IDLE);
-
-	if (dev_data->d->state==IDLE){
+	_ata_pio_enableIRQ(dev_data->d);
+	
+	if (! (_ata_pio_read_status(dev_data->d) & BSY)){
 		handle_idle_request(dev_data->d);
 	}
 
@@ -405,18 +405,18 @@ int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf )
 		return -1;	
 	}
 
-	while (read_status(d) & (BSY | DRQ)); //spin until not busy. TODO:add to blocked queue
+	while (_ata_pio_read_status(d) & (BSY | DRQ)); //spin until not busy. TODO:add to blocked queue
 
 	switch(d->type){
 		case LBA48:
-			lba_set_sectors(d, sector, sectorcount);
+			_ata_pio_lba48_set_sectors(d, sector, sectorcount);
 			//Send the "READ SECTORS EXT" command (0x24) to port base+COMMAND:
-			send_command(d,READ_SECTORS_EXT);
+			_ata_pio_send_command(d,READ_SECTORS_EXT);
 			//for each sector
 			for(i=0;i<sectorcount;i++){
 				//read status until error or DRQ
 				do {
-					status = read_status(d);
+					status = _ata_pio_read_status(d);
 				}while(status & BSY);
 
 				if(status & (ERR | DF) || !(status & DRQ) ){
@@ -424,13 +424,28 @@ int read_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf )
 					c_printf("read error. status: %x\n",status);
 					return -1;
 				}
-
-				read_block(&buf[i*256],d);
+				_ata_pio_read_block(&buf[i*256],d);
 			}
 			break;
 
 		case LBA28:
-			//selectDrive(d,LBA_MODE);
+			_ata_pio_lba28_set_sectors(d, sector, sectorcount);
+			//Send the "READ SECTORS EXT" command (0x24) to port base+COMMAND:
+			_ata_pio_send_command(d,READ_SECTORS);
+			//for each sector
+			for(i=0;i<sectorcount;i++){
+				//read status until error or DRQ
+				do {
+					status = _ata_pio_read_status(d);
+				}while(status & BSY);
+
+				if(status & (ERR | DF) || !(status & DRQ) ){
+					//there was an error requesting
+					c_printf("read error. status: %x\n",status);
+					return -1;
+				}
+				_ata_pio_read_block(&buf[i*256],d);
+			}
 
 			break;
 
@@ -457,18 +472,18 @@ int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf 
 		return -1;
 	}
 
-	while (read_status(d) & (BSY | DRQ)); //spin until not busy. TODO:add to blocked queue
+	while (_ata_pio_read_status(d) & (BSY | DRQ)); //spin until not busy. TODO:add to blocked queue
 
 	switch(d->type){
 		case LBA48:
-			lba_set_sectors(d, sector, sectorcount);
+			_ata_pio_lba48_set_sectors(d, sector, sectorcount);
 			//Send the "READ SECTORS EXT" command (0x24) to port base+COMMAND:
-			send_command(d,WRITE_SECTORS_EXT);
+			_ata_pio_send_command(d,WRITE_SECTORS_EXT);
 
 			for(i=0;i<sectorcount;i++){
 				//read status until error or DRQ
 				do {
-					status = read_status(d);
+					status = _ata_pio_read_status(d);
 				}while(status & BSY);
 
 				if(status & (ERR | DF) || !(status & DRQ) ){
@@ -476,13 +491,28 @@ int write_raw_blocking(Drive* d, Uint64 sector, Uint16 sectorcount, Uint16 *buf 
 					c_printf("write error. status: %x\n",status);
 					return -1;
 				}
-
-				write_block(&buf[i*256],d);
+				_ata_pio_write_block(&buf[i*256],d);
 			}
 			break;
 
 		case LBA28:
-			//selectDrive(d,LBA_MODE);
+			_ata_pio_lba28_set_sectors(d, sector, sectorcount);
+			//Send the "READ SECTORS EXT" command (0x24) to port base+COMMAND:
+			_ata_pio_send_command(d,WRITE_SECTORS);
+
+			for(i=0;i<sectorcount;i++){
+				//read status until error or DRQ
+				do {
+					status = _ata_pio_read_status(d);
+				}while(status & BSY);
+
+				if(status & (ERR | DF) || !(status & DRQ) ){
+					//there was an error requesting
+					c_printf("write error. status: %x\n",status);
+					return -1;
+				}
+				_ata_pio_write_block(&buf[i*256],d);
+			}
 
 			break;
 
@@ -595,14 +625,14 @@ void _ata_init(void){
 			//TODO: figure out why regular PATA drives aren't working
 			if (1 || BAR[0] != 0x1F0){
 				c_printf("Bus[%d].drive[%d]:",currentBus, 0);
-				_ata_identify(0, BAR[0],BAR[1]+2,&_busses[currentBus].drives[0]);
+				_ata_pio_identify(0, BAR[0],BAR[1]+2,&_busses[currentBus].drives[0]);
 				c_printf("Bus[%d].drive[%d]:",currentBus, 1);
-				_ata_identify(1, BAR[0],BAR[1]+2,&_busses[currentBus].drives[1]);
+				_ata_pio_identify(1, BAR[0],BAR[1]+2,&_busses[currentBus].drives[1]);
 				if(BAR[2] != 0x00){
 					c_printf("Bus[%d].drive[%d]:",currentBus, 2);
-					_ata_identify(0, BAR[2],BAR[3]+2,&_busses[currentBus].drives[2]);
+					_ata_pio_identify(0, BAR[2],BAR[3]+2,&_busses[currentBus].drives[2]);
 					c_printf("Bus[%d].drive[%d]:",currentBus, 3);
-					_ata_identify(1, BAR[2],BAR[3]+2,&_busses[currentBus].drives[3]);
+					_ata_pio_identify(1, BAR[2],BAR[3]+2,&_busses[currentBus].drives[3]);
 				}
 			}
 			currentBus++;

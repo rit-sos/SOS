@@ -70,6 +70,8 @@
 //void init( void ) {
 void main(void) {
 	int i;
+	int c;
+
 	unsigned int pid;
 	unsigned int time;
 	unsigned int status;
@@ -78,6 +80,8 @@ void main(void) {
 	puts("init: my main lives at ");
 	putx((unsigned int)&main);
 	puts("\n");
+
+	fclose(CIO_FD); //flush CIO
 
 	//puts("hello from ring 3 init\n");
 

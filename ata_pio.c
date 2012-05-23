@@ -12,16 +12,43 @@
 
 Uint16 *block;
 
+void _ata_pio_lba48_set_sectors(Drive *d, Uint64 sector, Uint16 sectorcount){
+	Uint8 *sector_b= (Uint8 *)&sector;
+	Uint8 *sectorcount_b = (Uint8 *)&sectorcount;
 
-void send_read (Ata_fd_data *dev_data){
+	_ata_pio_selectDrive(d,LBA_MODE);
+	__outb (d->base+SECTOR_COUNT, sectorcount_b[1]);//sectorcount high byte
+	__outb (d->base+LBA_LOW, sector_b[3]);
+	__outb (d->base+LBA_MID, sector_b[4]);
+	__outb (d->base+LBA_HIGH,sector_b[5]);
+	__outb (d->base+SECTOR_COUNT, sectorcount_b[0]);//sectorcount low byte
+	__outb (d->base+LBA_LOW, sector_b[0]);
+	__outb (d->base+LBA_MID, sector_b[1]);
+	__outb (d->base+LBA_HIGH, sector_b[2]);
+}
+
+void _ata_pio_lba28_set_sectors(Drive *d, Uint sector, Uint8 sectorcount){
+
+	Uint8 *sector_b= (Uint8 *)&sector;
+
+	_ata_pio_selectDrive(d,LBA_MODE);
+	__outb (d->base+SECTOR_COUNT, sectorcount);
+	__outb (d->base+LBA_LOW, sector_b[0]);
+	__outb (d->base+LBA_MID, sector_b[1]);
+	__outb (d->base+LBA_HIGH,sector_b[2]);
+}
+
+void _ata_pio_send_read (Ata_fd_data *dev_data){
 	switch(dev_data->d->type){
 		case LBA48:
-			lba_set_sectors(dev_data->d, dev_data->read_sector, 1); //request only one sector
-			__outb (dev_data->d->base+COMMAND, READ_SECTORS_EXT);
+			_ata_pio_lba48_set_sectors(dev_data->d, dev_data->read_sector, 1); //request only one sector
+			_ata_pio_send_command(dev_data->d, READ_SECTORS_EXT);
 			dev_data->read_sector++;
 			break;
 		case LBA28:
-			c_puts("mode not supported yet!");
+			_ata_pio_lba28_set_sectors(dev_data->d,(Uint) dev_data->read_sector, 1); //request only one sector
+			_ata_pio_send_command(dev_data->d, READ_SECTORS);
+			dev_data->read_sector++;
 			break;
 		case INVALID_DRIVE:
 			c_puts("invalid!");
@@ -32,15 +59,19 @@ void send_read (Ata_fd_data *dev_data){
 	}
 }
 
-void send_write(Ata_fd_data *dev_data){
+void _ata_pio_send_write(Ata_fd_data *dev_data){
 	switch(dev_data->d->type){
 		case LBA48:
-			lba_set_sectors(dev_data->d, dev_data->write_sector, 1); //request only one sector
-			__outb (dev_data->d->base+COMMAND, WRITE_SECTORS_EXT);
+			_ata_pio_lba48_set_sectors(dev_data->d, dev_data->write_sector, 1); //request only one sector
+			_ata_pio_send_command(dev_data->d, WRITE_SECTORS_EXT);
 			dev_data->write_sector++;
+			_ata_pio_send_command(dev_data->d, FLUSH_CACHE);
 			break;
 		case LBA28:
-			c_puts("mode not supported yet!");
+			_ata_pio_lba28_set_sectors(dev_data->d,(Uint) dev_data->write_sector, 1); //request only one sector
+			_ata_pio_send_command(dev_data->d, WRITE_SECTORS);
+			dev_data->write_sector++;
+			_ata_pio_send_command(dev_data->d, FLUSH_CACHE);
 			break;
 		case INVALID_DRIVE:
 			c_puts("invalid!");
@@ -51,30 +82,30 @@ void send_write(Ata_fd_data *dev_data){
 	}
 }
 
-void read_block(Uint16 *block, Drive *d){
+void _ata_pio_read_block(Uint16 *block, Drive *d){
 	int i;
 	for(i =0; i < 256; i++){
 		block[i] = __inw(d->base+DATA);
 	}
 }
-void write_block(Uint16 *block, Drive *d){
+void _ata_pio_write_block(Uint16 *block, Drive *d){
 	int i;
 	for(i =0; i < 256; i++){
 		__outw(d->base+DATA,block[i]);
 	}
 }
 
-void write_fd_block(Fd* fd){
+void _ata_pio_write_fd_block(Fd* fd){
 	int i;
 	Uint8 *data = (Uint8 *) block;
 	Ata_fd_data *dev_data = (Ata_fd_data *)fd->device_data;
 
-	selectDrive(dev_data->d,LBA_MODE); //select the drive before transferring data
+	_ata_pio_selectDrive(dev_data->d,LBA_MODE); //select the drive before transferring data
 
 	for(i =0; i < 512; i++){
 		data[i]= _fd_getTx(fd) ; //grab the next byte
 	}
-	write_block(block, dev_data->d);
+	_ata_pio_write_block(block, dev_data->d);
 
 	//if we just wrote to the sector we last read from, we made our FD dirty
 	if(dev_data->write_sector == dev_data->read_sector-1 && fd->write_index > fd->read_index){
@@ -87,13 +118,13 @@ void write_fd_block(Fd* fd){
 	dev_data->write_sector++;
 }
 
-void selectDrive(Drive *d, Uint8 mode){
+void _ata_pio_selectDrive(Drive *d, Uint8 mode){
 	//select the master/slave drive as appropriate
 	__outb(d->base+DRIVE_HEAD_PORT, mode | (~(d->master))<< 4);	
-	delay(d->control);
+	_ata_pio_delay(d->control);
 }
 
-void read_busmaster(Bus *b){
+void _ata_pio_read_busmaster(Bus *b){
 	__inb(b->busmaster_base + 2);
 	__outb(b->busmaster_base + 2,0x04); //mark primary busmaster as IRQ handled
 	__inb(b->busmaster_base + 8 + 2);
@@ -101,53 +132,39 @@ void read_busmaster(Bus *b){
 
 }
 
-void disableIRQ(Drive *d){
+void _ata_pio_disableIRQ(Drive *d){
 	if(d->type != INVALID_DRIVE){
-		selectDrive(d,LBA_MODE);
+		_ata_pio_selectDrive(d,LBA_MODE);
 		__outb(d->control,0);
 		__outb(d->control,NIEN);
 	}
 }
-void enableIRQ(Drive *d){
+void _ata_pio_enableIRQ(Drive *d){
 	if(d->type != INVALID_DRIVE){
-		selectDrive(d,LBA_MODE);
+		_ata_pio_selectDrive(d,LBA_MODE);
 		__outb(d->control,0);
 	}
 }
 
-void _ata_reset(Uint32 control){
+void _ata_pio_reset(Uint32 control){
 	__outb(control, SRST );
 	__outb(control, 0x00 );
-	delay(control);
+	_ata_pio_delay(control);
 	//disable interrupts
 }
 
 
-void lba_set_sectors(Drive *d, Uint64 sector, Uint16 sectorcount){
-	Uint8 *sector_b= (Uint8 *)&sector;
-	Uint8 *sectorcount_b = (Uint8 *)&sectorcount;
 
-	selectDrive(d,LBA_MODE);
-	__outb (d->base+SECTOR_COUNT, sectorcount_b[1]);//sectorcount high byte
-	__outb (d->base+LBA_LOW, sector_b[3]);
-	__outb (d->base+LBA_MID, sector_b[4]);
-	__outb (d->base+LBA_HIGH,sector_b[5]);
-	__outb (d->base+SECTOR_COUNT, sectorcount_b[0]);//sectorcount low byte
-	__outb (d->base+LBA_LOW, sector_b[0]);
-	__outb (d->base+LBA_MID, sector_b[1]);
-	__outb (d->base+LBA_HIGH, sector_b[2]);
-}
-
-void send_command(Drive *d, Uint8 cmd){
+void _ata_pio_send_command(Drive *d, Uint8 cmd){
 	__outb(d->base+COMMAND,cmd);
 }
 
-char read_status(Drive *d){
-	selectDrive(d,LBA_MODE);
+char _ata_pio_read_status(Drive *d){
+	_ata_pio_selectDrive(d,LBA_MODE);
 	return __inb(d->base+REGULAR_STATUS);
 }
 
-void delay(Uint32 control){
+void _ata_pio_delay(Uint32 control){
 	Uint8 i;
 	for (i = 0 ; i < 5; i++){
 		//read the control register 5 times to give it time to settle
@@ -155,11 +172,11 @@ void delay(Uint32 control){
 	}
 }
 
-void flush_cache(Drive *d){
+void _ata_pio_flush_cache(Drive *d){
 	__outb (d->base+COMMAND, FLUSH_CACHE);
 }
 
-int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
+int _ata_pio_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 
 	d->type=INVALID_DRIVE;
 	d->base=base;
@@ -171,9 +188,9 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 		return -1;
 	}
 
-	delay(control);
+	_ata_pio_delay(control);
 
-	selectDrive(d,CHS); //chs mode for identification
+	_ata_pio_selectDrive(d,CHS); //chs mode for identification
 	//detect a floating drive
 	if( __inb( base+REGULAR_STATUS ) != 0xFF){ //High if there is no drive
 		int i;
@@ -190,7 +207,7 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 
 		//send the identify command
 		__outb(base+COMMAND,IDENTIFY);
-		delay(control);
+		_ata_pio_delay(control);
 		status =__inb(base+REGULAR_STATUS);
 		if (status == 0){ //no device
 			return -1;
@@ -198,7 +215,7 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 
 		if( status & ERR || status & DF){
 			c_printf("identify error.. SATA drive? Status:%x\n", status);
-			_ata_reset(control);
+			_ata_pio_reset(control);
 			return -1;
 		}
 
@@ -214,7 +231,7 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 				c_printf("ATAPI drive detected but not supported\n");
 				__outb(control, 0);
 				__outb(control, NIEN);
-				flush_cache(d);
+				_ata_pio_flush_cache(d);
 			}
 			return -1;
 		}
@@ -264,10 +281,10 @@ int _ata_identify(int master, Uint32 base, Uint32 control, Drive* d ){
 		if (c=='n'){
 			c_puts(" Okay. Marking as invalid.");
 			d->type=INVALID_DRIVE;
-			disableIRQ(d);
+			_ata_pio_disableIRQ(d);
 		}else{
 			_ata_primary=d;
-			enableIRQ(d);
+			_ata_pio_enableIRQ(d);
 		}
 		c_puts("\n");
 	}

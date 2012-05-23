@@ -44,13 +44,11 @@
 */
 
 void _put_char_or_code( int ch ) {
-
 	if( ch >= ' ' && ch < 0x7f ) {
 		c_putchar( ch );
 	} else {
 		c_printf( "\\x%02x", ch );
 	}
-
 }
 
 
