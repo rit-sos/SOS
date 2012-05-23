@@ -54,12 +54,17 @@ void windowing_draw_pixel(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b);
 void windowing_draw_line(Uint x0, Uint y0, Uint x1, Uint y1, Uint8 r, Uint8 g, Uint8 b);
 
 /*
+ * windowing_set_char_pos:	Set the position for characters
+ */
+void windowing_set_char_pos( Uint x, Uint y );
+
+/*
  * windowing_print_char:	Draw a character onto the user frame buffer
  */
-void windowing_print_char(Uint x, Uint y, const char c);
+void windowing_print_char(const char c);
 
 /*
  * windowing_print_str:	Draw a string onto the user frame buffer
  */
-void windowing_print_str(Uint x, Uint y, const char *c);
+void windowing_print_str(const char *c);
 

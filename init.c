@@ -19,7 +19,8 @@
 //#define SPAWN_A
 //#define SPAWN_MMAN
 //#define SPAWN_DISK
-#define SPAWN_WINDOW_TEST
+//#define SPAWN_WINDOW_TEST
+#define SPAWN_SHELL
 
 /*
 ** USER PROCESSES
@@ -115,6 +116,15 @@ void main(void) {
 	} else if( pid == 0 ) {
 		status = exec( window_test_ID );
 		//prt_status( "init: can't exec() user window_test, status %s\n", status );
+		exit();
+	}
+#endif
+
+#ifdef SPAWN_SHELL
+	status = fork( &pid );
+	if( status != SUCCESS ) {
+	} else if( pid == 0 ) {
+		status = exec( user_shell_ID );
 		exit();
 	}
 #endif

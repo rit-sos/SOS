@@ -14,6 +14,8 @@
 void main( void ) {
 	Status status;
 
+	sleep(1);
+
 	status = windowing_init( WIN_AUTO_FLIP );
 	if( status == FAILURE )
 	{
@@ -23,11 +25,11 @@ void main( void ) {
 	sleep(1);
 
 	/* print some strings */
-	windowing_print_str(0, 0, "Hello from window_test\n");
-	windowing_print_str(0, 2, "This is a very very very very very very very very very very "
+	windowing_print_str("Hello from window_test\n");
+	windowing_print_str("This is a very very very very very very very very very very "
 			"very very very very very very very very very long string\n");
 
-	windowing_print_str(0, 4, "window_test exiting in ");
+	windowing_print_str("window_test exiting in ");
 
 	windowing_flip_screen();
 
@@ -38,13 +40,14 @@ void main( void ) {
 		char c;
 
 		c = (i % 1000) / 100;
-		windowing_print_char(23, 4, c+'0');
+		windowing_set_char_pos(23, 4);
+		windowing_print_char(c+'0');
 
 		c = (i % 100) / 10;
-		windowing_print_char(24, 4, c+'0');
+		windowing_print_char(c+'0');
 
 		c = (i % 10);
-		windowing_print_char(25, 4, c+'0');
+		windowing_print_char(c+'0');
 
 		windowing_flip_screen();
 		sleep(1);

@@ -8,6 +8,16 @@
 #include "u_windowing.h"
 #include "graphics_font.h"
 
+/* 
+ * string position
+ */
+Uint x_disp = 0, y_disp = 0;
+
+/*
+ * characters on screen
+ */
+char _user_chars[ WIN_CHAR_RES_X * WIN_CHAR_RES_Y ];
+
 /*
  * Userspace frame buffer
  */
@@ -45,7 +55,19 @@ Status windowing_init( Uint flags )
 	{
 		s_map_framebuffer( &_framebuffer );
 		_user_buf = malloc(WINDOW_WIDTH*WINDOW_HEIGHT*sizeof(Uint32));
+
+		int i, j;
+		for( i = 0; i < WIN_CHAR_RES_X; i++ )
+		{
+			for( j = 0; j < WIN_CHAR_RES_Y; j++ )
+			{
+				// space by default
+				_user_chars[i + WIN_CHAR_RES_X*j] = ' ';
+			}
+		}
 	}
+
+	windowing_set_char_pos( 0, 0 );
 	return status;
 }
 
@@ -67,8 +89,17 @@ void windowing_cleanup(void)
  */
 void windowing_flip_screen(void)
 {
-	if( !(_user_flags & WIN_FLIP_PIXEL) )
-		windowing_flip_rect( 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT );
+	windowing_flip_rect( 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT );
+
+	int i, j;
+	for( i = 0; i < WIN_CHAR_RES_X; i++ )
+	{
+		for( j = 0; j < WIN_CHAR_RES_Y; j++ )
+		{
+			_draw_char( _user_chars[i+WIN_CHAR_RES_Y*j] , i*(CHAR_WIDTH+1), j*(CHAR_HEIGHT+1),
+					WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
+		}
+	}
 }
 
 /*
@@ -118,7 +149,7 @@ void windowing_clear_screen(Uint8 r, Uint8 g, Uint8 b)
 			}
 		}
 
-		if( _user_flags & WIN_AUTO_FLIP && !(_user_flags & WIN_FLIP_PIXEL) )
+		if( _user_flags & WIN_AUTO_FLIP )
 			windowing_flip_screen();
 	}
 }
@@ -135,8 +166,6 @@ void windowing_draw_pixel(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b)
 			Uint32 *pixel = &_user_buf[x + WINDOW_WIDTH*y];
 			*pixel = b | g<<8 | r<<16;
 
-			if( _user_flags & WIN_FLIP_PIXEL )
-				windowing_flip_rect(x, y, 1, 1);
 		}
 	}
 }
@@ -224,7 +253,7 @@ void windowing_draw_line(Uint x0_u, Uint y0_u, Uint x1_u, Uint y1_u, Uint8 r, Ui
 			}
 
 		}
-		if( _user_flags & WIN_AUTO_FLIP && !(_user_flags & WIN_FLIP_PIXEL) )
+		if( _user_flags & WIN_AUTO_FLIP )
 			windowing_flip_rect( min(x0_u, x1_u), min(y0_u, y1_u), abs(y1_u-y0_u), abs(x1_u-x0_u) );
 	}
 }
@@ -232,18 +261,54 @@ void windowing_draw_line(Uint x0_u, Uint y0_u, Uint x1_u, Uint y1_u, Uint8 r, Ui
 /*
  * windowing_print_char:	Draw a character onto the user frame buffer
  */
-void windowing_print_char(Uint x, Uint y, const char c)
+void windowing_print_char(const char c)
 {
 	if( _user_win >= 0 )
 	{
-		if( x < WINDOW_WIDTH && y < WINDOW_HEIGHT )
+		if( x_disp < WINDOW_WIDTH && y_disp < WINDOW_HEIGHT )
 		{
-			_draw_char( c, x*(CHAR_WIDTH+1), y*(CHAR_HEIGHT+1),
-					WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
+			if( _user_chars[x_disp + WIN_CHAR_RES_X*y_disp] != c ) 
+			{
+				_user_chars[x_disp + WIN_CHAR_RES_X*y_disp] = c;
 
-			if( _user_flags & WIN_AUTO_FLIP && !(_user_flags & WIN_FLIP_PIXEL) )
-				windowing_flip_rect( x*(CHAR_WIDTH+1), y*(CHAR_HEIGHT+1), 
-						CHAR_WIDTH+1, CHAR_HEIGHT+1 );
+				_draw_char( c, x_disp*(CHAR_WIDTH+1), y_disp*(CHAR_HEIGHT+1),
+						WINDOW_WIDTH, WINDOW_HEIGHT, 1, 255, 255, 255, &windowing_draw_pixel );
+
+				if( _user_flags & WIN_AUTO_FLIP )
+					windowing_flip_rect( x_disp*(CHAR_WIDTH+1), y_disp*(CHAR_HEIGHT+1), 
+							CHAR_WIDTH+1, CHAR_HEIGHT+1 );
+			}
+
+			// increment display position
+			x_disp += 1;
+			if( x_disp  >= WIN_CHAR_RES_X || c == '\r' || c == '\n' )
+			{
+				x_disp = 0;
+				y_disp += 1;
+
+				if( y_disp >= WIN_CHAR_RES_Y )
+				{
+					y_disp = WIN_CHAR_RES_Y - 1;
+
+					// scroll text up
+					int i;
+					for( i = 0; i < WIN_CHAR_RES_X*WIN_CHAR_RES_Y - WIN_CHAR_RES_X; i++ )
+					{
+						_user_chars[i] = _user_chars[i+WIN_CHAR_RES_X];
+					}
+					for( i = 0; i < WIN_CHAR_RES_X; i++ )
+					{
+						_user_chars[i + WIN_CHAR_RES_X*y_disp] = ' ';
+					}
+
+					windowing_flip_screen();
+				}
+			}
+		}
+		else
+		{
+			// reset
+			x_disp = y_disp = 0;
 		}
 	}
 }
@@ -251,32 +316,29 @@ void windowing_print_char(Uint x, Uint y, const char c)
 /*
  * windowing_print_str:	Draw a string onto the user frame buffer
  */
-void windowing_print_str(Uint x, Uint y, const char *str)
+void windowing_print_str(const char *str)
 {
 	if( _user_win >= 0 )
 	{
-		// current location to display at
-		Uint x_disp = x, y_disp = y;
-
 		// pointer into the string
 		const char *c;
 		for( c = str; *c != '\0'; c++ )
 		{
-			windowing_print_char(x_disp, y_disp, *c);
-
-			// increment display position
-			x_disp += 1;
-			if( x_disp  >= WIN_CHAR_RES_X )
-			{
-				x_disp = 0;
-				y_disp += 1;
-
-				if( y_disp >= WIN_CHAR_RES_Y )
-				{
-					y_disp = 0;
-				}
-			}
+			windowing_print_char(*c);
 		}
 	}
 }
+
+/*
+ * windowing_set_char_pos:	Set the position for characters
+ */
+void windowing_set_char_pos( Uint x, Uint y )
+{
+	x_disp = x;
+	y_disp = y;
+
+	if( x_disp > WIN_CHAR_RES_X ) x_disp = WIN_CHAR_RES_X - 1;
+	if( y_disp > WIN_CHAR_RES_Y ) y_disp = WIN_CHAR_RES_Y - 1;
+}
+
 
