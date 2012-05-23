@@ -723,10 +723,16 @@ static void _sys_exec( Pcb *pcb ) {
 	// invoke the common code for process creation
 
 	if (program < PROC_NUM_ENTRY) {
-		// memory management cleanup
-		status = _mman_proc_exit(pcb);
+		_windowing_free_by_pid(pcb->pid);
+
+		// shared memory cleanup
+		status = _shm_cleanup(pcb);
 		if (status == SUCCESS) {
-			status = _create_process( pcb, (Program)program );
+			// memory management cleanup
+			status = _mman_proc_exit(pcb);
+			if (status == SUCCESS) {
+				status = _create_process( pcb, (Program)program );
+			}
 		}
 	} else {
 		status = BAD_PARAM;

@@ -297,11 +297,6 @@ Status _mman_pgdir_free(Pagedir_entry *pgdir);
 Status _mman_map_free(Memmap_ptr map);
 
 /*
-** Set up the framebuffer
-*/
-Status _mman_alloc_framebuffer(struct pcb *pcb, void *videoBuf, Uint size);
-
-/*
 ** Semi-internal functions that are used elsewhere
 */
 
@@ -363,19 +358,9 @@ Status _mman_free(struct pcb *pcb, void *ptr, Uint32 size);
 Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *src, Memmap_ptr srcmap);
 
 /*
-** Print out some information about mman state.
+** Set up the framebuffer
 */
-void _mman_info(void);
-
-
-/*
-** Functions intended to be called from outside of the module
-*/
-
-/*
-** Module init, sets up kernel page directory and turns on paging.
-*/
-void _mman_init(void *videoBuf, Uint size);
+Status _mman_alloc_framebuffer(struct pcb *pcb, void *videoBuf, Uint size);
 
 /*
 ** Sets up a new process's page directory. Used to create init, also
@@ -394,6 +379,21 @@ Status _mman_proc_copy(struct pcb *new, struct pcb *old);
 ** Clean up an exiting process's memory mangement information.
 */
 Status _mman_proc_exit(struct pcb *pcb);
+
+/*
+** Print out some information about mman state.
+*/
+void _mman_info(void);
+
+
+/*
+** Functions intended to be called from outside of the module
+*/
+
+/*
+** Module init, sets up kernel page directory and turns on paging.
+*/
+void _mman_init(void *videoBuf, Uint size);
 
 /*
 ** Copy a user buffer into kernel virtual address space.
