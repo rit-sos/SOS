@@ -20,7 +20,7 @@
 //#define SPAWN_MMAN
 //#define SPAWN_DISK
 //#define SPAWN_WINDOW_TEST
-//#define SPAWN_SHELL
+#define SPAWN_SHELL
 //#define SPAWN_BAD
 //#define SPAWN_SHM
 

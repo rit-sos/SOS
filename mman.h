@@ -299,7 +299,7 @@ Status _mman_map_free(Memmap_ptr map);
 /*
 ** Set up the framebuffer
 */
-Status _mman_alloc_framebuffer(void *videoBuf, Uint size);
+Status _mman_alloc_framebuffer(struct pcb *pcb, void *videoBuf, Uint size);
 
 /*
 ** Semi-internal functions that are used elsewhere

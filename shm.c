@@ -393,5 +393,7 @@ Status _shm_copy(struct pcb *new, struct pcb *pcb) {
 	}
 
 	new->shminfo.num_mappings = pcb->shminfo.num_mappings;
+
+	return SUCCESS;
 }
 
