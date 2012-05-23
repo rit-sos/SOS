@@ -22,8 +22,6 @@
 #define SPAWN_SHELL
 //#define SPAWN_BAD
 //#define SPAWN_SHM
-//#define SPAWN_DISK
-#define SPAWN_WINDOW_TEST
 
 /*
 ** USER PROCESSES
