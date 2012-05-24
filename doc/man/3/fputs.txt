@@ -1,0 +1,10 @@
+NAME
+	fputs
+SYNOPSIS
+	status = fputs(fd, "string");
+DESCRIPTION
+	puts a string to the specified file descriptor until
+RETURN VALUE
+	SUCCESS if it worked
+	EOF if the end of the file was reached.
+	FAILURE if the FD is invalid

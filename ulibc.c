@@ -97,6 +97,34 @@ void put_char_or_code(int fd, int ch ) {
 	}
 }
 
+int readInt(int fd) {
+	int ret = 0;
+	int ch;
+	int valid=0;
+	int neg=0;
+
+	do{
+		read(fd, &ch);
+		if(ch >= '0' && ch <= '9'){
+			valid=1;
+			ret *= 10;
+			ret += ch-'0';
+		} else if (ch=='-'){
+			neg=1;
+			ret=0;
+			valid=0;
+		}else if (ch != '\r' && ch != '\n'){ //ignore \r\n
+			ret=0;
+			neg=0;
+			valid=0;
+		}
+	}while(ch != '\n' || !valid);
+	if (neg){
+		ret *= -1;
+	}
+	return ret;
+}
+
 /*
  ** spawnp - create a new process running a different program
  **		at a specific priority
@@ -169,12 +197,15 @@ int strlen(const char *str) {
 	return i;
 }
 
-unsigned int puts(const char *str) {
+inline unsigned int puts(const char *str) {
+	return fputs(SIO_FD, str);
+}
+unsigned int fputs(int fd, const char *str) {
 	unsigned int status = SUCCESS;
 	const char *p = str;
 
 	while (*p && status == SUCCESS) {
-		status = write(CIO_FD,*p++);
+		status = write(fd ,*p++);
 	}
 
 	return status;

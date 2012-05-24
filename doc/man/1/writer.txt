@@ -1,0 +1,14 @@
+NAME
+	writer
+SYNOPSIS
+	# writer
+DESCRIPTION
+	A simple writing program
+PROMPTING
+	The program first prompts on serial for a sector to open. All
+	input from the serial is written to a file until ctrl+D is pressed
+
+BUGS
+	backspace? nahhh.
+	If no EOT character is recieved, the program complains and closes
+	after 512 bytes.

@@ -6,3 +6,5 @@ window_test	0x70000
 user_shell	0x74000
 bad_user	0x78000
 shm_test	0x7c000
+writer		0x80000
+cat			0x84000

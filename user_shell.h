@@ -22,6 +22,8 @@ typedef struct
 ShellProg shell_commands[] =
 {
 	MK_COMMAND(user_disk),
+	MK_COMMAND(writer),
+	MK_COMMAND(cat),
 	MK_COMMAND(window_test),
 	MK_COMMAND(heap_test),
 	MK_COMMAND(mman_test),

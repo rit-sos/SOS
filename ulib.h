@@ -473,6 +473,7 @@ void *realloc(void *ptr, unsigned int size);
 int strlen(const char *str);
 
 Status puts(const char *str);
+Status fputs(int fd, const char *str);
 void putx(unsigned int x);
 
 /*
@@ -482,6 +483,16 @@ void putx(unsigned int x);
 **
 */
 void put_char_or_code(int fd, int ch );
+
+
+/*
+** readInt- reads from the file descriptor until a number followed by \n is read.
+**
+** usage:	in = readInt(fd);
+**
+*/
+int readInt(int fd);
+
 #endif
 
 #endif

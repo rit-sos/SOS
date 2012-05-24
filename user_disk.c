@@ -17,10 +17,11 @@ void main( void );
 
 
 void main( void ) {
-	int i, j;
 	int fd;
-	int c;
+	int c, i,j;
 	int *data;
+
+	int sectorStart;
 
 	data = malloc(sizeof(int) *512 *3);
 	if(data == NULL){
@@ -29,12 +30,13 @@ void main( void ) {
 	}
 
 	Status status;
-	puts("hello from USER_DISK\n");
-	status = write(CIO_FD, 'D' );
+	fputs(SIO_FD, "hello from USER_DISK. Where would you like to start reading?\n");
+	sectorStart= readInt(SIO_FD);
+
 	if( status != SUCCESS ) {
 		//prt_status( "User A, write 1 status %s\n", status );
 	}
-	status = fopen(0,5,&fd);
+	status = fopen(sectorStart,5,&fd);
 	if( status != SUCCESS ) {
 		puts("open failed!");
 		exit();
@@ -43,7 +45,7 @@ void main( void ) {
 	putx((Uint32)fd);
 
 
-	status = read(CIO_FD, &c );
+	status = read(SIO_FD, &c );
 	for(i=0;i<512*2;i++){
 		status = read(fd, &c);
 		data[i] = c;
@@ -64,14 +66,14 @@ void main( void ) {
 		}
 
 	}
-	read(CIO_FD,&c);
+	read(SIO_FD,&c);
 
 	for(i=0;i<512*2-1;i++){
 		status = read(fd,&c);
 		put_char_or_code(SIO_FD, c);
 	}
 
-	read(CIO_FD,&c);
+	read(SIO_FD,&c);
 
 	fclose(fd);
 	puts("===File closed===");
@@ -80,7 +82,7 @@ void main( void ) {
 		puts("reading from closed fd failed!\n");
 	}
 
-	status = fopen(0,5,&fd);
+	status = fopen(sectorStart,5,&fd);
 	if( status != SUCCESS ) {
 		puts("reopening closed fd failed!\n");
 		exit();
@@ -95,8 +97,8 @@ void main( void ) {
 
 	puts("waiting\n");
 	for( i = 0; i < 20 ; ++i ) {
-		status = read(CIO_FD,&c);
-		status = write(CIO_FD, c);
+		status = read(SIO_FD,&c);
+		status = write(SIO_FD, c);
 	}
 	puts("USER_DISK done\n");
 
