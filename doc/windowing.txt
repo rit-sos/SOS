@@ -1,0 +1,54 @@
+SOS Windowing system
+Authors: James Letendre
+
+[Purpose]
+Windowing was developed to allow for different applications to be able to have
+their own framebuffer to use and not fight over the monitor.
+
+[Design]
+The monitor can be split into a configurable number of windows along each axis,
+the current version splits into 2 along the x and y axis giving a total of 4
+windows for use by processes.
+
+The c_io module is given a window at boot time, leaving 3 windows for other
+processes.
+
+The windowing system code is split into kernel level code which keeps a
+persistent list of which PID is associated with each window to allow it to clean
+up after a user which fails to do so itself.
+
+The kernel level code is simpler than the user level library, the kernel code is
+used as a backend for the c_io output, so it just provides a method for c_io to
+write characters at specific locations in its window.
+
+The user level code consists of more complex functionality. Due to speed
+constraints with using syscalls to write to the framebuffer, the framebuffer is
+mapped into any user process which receives a window. The writes to the
+framebuffer are controlled such that no writes will allow the process to
+overwrite any part of the framebuffer not allocated to its window.
+
+The user level code also keeps track of the cursor position on the screen for
+text output, allowing for traditional printf like behavior of the text output to
+their window.
+
+If a user processes chooses to use its window for graphics output, it can do
+direct pixel writes or draw lines using the windowing_draw_line function.
+
+[Interface]
+The kernel interfaces with the windowing library through the _windowing_*
+functions. _windowing_get_window( ) returns the handle for the window now
+allocated for this process to use. The window handle is -1 and will return
+FAILURE if there is not an available window for this process.
+
+The user interfaces with the windowing library through the u_windowing.h
+functions. When a user wishes to use a window, it must first call
+windowing_init(). For almost all cases the parameter WIN_AUTO_FLIP should be
+passed into the function, which causes the window to auto update its contents
+whenever they are updated by the user. If windowing_init() returns FAILURE then
+no window was able to be reserved for this process. Then the process draws to
+the window through the various other windowing_* functions. When a user process
+exits after calling windowing_init successfully, it must call windowing_cleanup
+to free memory used by the library and to mark its window as free in the kernel
+level library. If a user fails to call the cleanup function, the window is
+marked clean by the kernel when the process is being cleaned up.
+
