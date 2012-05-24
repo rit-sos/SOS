@@ -16,7 +16,7 @@ code in SOS -- one for the kernel and one for the user libraries. In
 either case, the behavior of the heap manager is almost exactly the
 same. This document describes the kernel heap manager, but the details
 of the implementation apply almost exactly to the user heap manager,
-with some exceptions as noted in the user heap documentation.
+with some exceptions as noted later in this document.
 
 The heap is a linked list of "heap buffer nodes" or "heap tags", each
 of which corresponds to a single heap allocation. The heap buffer nodes
@@ -42,6 +42,14 @@ compared to the new size. If there is room, the size is changed in the
 tag and the original pointer is returned. Otherwise, a new allocation
 is performed as described above and the old allocation's buffer is
 copied and freed.
+
+There is a major difference between the user and kernel heap structures
+in the way that the heaps are initially allocated and grown. The kernel
+heap pages are always backed by physical pages, which may or may not
+be continuous in physical memory. New user heap pages are not given any
+physical memory. Instead, they are mapped copy-on-write to a full page of
+zeroes. This way, if the heap is never written to by the user program, no
+physical memory is reserved for it.
 
 [Interface]
 The interface to the kernel heap manager is very similar to the usual C
