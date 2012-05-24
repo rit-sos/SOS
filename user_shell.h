@@ -7,7 +7,7 @@
 #ifndef USER_SHELL_H
 #define USER_SHELL_H
 
-#include "kmap.h"
+#include "umap.h"
 
 #define MK_COMMAND(name)	{ #name, name##_ID }
 #define END_COMMAND			{ NULL, -1 }

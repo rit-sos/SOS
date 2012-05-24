@@ -1,0 +1,19 @@
+NAME
+	s_windowing_get_window
+
+SYNOPSIS
+	s_windowing_get_window( Window *win )
+
+DESCRIPTION
+	This function reserves a window for the user process.
+
+RETURN VALUE
+	SUCCESS	if a window was obtained for this process
+	FAILURE	if there are no more windows available at this time
+
+NOTES
+	Shouldn't be called in user code, used in u_windowing
+
+	This function will return the first open window left to right, top to bottom
+	on the display
+

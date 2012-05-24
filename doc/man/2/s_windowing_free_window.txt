@@ -1,0 +1,17 @@
+NAME
+	s_windowing_free_window
+
+SYNOPSIS
+	s_windowing_free_window( Window win )
+
+DESCRIPTION
+	Frees the provided window.
+
+RETURN VALUE
+	SUCCESS
+
+NOTES
+	Shouldn't be called in user code, used in u_windowing
+
+	This function should be called for any window received through the
+	s_windowing_get_window() function.

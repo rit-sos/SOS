@@ -1,0 +1,18 @@
+NAME
+	s_map_framebuffer
+
+SYNOPSIS
+	s_map_framebuffer( Uint32 ** framebuffer )
+
+DESCRIPTION
+	Maps the graphics framebuffer into the user processes address space.
+
+RETURN VALUE
+	SUCCESS	if mapping succeeds
+	FAILURE if mapping failed
+
+	Returns pointer to the framebuffer in framebuffer
+
+NOTES
+	Shouldn't be called in user code, used in u_windowing
+
