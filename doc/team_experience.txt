@@ -1,0 +1,47 @@
+SOS Team Experience
+
+The SOS project as a whole was not something that anyone designed up front.
+Instead, We set up a repository and each group member essentially went off
+and worked mostly independently on his projects. When we ran into trouble,
+we helped each other with research and debugging, but generally not with
+design. The planning phase was definitely something that should have been
+approached better and with more care.
+
+Another consequence of the lack of planning was a similar lack of a useful
+end goal. Because the projects were largely independent, the demoable parts
+of it are similarly independent and fragmented.
+
+One difficulty that we ran into was with integration of large changes. This
+is not a surprising thing to run into problems with, but it was more
+pronounced than usual with this project. The biggest difficult thing to
+integrate with was virtual memory. The virtual memory system was fairly
+complicated and difficult to debug, with many interesting and hard to find
+bugs and details. One particularly frustrating bug involved not invalidating
+TLB entries when the kernel page directory changed, causing apparently
+harmless writes into mapped pages to inexplicably appear in the wrong places. 
+Another bug was accidentally marking as free the entirety of the kernel's
+memory in some circumstances.
+
+Virtual memory in general caused a lot of headache for development. Between
+that and the privilege separation changes, large parts of the core of the
+baseline system had to be rewritten and replaced, creating plenty of new
+surface area for strange bugs.
+
+Overall, though, for as much of a mess as a lot of the code was, the
+privilege separation and memory protection system worked out well. Having
+simple things like segmentation faults and general protection faults safely
+killing the offending process helps a lot.
+
+As far as things that we would do differently next time, one thing that
+would make sense to change would be the kernel's use of virtual memory.
+Most operating systems keep kernel data mapped into every process and run
+kernel code in the user's address space, rather than doing an expensive
+address space change on each and every interrupt. There are also some memory
+management functions that evolved organically over time that could do with
+some rewriting and cleaning up. Also, when rewriting the ISR context save
+and restore code for ring switching, floating point context support should
+absolutely have been added -- it would have been, but nobody though of it at
+the time. A really nice feature to have that there probably would not have
+been time for under any circumstances would be a pre-emptible kernel so that
+handling a time-consuming syscall would not prevent other system functions
+(like the clock ISR) from running.

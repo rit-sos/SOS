@@ -179,6 +179,9 @@ void main(void)
 		} else if (strcmp(line, "write") == 0) {
 			do_write();
 			continue;
+		} else if (strcmp(line, "fork") == 0) {
+			int pid;
+			fork(&pid);
 		} else if (strcmp(line, "exit") == 0) {
 			windowing_cleanup();
 			exit();

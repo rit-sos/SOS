@@ -72,8 +72,8 @@ In order to give each process its own private address space, each
 process gets its own page directory and page tables. A pointer to
 the process's page directory is stored in its PCB, along with a
 pointer to a virtual address space bitmap. When an interrupt comes in,
-one of the first things that has to happen is setting cr2 to point to
-the kernel page directory. When restoring a context, cr2 has to be
+one of the first things that has to happen is setting cr3 to point to
+the kernel page directory. When restoring a context, cr3 has to be
 set to _current->pgdir, the current process's page directory.
 
 The mman module also has hooks into process creation and destruction.

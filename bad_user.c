@@ -11,5 +11,7 @@ void main(void) {
 		opcodes[i+1] = 0x0b;
 	}
 
+	asm("cli");
+
 	*(Uint32*)(0xd0000000) = 0xffff;
 }
