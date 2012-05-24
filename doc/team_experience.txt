@@ -18,7 +18,7 @@ integrate with was virtual memory. The virtual memory system was fairly
 complicated and difficult to debug, with many interesting and hard to find
 bugs and details. One particularly frustrating bug involved not invalidating
 TLB entries when the kernel page directory changed, causing apparently
-harmless writes into mapped pages to inexplicably appear in the wrong places. 
+harmless writes into mapped pages to inexplicably appear in the wrong places.
 Another bug was accidentally marking as free the entirety of the kernel's
 memory in some circumstances.
 
@@ -45,3 +45,28 @@ the time. A really nice feature to have that there probably would not have
 been time for under any circumstances would be a pre-emptible kernel so that
 handling a time-consuming syscall would not prevent other system functions
 (like the clock ISR) from running.
+
+If we had more time, there are quite a few features that would be very
+interesting to implement now that we have the groundwork established. Loading
+programs to and from disk, file descriptor compliance for the windowing system,
+window focus and redirectable console input, and IO redirection would all be
+simple to implement from where we are now. To facilitate this, an actual file
+system and redesined fopen and fclose would be implemented, possibly in the form
+of a virtual file system. This would drastically increase the uitility of our
+system for the user.
+
+Disk interaction speed increased a lot with the implementation of interrupt
+based transfers,but the system still uses PIO to actually transfer the data
+during the interrupt -- taking up a lot of cpu time for very simple
+interactions. Adding DMA support to the driver and file descriptors would
+improve transfer speeds and reduce CPU overhead, and would be the next logical
+step in the development of the ATA driver.
+
+Thankfully, the file descriptor system proved to be robust enough to expand to
+all of the IO tasks given to it, but there are a few design changes that would
+make it a bit more expandable. A good improvement to the system now that
+virtual and shared memory have been implemented would be replacing the global
+file descriptor table to a per-process based system, giving each newly spawned
+process the file descriptor table of their parent and enabling interprocess
+pipes. Currently the FDs are a bit too specialized, and don't allow user
+processes to read from the output buffer of a file descriptor.

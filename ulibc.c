@@ -119,6 +119,7 @@ int readInt(int fd) {
 			ret=0;
 			neg=0;
 			valid=0;
+			write(fd, '.');
 		}
 	}while(ch != '\n' || !valid);
 	if (neg){

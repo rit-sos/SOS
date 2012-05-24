@@ -37,3 +37,6 @@ of the read cursor.
 
 Other kernel modules may use the blocking write calls to read data
 from any arbitary disk or sector.
+
+[See also]
+ioreq

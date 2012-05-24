@@ -1,0 +1,38 @@
+SOS ioreq
+Authors: Andrew LeCain
+
+[Purpose]
+	The ioreq, or IO request, submodule provides a queueing request
+	scheme for the ata system. This allows the file descriptor system
+	to qeue disk accesses across multiple processes sharing the same
+	physical media.
+
+[Design]
+	The module consists of two queues, the _idle and _data queue. Each
+	read or write request must first wait in the _idle queue for the
+	disk to be ready. Each time the disk is idle, the interrupt
+	handler calls _ioreq_handle_idle_request on the newly idle drive.
+	This pops the next request for that drive off the idle queue, and
+	the reading and writing actions then happen.
+
+	In the case of reads, after requesting a sector or sectors in the
+	idle request handler, the read is then queued in the _data queue,
+	waiting for the disk to return. When the interrupt handler detects
+	a drive as indicating data ready, the _ioreq_handle_data_request
+	function is called, popping the next data request from the _data
+	queue and finishing the read.
+
+[Interface]
+	This module is a submodule of the ata driver, and extends the
+	function of that module. The module must be initialized before use
+	by calling _ioreq_init. Requests are enqueued by file descriptor,
+	drive, and either WAIT_ON_IDLE or WAIT_ON_DATA as appropirate by
+	calling _ioreq_enqueue. If no action is currently in progress
+	(i.e. disk->status == IDLE) then the implementing driver must
+	prime the pump by calling _ioreq_handle_idle_request after
+	enqueuing the data in the request queue.
+
+	The implementing driver must determine the drive that caused the
+	interrupt, and check its status. If the status is idle,
+	_handle_idle_request should be called. If the drive has data ready
+	to be read, _handle_data_request should be called.
