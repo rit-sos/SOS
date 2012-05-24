@@ -118,7 +118,7 @@ void _ata_pio_write_fd_block(Fd* fd){
 	dev_data->write_sector++;
 }
 
-void _ata_pio_selectDrive(Drive *d, Uint8 mode){
+void _ata_pio_selectDrive(Drive *d, ata_type mode){
 	//select the master/slave drive as appropriate
 	__outb(d->base+DRIVE_HEAD_PORT, mode | (~(d->master))<< 4);	
 	_ata_pio_delay(d->control);

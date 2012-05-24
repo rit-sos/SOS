@@ -23,7 +23,7 @@ Queue	*idle_q;
 Queue	*data_q;
 Queue	*free_req_q;
 
-void handle_idle_request(Drive *d){
+void _ioreq_handle_idle_request(Drive *d){
 	Status status;
 	Key key;
 	Iorequest *req;
@@ -59,7 +59,7 @@ void handle_idle_request(Drive *d){
 	}
 }
 
-void handle_data_request(Drive *d){
+void _ioreq_handle_data_request(Drive *d){
 	Status status;
 	Key key;
 	Iorequest *req;

@@ -70,24 +70,108 @@ typedef struct Identify_packet{
 
 extern Uint16 *block;
 
-
+/*
+ * _ata_pio_lba48_set_sectors -> set the sector to read or write on an LBA48 drive
+ *
+ *  usage: _ata_pio_lba48_set_sectors(drive, sectorstart, 1);
+ */
 void _ata_pio_lba48_set_sectors(Drive *d, Uint64 sector, Uint16 sectorcount);
+/*
+ * _ata_pio_lba28_set_sectors -> set the sector to read or write on an LBA28 drive
+ *
+ *  usage: _ata_pio_lba28_set_sectors(drive, sectorstart, 1);
+ */
 void _ata_pio_lba28_set_sectors(Drive *d, Uint sector, Uint8 sectorcount);
+/*
+ * _ata_pio_send_read-> send a read command to a drive
+ *
+ *  usage: _ata_pio_send_read((Ata_fd_data *) fd->device_data);
+ */
 void _ata_pio_send_read(Ata_fd_data *dev_data);
+/*
+ * _ata_pio_send_write -> send a write command of the appropriate type to the drive
+ *
+ *  usage: _ata_pio_send_write((Ata_fd_data *) fd->device_data);
+ */
 void _ata_pio_send_write(Ata_fd_data *dev_data);
+/*
+ * _ata_pio_read_block -> transfer one sector of size SECTOR_SIZE from the drive into block
+ *
+ *  usage: _ata_pio_read_block(buf, drive);
+ */
 void _ata_pio_read_block(Uint16 *block, Drive *d);
+/*
+ * _ata_pio_write_block ->transfer one sector of size SECTOR_SIZE from the block into the drive.
+ *
+ *  usage: _ata_pio_write_block(buf, drive);
+ */
 void _ata_pio_write_block(Uint16 *block, Drive *d);
+/*
+ * _ata_pio_write_fd_block -> transfer one sector from the file descriptor buffer to the drive it's attached to.
+ *
+ *  usage: _ata_pio_write_fd_block(fd);
+ */
 void _ata_pio_write_fd_block(Fd* fd);
+/*
+ * _ata_pio_flush_cache -> send the cache flush command to the drive
+ *
+ *  usage: _ata_pio_flush_cache(drive);
+ */
 void _ata_pio_flush_cache(Drive *d);
+/*
+ * _ata_pio_delay -> delay 500ns by reading the control register 5 times.
+ *
+ *  usage: _ata_pio_delay(drive->control)
+ */
 void _ata_pio_delay(Uint32 control);
-void _ata_pio_selectDrive(Drive *d, Uint8 mode);
+/*
+ * _ata_pio_selectDrive -> select a drive in the specified mode
+ *
+ *  usage: _ata_pio_selectDrive(drive, LBA48);
+ */
+void _ata_pio_selectDrive(Drive *d, ata_type mode);
+/*
+ * _ata_pio_disableIRQ -> disable the IRQ on a specified drive.
+ *
+ *  usage: _ata_pio_disableIRQ(drive);
+ */
 void _ata_pio_disableIRQ(Drive *d);
+/*
+ * _ata_pio_enableIRQ -> enable the irq on the specified drive
+ *
+ *  usage: _ata_pio_enableIRQ(drive);
+ */
 void _ata_pio_enableIRQ(Drive *d);
+/*
+ * _ata_pio_reset -> reset the ata bus
+ *
+ *  usage: _ata_pio_reset(drive->control);
+ */
 void _ata_pio_reset(Uint32 control);
+/*
+ * _ata_pio_send_command -> send a command to the drive
+ *
+ *  usage: _ata_pio_send_command (drive, <command>);
+ */
 void _ata_pio_send_command(Drive *d, Uint8 cmd);
+/*
+ * _ata_pio_read_status -> read the status byte from the drive.
+ *
+ *  usage: char status = _ata_pio_read_status(drive);
+ */
 char _ata_pio_read_status(Drive *d);
+/*
+ * _ata_pio_read_busmaster -> reads the busmaster status bytes on a bus,
+ *              telling the device the interrupt is handled
+ *
+ *  usage: _ata_pio_read_busmaster(_busses[current_bus]);
+ */
 void _ata_pio_read_busmaster(Bus *b);
+/*
+ * _ata_pio_identify -> runs the drive identify routine and fills d with appropirate information
+ *
+ *  usage: _ata_pio_identify( master_not_slave, bar[0], bar[1]+2, &drive);
+ */
 int _ata_pio_identify(int master, Uint32 base, Uint32 control, Drive* d );
-
 
 #endif
