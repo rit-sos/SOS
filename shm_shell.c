@@ -154,7 +154,16 @@ void main(void)
 			continue;
 		}
 
-		if (strcmp(line, "create") == 0) {
+		if (strcmp(line, "help") == 0) {
+			windowing_print_str("\n"
+				"Commands:\n"
+				"create\n"
+				"open\n"
+				"close\n"
+				"read\n"
+				"write\n");
+			continue;
+		} else if (strcmp(line, "create") == 0) {
 			do_create();
 			continue;
 		} else if (strcmp(line, "open") == 0) {

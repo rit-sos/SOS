@@ -177,6 +177,14 @@ void main(void)
 				prog++;
 			}
 			// don't look for "help" program
+
+			windowing_print_str("\n"
+				"shm commands:\n"
+				"create\n"
+				"open\n"
+				"close\n"
+				"read\n"
+				"write\n");
 			continue;
 		} else if (strcmp(line, "create") == 0) {
 			do_create();
