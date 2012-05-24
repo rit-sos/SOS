@@ -1,0 +1,88 @@
+SOS Privilege Separation Module (priv)
+Authors: Corey Bloodstein
+
+[Purpose]
+One of the important roles of a modern operating system is separation
+of privileges between user and kernel mode. A user process should not
+be allowed to interfere with the operation of the kernel or other
+processes. A user process that misbehaves, such as by reading or
+writing to memory that it doesn't have permission to use, or trying to
+execute an invalid or privileged instruction, should be prevented from
+doing so and have its execution stopped. The SOS privilege separation
+subsystem works alongside the virtual memory system to provide this
+protection.
+
+[Design]
+The Intel architecture provides mechanisms for division of privilege
+levels. These mechanisms are divided into task management and memory
+management.
+
+The privilege separation code in SOS uses a small subset of the x86
+task control features. In particular, it uses a single task state
+segment (TSS) to store the system stack pointer and segments. By doing
+this, whenever an interrupt comes in, the stack and segments are
+automatically set to the system stack and segments. Because privilege
+level is defined by the privilege bits of the segments, restoring the
+system segments has the effect of elevating to supervisor mode on
+entry to the ISR. For this to work, the Global Descriptor Table (GDT)
+entry describing the TSS must also have its privilege bits set to
+supervisor, or ring 0.
+
+Switching into unprivileged execution mode, or ring 3, is slightly
+more difficult. The trick is that the switch has to take place during a
+return from an ISR, via the IRET instruction. When a TSS is loaded, the
+values pushed to the system stack when an IRQ comes in are slightly
+different. In the baseline system, EIP, CS, and EFL are pushed. With a
+TSS loaded, ESP and SS are also pushed so that the user stack can be
+restored. Thus, in order to switch into user mode for the first time,
+a stack has to be set up with the desired EIP, CS, EFL, ESP, and SS.
+The data and general segments also have to be set immediately prior to
+the IRET. User code and data segments also have to be added to the GDT
+alongside the kernel segments.
+
+The user segments are a discussion in themselves. As briefly mentioned
+above, the privilege level is determined by the privilege bits of the
+selected segments. The segment descriptors in the GDT have a 2-bit
+privilege field which is used to define the permissions of the process.
+When the segment is loaded into a segment register, the bottom two bits
+of the protected mode segment offset indicate the desired permission
+level. When everything lines up, the new segments can be loaded and
+the permission level can be changed. However, switching the code
+segment normally is not possible. Instead, the code segment is switched
+by setting up the stack and using IRET as discussed above.
+
+A consequence of automatic stack switching, as well as the moving of
+user stack mappings in mman, it is not feasible to store the context
+on the user stack as the baseline did. Instead, new isr_stubs code
+was added to save and restore the context to PCBs. On entry to the
+ISR, the context is saved to the current PCB, and on exit it is
+restored from the new current PCB, which may be different from the
+original if a context switch took place during the handling of the IRQ.
+
+The new isr_stubs code needs the offsets into the PCB of parts of the
+context, as well as the PID/PPID fields. To solve this, a short
+program called offsets.c was used to generate an offsets.h file,
+which contains the offsets for use in assembly code.
+
+Interrupt descriptor table entries also have a permission field that
+controls how the interrupt can be called. For the "INT 0x80"
+instruction required for system calls, the permission bits of the
+corresponding interrupt gate need to be set.
+
+While running in user mode, certain instructions are restricted and
+their use will cause a protection fault. For example, "cli" and "sti"
+instructions will result in a fault in user code. Being in user mode
+also allows the virtual memory system in the mman module to distinguish
+between user and kernel memory pages. Since the kernel is mapped into
+every user process, without privilege separation, it would be
+impossible to prevent use programs from reading and writing arbitrary
+kernel memory. With privilege separation, attempting to read or write
+a page that is present but whose user flag is not set will result in
+a page fault. The page fault handler then kills the offending process.
+
+[Interface]
+There is no particular interface component. Other modules should not be
+concerned with privilege separation, only with handling violations of
+it. Even then, only mman and syscalls need to act on it. The general
+fault handler is logically part of the privilege separation code.
+
