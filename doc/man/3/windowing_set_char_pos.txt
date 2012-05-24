@@ -1,0 +1,15 @@
+NAME
+	windowing_set_char_pos
+
+SYNOPSIS
+	void windowing_set_char_pos( Uint x, Uint y )
+
+DESCRIPTION
+	Moves the position of the cursor to the specified row and column of the
+	window.
+
+	Out of bounds values are capped at the window borders.
+
+RETURN VALUE
+	None
+

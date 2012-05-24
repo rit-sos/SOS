@@ -1,0 +1,13 @@
+NAME
+	windowing_draw_pixel
+
+SYNOPSIS
+	void windowing_draw_pixel(Uint x, Uint y, Uint8 r, Uint8 g, Uint8 b)
+
+DESCRIPTION
+	Sets the specified pixel in the user buffer to the specified color. If the
+	pixel is out of bounds no changes occur.
+
+RETURN VALUE
+	None
+

@@ -1,0 +1,142 @@
+SOS Memory Management Module (mman)
+Authors: Corey Bloodstein
+
+[Purpose]
+The memory management module is responsible for setting up the kernel
+and user page directories and page tables for use with the x86 virtual
+memory and paging system. Virtual memory provides convenience in that
+virtual address ranges can be mapped to arbitrary physical pages, and
+protection in that processes cannot access memory not mapped into their
+virtual address space. The mman module is also responsible for handling
+page faults, which occur when the kernel or user processes try to use
+memory that is not mapped into their address space, when they try to
+write to memory that is marked read-only, or when a use process tries
+to use memory that is mapped supervisor-only.
+
+The mman module also provides support for copy-on-write pages, in which
+processes can share the same physical pages as long as they are not
+written to. If they are written to, the mman module transparently
+switches out the physical page and allows the process to write to it,
+making it seem as though the two processes have their own physical
+memory to use, thus saving significant amounts of physical memory in
+forking and heap allocations.
+
+[Design]
+In the Intel virtual memory system, the 4GB physical address space is
+divided into 4kB regions called pages. When paging is enabled, the
+memory management unit uses a structure called a page directory to
+map the addresses that the program uses (virtual addresses) to
+physical memory.
+
+The page directory has an unusual structure. It consists of 1024
+4-byte page directory entries. The top 20 bits of each page directory
+entry are a pointer to a page table. Because the page directory and
+page tables must be page aligned, the bottom 12 bits are available
+for other fields, such as "user", "write", and "present", indicating
+the status of the mapping. The page table is similarly divided into
+1024 4-byte page table entries. The top 20 bits of the page table
+entry are a pointer to the beginning of a physical page.
+
+When a virtual address is translated by the MMU, it is broken up into
+three parts. The first 10 bits of the virtual address are used as the
+index into the page directory to select a page directory entry. The
+top 20 bits of that page are used as a pointer to a page table. Next,
+the second 10 bits (21 through 12) of the virtual address are used as
+the index into the page table to select a page table entry. The top
+20 bits of the page table entry are OR'd with the bottom 12 bits of
+the original virtual address, resulting in the physical address of
+the memory being read or written to.
+
+Loading a page directory for the MMU to use is easy -- just write a
+pointer to the beginning of the page directory to the cr3 register.
+Enabling paging is also simple. Paging is enabled as long as the top
+bit of cr0 is set.
+
+The mman module starts by setting up the kernel page directory,
+referring to three static page tables which map the first 12MB of
+virtual addresses to the same physical address. This allows the
+kernel to use the first 12MB for code and data. The majority of this
+12MB range is used by mman. The large allocations used by mman begin
+after the first 1MB of memory (0x100000). The first 1MB of these
+allocations is for page directories and page tables, which are
+stored in an SOS queue for easy allocation and deallocation. Next
+come the address space bitmaps, 4MB of large (128kB) structures used
+to find free physical or virtual addresses. These are also queued.
+Finally, another 4MB is set aside for page-level reference counts on
+physical pages, used to track the usage of shared/COW physical pages.
+A similar mapping is also created for the framebuffer. The page fault
+handler is also registered at this point. Finally, paging is turned
+on.
+
+In order to give each process its own private address space, each
+process gets its own page directory and page tables. A pointer to
+the process's page directory is stored in its PCB, along with a
+pointer to a virtual address space bitmap. When an interrupt comes in,
+one of the first things that has to happen is setting cr3 to point to
+the kernel page directory. When restoring a context, cr3 has to be
+set to _current->pgdir, the current process's page directory.
+
+The mman module also has hooks into process creation and destruction.
+A new process either goes through _init() which creates the initial
+process, or through _sys_fork(), the fork system call. In either case,
+a new page directory has to be allocated. The first 4MB of physical
+memory, containing the kernel and core data structures, is mapped into
+each process; however, for these pages, the "user" bit is not set, in
+the page table entries, so the user code cannot read or write this
+memory. To handle fork, the old process's page directory is copied
+into the new one. User-writable pages are marked copy-on-write in
+both the source and destination page directories. There is also a
+hook in exec() and in _cleanup() to clean up and deallocate a
+process's page directory and attached page tables.
+
+Finally, the mman pagefault handler ISR provides a number of useful
+benefits to the VM system. When a page fault occurs, the error code
+passed to the ISR is a combination of three bits -- "user", "write",
+and "present" -- indicating what caused the page fault. If the user
+bit is set, then the fault came from user code. If the write bit is
+set, the fault occurred while trying to write to memory, otherwise
+it was a read. If the present bit is not set, then the page that was
+to be accessed was not in the virtual address space when the fault
+occurred. Depending on the combination of these bits, different
+actions can be taken. If the user bit is not set, then the kernel
+caused the page fault, in which case we kernel panic. Otherwise, if
+the user program faulted trying to write to a copy-on-write page,
+the COW handler is called to either copy the page or, if the page
+reference count is 1, to mark it writable. In any other case, the
+user program is killed for segmentation faulting.
+
+A number of changes had to be made to other parts of the system to
+accomodate the addition of virtual memory. For example, the syscall
+handlers had to be updated to use mman functions to read and write
+parameters on the user stack. The build system also had to be
+rewritten to build user programs with a fixed start address (the build
+system is discussed in detail in build.txt).
+
+[Interface]
+The mman interface is divided into three sets of functions. The first
+set is intended for interal use only, but the functions are exported
+so that other kernel modules can make use of them if necessary. The
+second set is intended for use by closely related modules, such as
+shared memory, as well as internal use. The last set of functions
+is intended for use by other modules, such as unrelated system call
+handlers.
+
+Examples of functions from the "internal use only" group are routines
+to get and set control registers, invalidate TLB entries, and allocate
+mman internal data structures.
+
+Examples of functions from the "semi-internal use" group are routines
+to map and unmap pages, allocate virtual or physical pages, translate
+virtual pages to physical pages, and to copy or set up memory
+management state to a new process for e.g. fork()/exec().
+
+Examples of functions from the "external use" group are routines to
+initialize memory management state and to copy buffers into and out
+of user processes.
+
+The only important functions for non-memory-related kernel modules
+to be aware of are _mman_get_user_data and _mman_set_user_data, which
+create temporary mappings into a user's address space and copy a
+buffer into or out of the user's memory.
+
+A full list of functions and their roles can be found in mman.h

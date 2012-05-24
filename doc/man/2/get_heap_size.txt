@@ -1,0 +1,18 @@
+NAME
+	get_heap_size
+
+SYNOPSIS
+	Status get_heap_size(int **size)
+
+DESCRIPTION
+	Returns the current size of the heap region.
+
+	This function is intended to be called by the heap manager and should
+	probably not be called by user program code directly. There is no
+	harm in doing so, however.
+
+RETURN VALUE
+	SUCCESS
+
+SEE ALSO
+	get_heap_base.txt grow_heap.txt

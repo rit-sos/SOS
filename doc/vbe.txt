@@ -1,0 +1,25 @@
+SOS VBE Graphics
+Authors: James Letendre
+
+[Purpose]
+The purpose of VBE Graphics it to provide a method of graphical output other
+than the default text mode. 
+
+[Design]
+VBE Graphics consists of two main parts. 
+
+First, there is real-mode bootstrap code which talks with the BIOS to find and
+set the desired video mode. This code stores the VBE controller info and the VBE
+mode info which was set.
+
+Second, there is kernel level code which handles writes to the framebuffer in
+the kernel. This code uses the VBE info structures saved by the bootstrap code.
+
+A font was developed to allow for c_io to be ported over and useable with the
+graphics enabled.
+
+[Interface]
+This code is only accessed internally by the kernel, more specifically the
+kernel windowing code. Writes by the kernel to the framebuffer are passed
+through the _vbe_draw_pixel(...) function.
+

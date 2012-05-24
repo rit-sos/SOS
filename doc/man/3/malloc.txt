@@ -1,0 +1,15 @@
+NAME
+	malloc
+
+SYNOPSIS
+	void *malloc(int size)
+
+DESCRIPTION
+	Allocates a region of at least size bytes on the heap and returns a
+	pointer to it. Call free to release the memory when finished with it.
+
+RETURN VALUE
+	Pointer to new allocation, or NULL if the allocation fails.
+
+SEE ALSO
+	free.txt realloc.txt umem.txt

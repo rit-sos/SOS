@@ -1,0 +1,12 @@
+NAME
+	memcpy
+
+SYNOPSIS
+	void *memcpy(void *dst, const void *src, int size)
+
+DESCRIPTION
+	Copies size bytes from the src buffer to the dst buffer. Results are
+	undefined for overlapping buffers.
+
+RETURN VALUE
+	Returns dst

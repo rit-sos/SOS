@@ -1,0 +1,14 @@
+NAME
+	windowing_flip_rect
+
+SYNOPSIS
+	void windowing_flip_rect( Uint x, Uint y, Uint w, Uint h )
+
+DESCRIPTION
+	Flips the specified portion of the users buffer to the framebuffer. This
+	function is a NOP when windowing_init was called with WIN_AUTO_FLIP. If the
+	provided bounds are not within the window, no flipping occurs.
+
+RETURN VALUE
+	None
+

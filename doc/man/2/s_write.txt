@@ -1,0 +1,16 @@
+NAME
+	s_write
+
+SYNOPSIS
+	Status write(int fd, int char);
+
+DESCRIPTION
+	write a single character into the specified file descriptor
+
+RETURN VALUE
+	SUCCESS if write was successful
+	FAILURE if attempting to write to an invalid FD
+	EOF if the file will accept no more data.
+
+NOTES
+	Calling write may block the user process.

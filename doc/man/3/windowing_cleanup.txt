@@ -1,0 +1,13 @@
+NAME
+	windowing_cleanup
+
+SYNOPSIS
+	void windowing_cleanup(void)
+
+DESCRIPTION
+	cleans up memory used by the windowing library. Frees the window handle
+	being used by this process for other processes to use.
+
+RETURN VALUE
+	None
+

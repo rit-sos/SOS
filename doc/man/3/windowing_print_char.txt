@@ -1,0 +1,16 @@
+NAME
+	windowing_print_char
+
+SYNOPSIS
+	void windowing_print_char(const char c)
+
+DESCRIPTION
+	Print the character at the cursor position, moves cursor to the left one
+	position. If the character is a newline, the cursor is moved to the start of
+	the next line.
+
+	When the end of the window is hit, all text is scrolled up 1 line.
+
+RETURN VALUE
+	None
+

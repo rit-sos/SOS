@@ -1,0 +1,13 @@
+NAME
+	windowing_print_str
+
+SYNOPSIS
+	void windowing_print_str(const char *c)
+
+DESCRIPTION
+	Prints the provided string to the window. Uses windowing_print_char to print
+	out each character.
+
+RETURN VALUE
+	None
+

@@ -1,0 +1,23 @@
+NAME
+	user_shell
+
+SYNOPSIS
+	user_shell
+
+DESCRIPTION
+	A shell which allows for the launching of user programs. The shell reads
+	from the CIO_FD to assemble a line. The line is then compared to the list of
+	names of user programs, if there is a match then the program is launched.
+
+	The shell also has built-in commands for doing the same things as
+	shm_shell, but it uses SIO for input instead of CIO.
+
+	The command "help" can be used to list all user programs executable by the
+	shell.
+
+PROMPTING
+	The shell prompts for user input with "$: "
+
+BUGS
+	Its too small and too useless
+

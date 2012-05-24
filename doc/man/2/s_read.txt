@@ -1,0 +1,13 @@
+NAME
+	s_read
+SYNOPSIS
+	Status read(int fd, int *buf);
+DESCRIPTION
+	read a single character from the FD into the specified pointer
+RETURN VALUE
+	SUCCESS if read was successful
+	FAILURE if attempting to read from an invalid FD
+	EOF if there is no more available data in the file
+NOTES
+	calling read may block the process if no data is available in the
+	file descriptor.

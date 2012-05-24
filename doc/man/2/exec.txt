@@ -1,0 +1,17 @@
+NAME
+	exec
+
+SYNOPSIS
+	Status exec(int program)
+
+DESCRIPTION
+	Replaces the currently running program with the program whose ID (as
+	defined in umap.h) is program. All of the current program's state other
+	than PID is discarded if exec succeeds.
+
+RETURN VALUE
+	A variety of status codes on failure.
+	Will not return if it succeeds.
+
+SEE ALSO
+	../5/umap.h.txt ../../build.txt

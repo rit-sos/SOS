@@ -1,0 +1,18 @@
+NAME
+	window_test
+
+SYNOPSIS
+	window_test
+
+DESCRIPTION
+	This program exercises the user windowing library. It allocates a window and
+	prints out some strings to test character output.
+	
+	It prints out a countdown using the relative cursor move to overwrite the
+	numbers each time.
+
+	Then it draws some lines across the screen to test the line drawing
+	functionality.
+
+	Finally it loops forever displaying a shifting color pattern on the window.
+

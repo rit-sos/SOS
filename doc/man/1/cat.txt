@@ -1,0 +1,16 @@
+NAME
+	cat
+
+SYNOPSIS
+	# cat
+DESCRIPTION
+	opens a file of length 1 sector and displays it on the serial
+	port.
+
+PROMPTING
+	The program prompts the user for the sector to read.
+
+BUGS
+	if the file doesn't contain an EOT character (0x04) it will fail
+	after reading 512 bytes.
+

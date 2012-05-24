@@ -1,0 +1,11 @@
+NAME
+	memset
+
+SYNOPSIS
+	void *memset(void *ptr, int byte, int size)
+
+DESCRIPTION
+	Sets each byte of a buffer of size size to byte.
+
+RETURN VALUE
+	Returns ptr

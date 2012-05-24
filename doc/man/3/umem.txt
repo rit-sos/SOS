@@ -1,0 +1,27 @@
+NAME
+	umem
+
+SYNOPSIS
+	User-mode heap manager overview
+
+DESCRIPTION
+	The user-mode heap manager is functionally almost identical to the
+	kernel-mode equivalent described in the heaps module documentation.
+
+	The user-mode heap manager provides the functionality of malloc, realloc,
+	and free to user programs.
+
+	The heap manager maintains a linked list of heap allocations and
+	inserts, removes, and appends new allocations in that list as needed.
+	The heap manager is also responsible for growing the heap via the
+	grow_heap system call, and establishing the heap at program startup
+	via the get_heap_base and get_heap_size system calls.
+
+	The major difference between the user and kernel heaps is that user heaps
+	start out as copy-on-write mappings to a page that is all zeroes.
+
+	The heap manager initialization routine is called by the ustrap before
+	main starts.
+
+SEE ALSO
+	malloc.txt free.txt realloc.txt

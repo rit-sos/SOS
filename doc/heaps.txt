@@ -1,0 +1,74 @@
+SOS Heap Management Module (heaps)
+Authors: Corey Bloodstein
+
+[Purpose]
+The heaps module consists of the kernel heap manager and the user heap
+allocator. The role of the heap manager is to handle arbitrary dynamic
+memory allocations. As a secondary goal, the heap manager should be
+able to reuse memory that is allocated and subsequently freed. The role
+of the heap allocator is to provide an interface between the user and
+the memory management subsystem via system calls for the establishment,
+maintenance, and expansion of user heaps.
+
+[Design]
+There are actually two nearly identical copies of the heap management
+code in SOS -- one for the kernel and one for the user libraries. In
+either case, the behavior of the heap manager is almost exactly the
+same. This document describes the kernel heap manager, but the details
+of the implementation apply almost exactly to the user heap manager,
+with some exceptions as noted later in this document.
+
+The heap is a linked list of "heap buffer nodes" or "heap tags", each
+of which corresponds to a single heap allocation. The heap buffer nodes
+contain a size, as well as a previous and a next pointer. The allocated
+buffer itself directly follows the buffer node in memory. The heap
+manager keeps track of the first pointer in the list as well as the
+size of the heap (the boundary at which the heap must again be grown)
+and the extent of the heap (the end of the furthest-out allocation).
+
+When a new allocation is requested, the list of heap allocations is
+walked to find a suitable location for it. At each heap buffer node,
+the difference between the end of the heap tag and the beginning of
+the next heap tag is compared to the size of the allocation request
+plus the size of the heap tag. If the new allocation would fit then
+the new allocation's tag is inserted into the list at that point. If
+the end of the list is reached, then the new node is appended to the
+end of the list and the extent is increased.
+
+When an allocation is freed, the node is simply removed from the list.
+
+When an allocation is resized, the distance to the next node is
+compared to the new size. If there is room, the size is changed in the
+tag and the original pointer is returned. Otherwise, a new allocation
+is performed as described above and the old allocation's buffer is
+copied and freed.
+
+There is a major difference between the user and kernel heap structures
+in the way that the heaps are initially allocated and grown. The kernel
+heap pages are always backed by physical pages, which may or may not
+be continuous in physical memory. New user heap pages are not given any
+physical memory. Instead, they are mapped copy-on-write to a full page of
+zeroes. This way, if the heap is never written to by the user program, no
+physical memory is reserved for it.
+
+[Interface]
+The interface to the kernel heap manager is very similar to the usual C
+standard library dynamic memory interface. Kernel modules that need to
+allocate dynamic memory can call _kmalloc(), which creates a new heap
+allocation and returns a pointer to it, growing the heap if necessary
+in the process. When the memory is no longer needed, the module can
+call _kfree(), which releases the memory back to the heap manager. The
+function _krealloc() can be used to resize or grow a previously
+allocated buffer, copying the previous buffer into the new one if the
+new buffer does not fit at the same address.
+
+The interface to the user heap allocator works with system calls. The
+user program ordinarily does not need to make calls to the heap
+allocator directly -- in fact, doing so would cause the user-mode heap
+manager to fall out of sync with the current state of the heap, though
+this should not generally cause too much of a problem. Normally, the
+user-mode heap manager will use the get_heap_base(), get_heap_size(),
+and grow_heap() system calls to establish and, as necessary, grow the
+user heap. A detailed description of the user heap manager can be found
+in the corresponding documentation.
+

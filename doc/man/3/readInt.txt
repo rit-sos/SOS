@@ -1,0 +1,15 @@
+NAME
+	readInt
+SYNOPSIS
+	val = readInt(fd);
+DESCRIPTION
+	reads a signed integer value from the specified file descriptor
+	until a newline is recieved. Valid characters (0-9, and '-' ) will
+	be echoed back to the file descriptor. The input must be a valid
+	number immediately followed by a newline. Any invalid characters
+	will reset the value and '.' will be printed to indicate its
+	invalidity.
+
+RETURN VALUE
+	the input string converted from base 10 to an integer value.
+

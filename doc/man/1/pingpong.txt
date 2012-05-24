@@ -1,0 +1,12 @@
+NAME
+    pingpong
+
+SYNOPSIS
+    Takes two mac addresses one to send to and one to listen for these can also be broadcast addresses.
+
+DESCRIPTION
+
+PROMPTING
+
+BUGS
+

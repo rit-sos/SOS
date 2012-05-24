@@ -1,0 +1,20 @@
+NAME
+	fopen
+
+SYNOPSIS
+	status = fopen(sectorstart, length, int *fd);
+DESCRIPTION
+	Opens a read/write file descriptor starting at sectorstart of
+	length 'length' sectors (512 bytes).
+
+RETURN VALUE
+	SUCCESS if the file opened succesfully
+	FAILURE if the file did not open or arugments were invalid.
+
+NOTES
+	The disk the file is opened on is the last one specified as usable during
+	bootup.
+
+BUGS
+	Currently, nothing prevents multiple files from overlapping.
+	Behavior will be... interesting

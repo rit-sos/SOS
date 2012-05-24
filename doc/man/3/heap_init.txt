@@ -1,0 +1,14 @@
+NAME
+	heap_init
+
+SYNOPSIS
+	void heap_init(void)
+
+DESCRIPTION
+	Set up the initial heap manager state.
+
+	This function is called automatically from the ustrap routine in any
+	properly built user program. It should not be called from user code.
+
+RETURN VALUE
+	None

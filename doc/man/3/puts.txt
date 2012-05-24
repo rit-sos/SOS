@@ -1,0 +1,10 @@
+NAME
+	puts
+SYNOPSIS
+	status = puts("string");
+DESCRIPTION
+	puts a string to the serial file descriptor
+RETURN VALUE
+	SUCCESS if it worked
+	EOF if the end of the file was reached.
+	FAILURE if internal FD error occurs

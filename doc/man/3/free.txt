@@ -1,0 +1,16 @@
+NAME
+	free
+
+SYNOPSIS
+	void free(void *ptr)
+
+DESCRIPTION
+	Releases a heap allocation with base address ptr. Only pointers returned
+	from malloc or realloc should be passed into free. Any pointers into the
+	allocated region should be considered invalid after calling free on it.
+
+RETURN VALUE
+	None
+
+SEE ALSO
+	malloc.txt realloc.txt umem.txt

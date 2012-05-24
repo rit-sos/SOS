@@ -1,0 +1,12 @@
+NAME
+	put_char_or_code
+
+SYNOPSIS
+	put_char_or_code(int fd, int ch);
+
+DESCRIPTION
+	prints either the character (if printable) or hex value to the specified
+	file descriptor.
+
+RETURN VALUE
+	void

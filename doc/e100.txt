@@ -1,0 +1,34 @@
+SOS Network Driver
+Authors: Eamon Doran
+
+[Purpose]
+The network driver serves as communication mechanism
+between multiple. Currently the implementation allows
+for the End user to send PING messages and listen for 
+PONG messages over layer2.
+
+[Design]
+Any single card in the e100 family is detected and the
+Memory Mapped I/O Bar is gathered from the PCI bus
+via ACM. The PCI location is printed to the screen
+as well as the IRQ for the device. Memory Mapped I/O
+and Bus Master is enabled for the PCI device. Then
+the card is reset via a selective and then software reset.
+A Command/Transmist block Ring and Receive Frame Area
+(aka receive file descriptor). Then ISR is then
+registered. The CU and are RU are then started.
+The receive frame,  CNA transition, and Receive
+Overrun interrupts are handled.
+
+[Interface]
+
+The kernel interface provides two functions
+send and receive. Each takes a buffer and length of the
+buffer.
+
+The syscall interface is two commands
+PING and PONG which both take a pointer
+to a an array of Uint8 of length 6 which is the mac address
+to listen or send to. If the broadcast mac is provided
+it will send to all devices and receive from all devices.
+

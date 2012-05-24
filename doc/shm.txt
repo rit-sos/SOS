@@ -1,0 +1,56 @@
+SOS Shared Memory Module (shm)
+Authors: Corey Bloodstein
+
+[Purpose]
+SOS is severely lacking in inter-process communication mechanisms. The
+only IPC mechanism included in the baseline is fork, which was
+implemented incompletely. With the addition of the memory management
+module and virtual memory, many new possibilities opened up. Fork was
+fully implemented using the copy-on-write mechanism, and programs
+became able to use global variables. Expanding on this, named shared
+memory regions were added in order to allow processes that do not share
+a common ancestor to communicate with each other. In addition, this
+communication is sustained and bidirectional, unlike fork which only
+works once and is unidirectional. It also scales well to large amounts
+of data, allowing multiple processes to efficiently divide and operate
+on a large dataset.
+
+[Design]
+The shared memory system is implemented using three structures. The
+first is a Shm, a descriptor representing a shared memory region that
+may be mapped into one or more user processes. The Shms in the system
+form a linked list of shared memory regions, sorted by name. The Shm
+contains the name, size, reference count, and a list of physical pages
+backing the shared memory region. The reference count is used to know
+when to discard the shared memory region and free the physical pages
+associated with it.
+
+The second data structure used in shared memory is the mapping
+descriptor. A mapping descriptor belongs to a process that has mapped
+a shared memory region. It consists of a pointer to the referenced
+region descriptor and the virtual address of the beginning of the
+mapping in the process's address space.
+
+The last data structure is the per-process shared memory information
+structure, or shminfo. The shminfo is stored in the PCB and contains
+a list of the process's current shared memory mappings.
+
+Shared memory mappings are automatically cleaned up when a process
+exits or exec()s using hooks in _cleanup() and _sys_exec(). Mappings
+are also copied during fork(). The handling during fork is a bit
+special -- logic had to be added to the address space copy so that
+the writable shared mappings are not marked copy-on-write, which would
+effectively unshare them.
+
+[Interface]
+The interface to shared memory from the kernel is entirely just to
+pass the result back to user space. That is to say that there is no
+real kernel interface to shared memory, and trying to use a shared
+memory region in the kernel directly would probably not end well.
+
+The interface to the shared memory module from user space is, of course
+through system calls. The shared memory system calls are shm_create() to
+create a new named shared memory region (and also map it into the
+caller's address space), shm_open() to open an existing region and map
+it into the caller's address space, and shm_close() to release a
+mapping.

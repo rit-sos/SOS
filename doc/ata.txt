@@ -1,0 +1,42 @@
+SOS ATA driver
+Authors: Andrew LeCain
+
+[Purpose]
+The ATA driver serves as a non-volatile storage device driver for the
+operating system. User data can be written to disk and retrieved at
+subsequent boots of the operating system. It allows interaction with
+up to 16 SATA and PATA devices on the PCI bus.
+
+[Design]
+The ATA driver identifies all drives on the first four controllers on
+the PCI bus. (Up to 16 drives.) The user is presented with information
+about the devices and asked if the user would like to use the attached
+device as a drive. A global array _busses contain up to 4 drives each.
+This information is automatically populated on initialization.
+
+The driver communicates using PIO to transfer data to and from the
+device. Non-polling, blocking reads and writes are possible by using
+interrupt based transfers. Incoming requests are queued by disk, with
+subsequent actions being executed with the current action finishes.
+Blocking reads are also provided by the driver, as a holdover from
+previous versions of the driver.
+
+[Interface]
+The driver supplies a file descriptor interface through the _ata_fopen
+function, which allocates a new file descriptor initialized to use
+asynchronus reads and writes. This file descriptor can be interacted
+with like any other file descriptor through the read and write
+syscalls. The file behaves as though it has two cursors. One for read,
+and one for write. One caveat to this behavior is that data written to
+a file descriptor and then read back from the same descriptor isn't
+guaranteed unless the file is flushed, which isn't possible to do
+manually from user space at this time. This is generally avoidable if
+the user attempts to treat the file descriptor as only read or write,
+or keeps the write cursor either behind or one 512 byte sector ahead
+of the read cursor.
+
+Other kernel modules may use the blocking write calls to read data
+from any arbitary disk or sector.
+
+[See also]
+ioreq

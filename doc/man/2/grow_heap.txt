@@ -1,0 +1,23 @@
+NAME
+	grow_heap
+
+SYNOPSIS
+	Status grow_heap(unsigned int *new_size)
+
+DESCRIPTION
+	Extends the heap of the calling process, if possible, and returns the new
+	size of the process's heap.
+
+	This function is intended to be called by the heap manager and should
+	probably not be called by user program code directly. Calling this
+	function without going through the heap manager will cause the heap
+	manager to fall out of sync with the current size of the heap. This
+	is not generally harmful, but not recommended.
+
+RETURN VALUE
+	SUCCESS if the heap was grown
+	ALLOC_FAILED if they heap can't be grown any more, or if mapping
+		otherwise failed.
+
+SEE ALSO
+	get_heap_base.txt get_heap_size.txt
