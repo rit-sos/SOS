@@ -70,3 +70,9 @@ file descriptor table to a per-process based system, giving each newly spawned
 process the file descriptor table of their parent and enabling interprocess
 pipes. Currently the FDs are a bit too specialized, and don't allow user
 processes to read from the output buffer of a file descriptor.
+
+One design decision we ended up regretting was not making a PCI enumeration
+subsystem. In retrospect, it would have been a lot more efficient to enumerate
+the PCI bus once, and install connect callbacks for each device class supported.
+Currently we enumerate the PCI bus once per device module, which is managable
+now, but wouldn't scale very well as more features are added.
