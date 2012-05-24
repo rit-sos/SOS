@@ -232,9 +232,20 @@ bad_user.o: clock.h stacks.h shm.h klib.h
 bitbang.o: bitbang.h headers.h defs.h types.h support.h system.h mman.h
 bitbang.o: heaps.h pcbs.h clock.h stacks.h shm.h klib.h
 BuildImage.o: /usr/include/stdio.h /usr/include/features.h
-BuildImage.o: /usr/include/libio.h /usr/include/_G_config.h
-BuildImage.o: /usr/include/wchar.h /usr/include/stdlib.h
+BuildImage.o: /usr/include/bits/predefs.h /usr/include/sys/cdefs.h
+BuildImage.o: /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h
+BuildImage.o: /usr/include/gnu/stubs-32.h /usr/include/bits/types.h
+BuildImage.o: /usr/include/bits/typesizes.h /usr/include/libio.h
+BuildImage.o: /usr/include/_G_config.h /usr/include/wchar.h
+BuildImage.o: /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h
+BuildImage.o: /usr/include/stdlib.h /usr/include/sys/types.h
+BuildImage.o: /usr/include/time.h /usr/include/endian.h
+BuildImage.o: /usr/include/bits/endian.h /usr/include/bits/byteswap.h
+BuildImage.o: /usr/include/sys/select.h /usr/include/bits/select.h
+BuildImage.o: /usr/include/bits/sigset.h /usr/include/bits/time.h
+BuildImage.o: /usr/include/sys/sysmacros.h /usr/include/bits/pthreadtypes.h
 BuildImage.o: /usr/include/alloca.h /usr/include/unistd.h
+BuildImage.o: /usr/include/bits/posix_opt.h /usr/include/bits/confname.h
 BuildImage.o: /usr/include/getopt.h /usr/include/string.h
 BuildImage.o: /usr/include/xlocale.h
 cat.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
@@ -274,8 +285,12 @@ mman_test.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
 mman_test.o: pcbs.h clock.h stacks.h shm.h klib.h
 offsets.o: heaps.h pcbs.h headers.h defs.h types.h support.h system.h mman.h
 offsets.o: klib.h clock.h stacks.h shm.h /usr/include/stdio.h
-offsets.o: /usr/include/features.h /usr/include/libio.h
-offsets.o: /usr/include/_G_config.h /usr/include/wchar.h
+offsets.o: /usr/include/features.h /usr/include/bits/predefs.h
+offsets.o: /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h
+offsets.o: /usr/include/gnu/stubs.h /usr/include/gnu/stubs-32.h
+offsets.o: /usr/include/bits/types.h /usr/include/bits/typesizes.h
+offsets.o: /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h
+offsets.o: /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h
 pcbs.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 pcbs.o: clock.h stacks.h shm.h klib.h queues.h c_io.h fd.h io.h windowing.h
 pcbs.o: graphics_font.h vbe.h
@@ -293,6 +308,8 @@ shm.o: graphics_font.h vbe.h
 shm_shell.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
 shm_shell.o: pcbs.h clock.h stacks.h shm.h klib.h windowing.h graphics_font.h
 shm_shell.o: vbe.h
+shm_test2.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
+shm_test2.o: pcbs.h clock.h stacks.h shm.h klib.h
 shm_test.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
 shm_test.o: clock.h stacks.h shm.h klib.h
 sio.o: headers.h defs.h types.h support.h system.h mman.h heaps.h pcbs.h
@@ -332,7 +349,7 @@ u_windowing.o: system.h mman.h heaps.h pcbs.h clock.h stacks.h shm.h klib.h
 u_windowing.o: graphics_font.h vbe.h
 vbe.o: vbe.h headers.h defs.h types.h support.h system.h mman.h heaps.h
 vbe.o: pcbs.h clock.h stacks.h shm.h klib.h windowing.h graphics_font.h
-vbe.o: vbe_structs.h sio.h queues.h bootstrap.h
+vbe.o: vbe_structs.h sio.h queues.h c_io.h fd.h io.h bootstrap.h
 windowing.o: headers.h defs.h types.h support.h system.h mman.h heaps.h
 windowing.o: pcbs.h clock.h stacks.h shm.h klib.h windowing.h graphics_font.h
 windowing.o: vbe.h
