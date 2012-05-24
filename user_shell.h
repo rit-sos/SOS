@@ -21,15 +21,14 @@ typedef struct
 // commands
 ShellProg shell_commands[] =
 {
-	MK_COMMAND(user_disk),
 	MK_COMMAND(writer),
 	MK_COMMAND(cat),
 	MK_COMMAND(window_test),
 	MK_COMMAND(heap_test),
 	MK_COMMAND(mman_test),
 	MK_COMMAND(bad_user),
-//	MK_COMMAND(shm_test),
 	MK_COMMAND(shm_shell),
+	MK_COMMAND(shm_test),
 
 	// must be at the end
 	END_COMMAND
