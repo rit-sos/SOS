@@ -1,0 +1,64 @@
+SOS File descriptor module
+Authors: Andrew LeCain
+
+[Purpose]
+The file descriptor module is an abstraction layer on top of the
+various forms, of character based IO the system is capable of. It
+provides buffered IO, blocking reads and writes, and watermark
+transfers to any output source.
+
+[Design]
+The file descriptor code replaces the default handler of the read and
+write syscalls implemented in the baseline. The syscalls now take a
+file descriptor handler that acts as an index in the global file
+descriptor table. The character is then written to or read from the
+appropriate buffer. If the buffer is either full, in the case of tx,
+or empty, in the case of rx, the process is blocked on read or write
+respectively. If the device associated with the file descriptor is
+capable, the file descriptor will automatically request a flush of the
+buffer when a watermark has been reached, limiting the amount of
+blocking the user process will achieve.
+
+[Interface]
+The interface to userland is through the aforementioned read and write
+system calls, as well as the fopen and fclose syscalls. These operate
+much like their linux counterparts, opening a file on a disk and
+closing the same file and flushing the tx buffers.
+
+The interface to the rest of the kernel is a bit more complicated.
+Every file descriptor provided by a module, such as the SIO and CIO
+modules, must fill their requested file descriptor with callback
+functions to request (start_read) and send(start_write) data as
+applicable. As data becomes available, the driver will call
+_fd_readBack to fill the RX buffer. Correspondingly, a transmitting
+driver will call _fd_getTx to request new characters to be written. It
+is the responsibility of the implementing driver to call _fd_readDone
+and _fd_writeDone on the file descriptor when the transfer is complete
+to free any blocked processes.
+
+Any driver wishing to implement file descriptors must allocate a new
+file descriptor for itself and provide the index in the global
+descriptor table either through a syscall or user library. Technically
+nothing else needs to be set, but then it won't do anything.
+
+If the file descriptor is allocated as being writable, start_write
+must be assigned to the address of a handling function, and the
+tx_watermark must be set to an appropriate value greater than one and
+less than the buffer size. Writes in excess to this number will
+subsequently call start_write, which must get data from the buffer
+with _fd_getTx. When the write is done, it must then call writeDone to
+free any blocked processes.
+
+If the file descriptor is allocated as being readable, the
+implementing driver need only call _fd_readBack on the file descriptor
+any time a character is recieved, and readDone after to unblock
+processes reading on that drive. If applicable, the start_read
+function can be defined, as well as an rxwatermark. When the character
+level in the buffer goes below this watermark, subsquent calls to read
+will also trigger start_read to read from the device.
+
+To facilitate driver development by keeping track of device specific
+data associated with the file amongst all these callbacks, such as in
+disk drivers or network drivers, each FD contains a void * that can be
+assigned with a pointer to the drive specific information to
+facilitate the asynchronus nature of the callbacks.
