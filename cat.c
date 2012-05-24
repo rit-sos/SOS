@@ -31,6 +31,7 @@ void main( void ) {
 	status = fopen(sectorStart,1,&fd);
 	if( status != SUCCESS ) {
 		puts("open failed!\n");
+		fclose(fd);
 		exit();
 	}
 	puts("Fd value:");

@@ -180,10 +180,10 @@ void _fd_readBack(Fd *fd, char c);
  ** Write to device successful. Requests another character from the write buffer and unblocks any write blocked processes.
  ** To be called from the device
  **
- ** Returns the next character to be written, or -1
+ ** 
  **
  */
-int _fd_writeDone(Fd *fd);
+void _fd_writeDone(Fd *fd);
 
 /*
  ** _fd_getTx(file)

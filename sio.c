@@ -114,13 +114,11 @@ Status _sio_startWrite(Fd *fd){
 	//
 
 	_sending = 1;
-	
+
 	ch=_fd_getTx(fd);
-	
+
 	__outb( UA4_TXD, ch );
-
 	// Also must enable transmitter interrupts
-
 	_sio_enable( SIO_TX );
 	return SUCCESS;
 }

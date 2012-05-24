@@ -31,6 +31,7 @@ void main( void ) {
 	status = fopen(sectorStart,1,&fd);
 	if( status != SUCCESS ) {
 		puts("open failed!\n");
+		fclose(fd);
 		exit();
 	}
 	puts("Fd value:");
@@ -38,7 +39,7 @@ void main( void ) {
 	puts("\n");
 
 	while(1){
-	status = read(SIO_FD, &c );
+		status = read(SIO_FD, &c );
 		status = write(fd, c);
 		if (c == 0x04) break; //wait for EOT
 		if( status != SUCCESS ) {

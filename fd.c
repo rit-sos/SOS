@@ -65,6 +65,15 @@ inline unsigned char buffer_get(Buffer *b){
 	return c;
 }
 
+inline void buffer_dump(Buffer *b){
+	int i;
+	for (i=b->out; i != b->in; i++){
+		i %= FD_BUF_SIZE;
+		c_putchar(b->buff[i]);
+	}
+	c_putchar('\n');
+}
+
 inline int buffer_size(Buffer *b){
 	int sz = (b->in - b->out);
 	if (sz < 0 ) sz+= FD_BUF_SIZE;
@@ -209,7 +218,7 @@ Status _fd_write(Fd *fd, char c){
 	status = SUCCESS;
 
 	if(!buffer_full(fd->outbuffer)){
-
+		
 		buffer_put(fd->outbuffer,c);
 		fd->write_index++;
 
@@ -239,7 +248,7 @@ Status _fd_write(Fd *fd, char c){
 int _fd_read(Fd *fd){
 	if (fd->flags & FD_UNUSED){
 		return -1;
-	}	
+	}
 
 	Status status;
 	if (fd->startRead!= NULL && _fd_available(fd) <= fd->rxwatermark){ //if we need to request a read
@@ -359,7 +368,7 @@ void _fd_readBack(Fd *fd, char c){
  ** Returns the next character to be written, or -1
  **
  */
-int _fd_writeDone(Fd *fd){
+void _fd_writeDone(Fd *fd){
 	Pcb *pcb;
 	Key key;
 	Status status;
@@ -367,38 +376,36 @@ int _fd_writeDone(Fd *fd){
 
 	key.u = _fd_lookup(fd);
 
-	//if outbuffer is not empty
-	if(!buffer_empty(fd->outbuffer)){
-		c = buffer_get(fd->outbuffer);
-	}else{
-		c = -1;
-	}
-
 	//unblock process waiting on write
 	if(!_q_empty(_writing)){
-		status = _q_remove_by_key( _writing, (void **) &pcb, key );
-		if (status==SUCCESS){
-			//attempt to put the blocked process's character into the queue
+		while(1){
+			if(buffer_full(fd->outbuffer)) // if buffer is full, don't unblock
+				return;
 
-			if ((status = _in_param(pcb, 2, &c)) != SUCCESS) {
-				_cleanup(pcb);
-				return -1;
+			status = _q_remove_by_key( _writing, (void **) &pcb, key );
+			if (status==SUCCESS){
+				//attempt to put the blocked process's character into the queue
+
+				if ((status = _in_param(pcb, 2, &c)) != SUCCESS) {
+					_cleanup(pcb);
+					return;
+				}
+				buffer_put(fd->outbuffer,c);
+				fd->write_index++;
+
+
+				pcb->state=READY;
+				//schedule process
+				_sched(pcb);
+
+			}else if (status==NOT_FOUND){
+				//this just means that the thing in the queue wasn't blocking on this FD.	
+				return;
 			}
 
-			if (status != SUCCESS){
-				c_puts("Second chance write failed!");
-			}
-
-			pcb->state=READY;
-			//schedule process
-			_sched(pcb);
-
-		}else if (status==NOT_FOUND){
-			//this just means that the thing in the queue wasn't blocking on this FD.	
 		}
 	}
 
-	return c;
 }
 /*
  ** _fd_getTx(file)

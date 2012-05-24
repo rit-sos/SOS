@@ -109,10 +109,12 @@ int readInt(int fd) {
 			valid=1;
 			ret *= 10;
 			ret += ch-'0';
+			write(fd, ch);
 		} else if (ch=='-'){
 			neg=1;
 			ret=0;
 			valid=0;
+			write(fd, ch);
 		}else if (ch != '\r' && ch != '\n'){ //ignore \r\n
 			ret=0;
 			neg=0;
@@ -151,7 +153,7 @@ unsigned int spawnp(unsigned int *pid, unsigned int prio, unsigned int entry_id)
 	// we have a child; it should do the exec(),
 	// and the parent should see success
 
-	if( new == 0 ) {	// we're the child
+	if( new == 0 ) {// we're the child
 		// change the process priority
 		status = set_priority( prio );
 		if( status != SUCCESS ) {
@@ -198,14 +200,14 @@ int strlen(const char *str) {
 }
 
 inline unsigned int puts(const char *str) {
-	return fputs(SIO_FD, str);
+	return fputs(CIO_FD, str);
 }
 unsigned int fputs(int fd, const char *str) {
 	unsigned int status = SUCCESS;
 	const char *p = str;
 
 	while (*p && status == SUCCESS) {
-		status = write(fd ,*p++);
+		status = write(fd ,*(p++));
 	}
 
 	return status;
