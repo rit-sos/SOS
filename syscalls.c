@@ -314,7 +314,7 @@ static void _sys_fclose( Pcb *pcb ) {
 /*
  ** _sys_read - read a single character from the supplied FD 
  **
- ** implements:	Status read(int *buf);
+ ** implements:	Status read(int fd, int *buf);
  **
  ** blocks the calling routine if there is no character to return
  **

@@ -1,0 +1,17 @@
+NAME
+	s_fclose
+
+SYNOPSIS
+	Status fclose(int *fd);
+
+DESCRIPTION
+	Closes a file previously opened by fopen, flushing the contents.
+
+RETURN VALUE
+	SUCCESS if close and flush succeeds.
+	FAILURE if file was not valid.
+
+NOTES
+	If fclose is called on CIO_FD or SIO_FD, instead of closing these
+	files, their buffers are simply dropped, and they remain open for
+	other programs.
