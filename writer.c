@@ -25,12 +25,13 @@ void main( void ) {
 	int sectorStart;
 
 	Status status;
-	fputs(SIO_FD, "Where would you like to start writing?\n");
+	fputs(SIO_FD, "Where would you like to start writing?\r\n");
 	sectorStart= readInt(SIO_FD);
 
 	status = fopen(sectorStart,1,&fd);
+	fputs(SIO_FD, "\r\n");
 	if( status != SUCCESS ) {
-		puts("open failed!\n");
+		puts("open failed!\r\n");
 		fclose(fd);
 		exit();
 	}
@@ -51,6 +52,6 @@ void main( void ) {
 
 	fclose(fd);
 
-	puts("===File closed===\n");
+	puts("===File closed===\r\n");
 
 }

@@ -8,3 +8,4 @@ shm_test	0x70000
 writer		0x74000
 cat			0x78000
 shm_shell	0x7c000
+user_disk	0x80000

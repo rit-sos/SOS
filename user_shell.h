@@ -29,6 +29,7 @@ ShellProg shell_commands[] =
 	MK_COMMAND(bad_user),
 	MK_COMMAND(shm_shell),
 	MK_COMMAND(shm_test),
+	MK_COMMAND(user_disk),
 
 	// must be at the end
 	END_COMMAND

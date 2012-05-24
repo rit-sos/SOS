@@ -25,10 +25,11 @@ void main( void ) {
 	int sectorStart;
 
 	Status status;
-	fputs(SIO_FD, "Where would you like to start reading?\n");
+	fputs(SIO_FD, "Where would you like to start reading?\r\n");
 	sectorStart= readInt(SIO_FD);
 
 	status = fopen(sectorStart,1,&fd);
+	fputs(SIO_FD, "\r\n");
 	if( status != SUCCESS ) {
 		puts("open failed!\n");
 		fclose(fd);
@@ -42,7 +43,7 @@ void main( void ) {
 		status = read(fd, &c );
 		if (c == 0x04) break; //wait for EOT
 		if( status != SUCCESS ) {
-			puts( "cat: read failed\n");
+			puts( "cat: read failed\r\n");
 			break;
 		}
 		status = write(SIO_FD, c);
@@ -50,6 +51,6 @@ void main( void ) {
 
 	fclose(fd);
 
-	puts("===File closed===\n");
+	fputs(SIO_FD,"===File closed===\r\n");
 
 }
