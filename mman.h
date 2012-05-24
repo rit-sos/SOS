@@ -161,7 +161,7 @@ Status _mman_pgdir_copy(Pagedir_entry *dst, Memmap_ptr dstmap, Pagedir_entry *sr
 void _mman_info(void);
 
 /* non-internal functions */
-void _mman_init(void *videoBuf, Uint size);
+void _mman_init(void *videoBuf, Uint size, void *csrBuf, Uint csrSize);
 Status _mman_proc_init(struct pcb *pcb);
 Status _mman_proc_copy(struct pcb *new, struct pcb *old);
 Status _mman_proc_exit(struct pcb *pcb);

@@ -28,6 +28,7 @@
 #include "mman.h"
 #include "c_io.h"
 #include "ata.h"
+#include "e100.h"
 
 // need init() address
 #include "kmap.h"
@@ -289,11 +290,12 @@ void _init( void ) {
 	_syscall_init();
 	_sched_init();
 	_clock_init();
-	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size());
+	_mman_init(_vbe_framebuffer_addr(), _vbe_framebuffer_size(), _e100_csr_addr(), _e100_csr_size());
 	_heap_init();
+    _e100_init_module();
 	_fd_init();
 	_sio_init();
-	_ata_init();
+	//_ata_init();
 
 	c_puts( "\n" );
 

@@ -1187,7 +1187,7 @@ Status _mman_alloc_framebuffer(void *videoBuf, Uint size) {
 	return SUCCESS;
 }
 
-void _mman_init(void *videoBuf, Uint size) {
+void _mman_init(void *videoBuf, Uint size, void *csrBuf, Uint csrSize ) {
 	Uint32 i, addr;
 	Memmap *map;
 	Status status;
@@ -1275,6 +1275,10 @@ void _mman_init(void *videoBuf, Uint size) {
 
 	if ((_mman_alloc_framebuffer(videoBuf, size)) != SUCCESS) {
 		_kpanic("_mman_init", "_mman_alloc_framebuffer", FAILURE);
+	}
+
+	if ((_mman_alloc_framebuffer(csrBuf, csrSize)) != SUCCESS) {
+		_kpanic("_mman_init", "_mman_alloc_framebufferCSR", FAILURE);
 	}
 
 	__install_isr(INT_VEC_PAGE_FAULT, _mman_pagefault_isr);

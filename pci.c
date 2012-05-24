@@ -260,6 +260,39 @@ void _pci_scan_for ( struct pci_func *f, Uint8 bus_start, Uint8 slot_start, Uint
 	return;
 }
 
+    void
+_scan_pci_for ( struct pci_func *f )
+    {
+    Uint16 bus;
+    Uint8 slot;
+    Uint8 func;
+
+    for (bus = 0; bus < 256; bus++)
+        {
+        for (slot = 0; slot < 32; slot++)
+            {
+            for (func = 0; func < 8; func++)
+                {
+                Uint32 class;
+
+                class = read_pci_conf_long(bus, slot, func, PCI_CLASS_REVISION);
+
+                if (class == 0xffffffff)
+                    continue;
+
+                if (f->vendor_id == read_pci_conf_word (bus, slot, func, PCI_VENDOR_ID) &&
+                  f->device_id == read_pci_conf_word (bus, slot, func, PCI_DEVICE_ID))
+                    {
+                    f->bus = bus;
+                    f->slot = slot;
+                    f->func = func;
+                    f->irq_line = read_pci_conf_byte (bus, slot, func, PCI_INTERRUPT_LINE);
+                    }
+                }
+            }
+        }
+    return;
+    }
 
 void play (void)
 {

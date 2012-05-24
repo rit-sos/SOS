@@ -23,6 +23,7 @@
 #include "fd.h"
 #include "ata.h"
 #include "windowing.h"
+#include "e100.h"
 
 #include "startup.h"
 
@@ -1301,6 +1302,68 @@ static void _sys_set_test(Pcb *pcb) {
 
 }
 
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  _sys_e100_send
+ *  Description:  
+ * =====================================================================================
+ */
+    void
+_sys_e100_send ( Pcb *pcb )
+    {
+    void *ptr;
+    Uint32 length;
+    Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		c_printf("[%04x] _sys_e100_send: _in_param(1): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &length)) != SUCCESS) {
+		c_printf("[%04x] _sys_e100_receive: _in_param(2): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+    _e100_send (ptr,length);
+
+    return ;
+    }		/* -----  end of function _sys_e100_send  ----- */
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  _sys_e100_receive
+ *  Description:  
+ * =====================================================================================
+ */
+    void
+_sys_e100_receive ( Pcb *pcb )
+    {
+    void *ptr;
+    Uint32 length;
+    Status status;
+
+	if ((status = _in_param(pcb, 1, (Uint32*)&ptr)) != SUCCESS) {
+		c_printf("[%04x] _sys_e100_send: _in_param(1): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+	if ((status = _in_param(pcb, 2, &length)) != SUCCESS) {
+		c_printf("[%04x] _sys_e100_receive: _in_param(2): %s\n", pcb->pid, _kstatus(status));
+		_sys_exit(pcb);
+		return;
+	}
+
+    _e100_receive(ptr, length);
+
+    return ;
+    }		/* -----  end of function _sys_e100_receive  ----- */
+
 /*
  ** PUBLIC FUNCTIONS
  */
@@ -1368,6 +1431,11 @@ void _syscall_init( void ) {
 	_syscall_tbl[ SYS_s_windowing_clearscreen ]		= _sys_windowing_clearscreen;
 	_syscall_tbl[ SYS_s_windowing_draw_line ]		= _sys_windowing_draw_line;
 	_syscall_tbl[ SYS_s_windowing_copy_rect ]		= _sys_windowing_copy_rect;
+
+
+    /*  network */
+    _syscall_tbl[ SYS_e100_send ]       = _sys_e100_send;
+    _syscall_tbl[ SYS_e100_receive ]    = _sys_e100_receive;
 
 	// report that we're done
 

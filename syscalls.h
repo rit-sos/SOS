@@ -61,9 +61,13 @@
 #define	SYS_s_windowing_draw_line		30
 #define	SYS_s_windowing_copy_rect		31
 
+/* network syscalls */
+#define SYS_e100_send                   32
+#define SYS_e100_receive                33
+
 // number of "real" system calls
 
-#define	N_SYSCALLS	32
+#define	N_SYSCALLS	34
 
 // dummy system call code to test the syscall ISR
 
