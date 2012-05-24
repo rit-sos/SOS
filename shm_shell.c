@@ -116,6 +116,7 @@ void do_read(void) {
 	}
 
 	windowing_print_str(share);
+	windowing_print_str('\n');
 }
 
 void do_write(void) {
@@ -178,6 +179,9 @@ void main(void)
 		} else if (strcmp(line, "write") == 0) {
 			do_write();
 			continue;
+		} else if (strcmp(line, "exit") == 0) {
+			windowing_cleanup();
+			exit();
 		} else if (!line[0]) {
 			continue;
 		}

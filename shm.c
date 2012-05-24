@@ -278,12 +278,12 @@ Status _shm_find(const char *name, Shm **out) {
 	Int32 diff;
 
 	for (shm = shm_first; shm; shm = shm->next) {
-		c_printf("_kstrcmp(%s, %s)\n", name, shm->name);
+		//c_printf("_kstrcmp(%s, %s)\n", name, shm->name);
 		diff = _kstrcmp(name, shm->name);
 
 		if (diff < 0) {
 			/* name sorts before curr->name */
-			c_printf("_shm_find: not found\n");
+			//c_printf("_shm_find: not found\n");
 			return NOT_FOUND;
 		} else if (diff == 0) {
 			/* name exists */
@@ -292,7 +292,7 @@ Status _shm_find(const char *name, Shm **out) {
 		}
 	}
 
-	c_printf("_shm_find: not found\n");
+	//c_printf("_shm_find: not found\n");
 
 	return NOT_FOUND;
 }
@@ -316,7 +316,7 @@ Status _shm_find_mapping(Pcb *pcb, const char *name, Shm_mapping **out) {
 		}
 	}
 
-	c_printf("_shm_find_mapping: not found\n");
+	//c_printf("_shm_find_mapping: not found\n");
 
 	return NOT_FOUND;
 }
@@ -373,6 +373,9 @@ Status _shm_cleanup(Pcb *pcb) {
 
 	_kfree(mappings);
 
+	pcb->shminfo.mappings = NULL;
+	pcb->shminfo.num_mappings = 0;
+
 	return SUCCESS;
 }
 
@@ -382,6 +385,12 @@ Status _shm_cleanup(Pcb *pcb) {
 Status _shm_copy(struct pcb *new, struct pcb *pcb) {
 	Shm_mapping *mappings;
 	Uint32 i;
+
+	c_printf("_shm_copy: size=%d\n", pcb->shminfo.num_mappings);
+
+	if (pcb->shminfo.num_mappings == 0) {
+		return SUCCESS;
+	}
 
 	mappings = _kmalloc(pcb->shminfo.num_mappings * sizeof(Shm_mapping));
 	if (!mappings) {
@@ -397,6 +406,7 @@ Status _shm_copy(struct pcb *new, struct pcb *pcb) {
 	}
 
 	new->shminfo.num_mappings = pcb->shminfo.num_mappings;
+	new->shminfo.mappings = mappings;
 
 	return SUCCESS;
 }

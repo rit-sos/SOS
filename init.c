@@ -84,6 +84,7 @@ void main(void) {
 	puts("\n");
 
 	fclose(CIO_FD); //flush CIO
+	fclose(SIO_FD);
 
 	//puts("hello from ring 3 init\n");
 

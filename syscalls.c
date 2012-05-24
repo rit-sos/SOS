@@ -159,6 +159,10 @@ static void _sys_fork( Pcb *pcb ) {
 	}
 
 	status = _shm_copy(new, pcb);
+	if (status != SUCCESS) {
+		c_printf("shm_copy failed: %08x\n", status);
+		goto Cleanup;
+	}
 
 	// fix unique fields
 	new->pid = _next_pid++;

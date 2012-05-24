@@ -258,6 +258,7 @@ void _mman_pagefault_isr(int vec, int code) {
 	} else {
 		Pagedir_entry pde = _kpgdir[cr2 >> 22];
 		pte = get_pte((Pagedir_entry*)_kpgdir, cr2 >> 12);
+		c_printf("Kernel Page Fault: cr2=%08x\n", cr2);
 		c_printf("pde = "
 			"%05x %x %d %d %d %d %d %d %d %d\n",
 			pde.frame, pde.unused0, pde.pgsize, pde.unused1,

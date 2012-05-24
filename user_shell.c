@@ -125,6 +125,7 @@ void do_read(void) {
 	}
 
 	windowing_print_str(share);
+	windowing_print_str("\n");
 }
 
 void do_write(void) {
