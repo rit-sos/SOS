@@ -1,0 +1,13 @@
+NAME
+	write_buf
+
+SYNOPSIS
+	Status write_buf(const char *str, int size)
+
+DESCRIPTION
+	Write a string to the default output location. Faster than calling
+	write with each character since only one system call takes place.
+
+RETURN VALUE
+	SUCCESS if the string is read successfully
+	ALLOC_FAILED if no space could be allocated to copy the string

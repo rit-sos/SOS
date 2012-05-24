@@ -266,10 +266,16 @@ Status _heap_grow(struct pcb *pcb) {
 
 	if (pcb) {
 		info = &pcb->heapinfo;
+		if (info->count >= USER_MAX_CHUNKS) {
+			return ALLOC_FAILED;
+		}
 		ptr = (void*)(USER_HEAP_BASE + HEAP_CHUNK_SIZE * pcb->heapinfo.count);
 		flags = MAP_WRITE | MAP_USER | MAP_ZERO;
 	} else {
 		info = &_kheapinfo;
+		if (info->count >= KERNEL_MAX_CHUNKS) {
+			return ALLOC_FAILED;
+		}
 		ptr = (void*)(KERNEL_HEAP_BASE + HEAP_CHUNK_SIZE * _kheapinfo.count);
 		flags = MAP_WRITE;
 	}

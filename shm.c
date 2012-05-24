@@ -110,7 +110,6 @@ Status _shm_create(Pcb *pcb, const char *name, Uint32 size, Uint32 flags, void *
 			return status;
 		}
 		shm->ppgs[i] = ppg;
-		c_printf("%08x\n", shm->ppgs[i]);
 	}
 
 	/*
@@ -183,6 +182,11 @@ Status _shm_open(Pcb *pcb, const char *name, void **ptr) {
 
 	info = &pcb->shminfo;
 
+	/* if this process already has this region mapped, fail */
+	if ((status = _shm_find_mapping(pcb, name, &mapping)) != NOT_FOUND) {
+		return ALREADY_EXISTS;
+	}
+
 	/* find the mapping, if it exists */
 	if ((status = _shm_find(name, &shm)) != SUCCESS) {
 		return status;
@@ -243,7 +247,7 @@ Status _shm_close(Pcb *pcb, const char *name) {
 	Shm *shm;
 	Status status;
 
-	c_printf("_shm_close\n");
+	c_printf("_shm_close(%s)\n", name);
 
 	info = &pcb->shminfo;
 

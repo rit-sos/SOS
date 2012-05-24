@@ -1,0 +1,25 @@
+NAME
+	shm_open
+
+SYNOPSIS
+	Status shm_open(const char *name, void **ptr)
+
+DESCRIPTION
+	Maps an existing shared memory region into the caller's address space and
+	returns a pointer to the beginning of it. The region has the properties
+	(i.e. flags) set by the call to shm_create that created the region. The
+	call will fail if no region exists with the given name.
+
+	shm_open is actually a wrapper around another function called
+	real_shm_open, which performs the actual system call and adds an extra
+	parameter, which is the length of the name string.
+
+RETURN VALUE
+	SUCCESS if the region is opened with no errors
+	ALREADY_EXISTS if the region is already open in the caller
+	NOT_FOUND if no region exists with the given name
+	ALLOC_FAILED if there is no room in the caller's address space, or if
+		an internal data structure allocation fails
+
+SEE ALSO
+	shm_create.txt shm_open.txt

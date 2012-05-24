@@ -1,0 +1,22 @@
+NAME
+	shm_close
+
+SYNOPSIS
+	Status shm_close(const char *name)
+
+DESCRIPTION
+	Releases a reference to a named shared memory region. If this was the last
+	reference to the region then the region descriptor is discarded and the
+	physical memory backing it is freed. Any pointers into the closed mapping
+	are invalid after calling shm_close.
+
+	shm_close is actually a wrapper around another function called
+	real_shm_close, which performs the actual system call and adds an extra
+	parameter, which is the length of the name string.
+
+RETURN VALUE
+	SUCCESS if the region is closed with no errors
+	NOT_FOUND if no region with the given name is opened by the caller
+
+SEE ALSO
+	shm_create.txt shm_open.txt

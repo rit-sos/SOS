@@ -1,0 +1,15 @@
+NAME
+	map
+
+DESCRIPTION
+	Map of the user programs in the build image. A simple two-column text
+	file where the first column is the name of the program image and the
+	second column is the offset into the build image. The offset becomes
+	the physical address and kernel virtual address of the image in memory.
+
+	The map file is also used to generate the program ID and offset list
+	used for exec().
+
+SEE ALSO
+	../../build.txt
+

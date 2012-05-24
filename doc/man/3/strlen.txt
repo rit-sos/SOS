@@ -1,0 +1,11 @@
+NAME
+	strlen
+
+SYNOPSIS
+	int strlen(const char *str);
+
+DESCRIPTION
+	Returns the length of a null-terminated string.
+
+RETURN VALUE
+	String length

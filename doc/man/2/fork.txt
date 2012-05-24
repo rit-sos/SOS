@@ -1,0 +1,18 @@
+NAME
+	fork
+
+SYNOPSIS
+	Status fork(int *pid)
+
+DESCRIPTION
+	Creates a new process at the point that fork is called by making a
+	copy of the calling process. The new process gets a copy of the caller's
+	memory at the time that fork was called, and continues execution from
+	the same point.
+
+RETURN VALUE
+	SUCCESS if everything worked
+	A variety of other status codes if it didn't
+
+	On success, the parent gets back the pid of the child in the buffer
+	pointed to by pid, and the child gets 0.

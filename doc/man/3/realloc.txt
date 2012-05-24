@@ -1,0 +1,18 @@
+NAME
+	realloc
+
+SYNOPSIS
+	void *realloc(void *ptr, int new_size)
+
+DESCRIPTION
+	Resizes an existing heap allocation to at least new_size bytes. The buffer
+	pointed to by ptr may be copied and a new pointer returned if resizing the
+	buffer in-place is not possible. Only pointers returned from malloc or
+	realloc should be passed into realloc. Any pointers into the allocated
+	region should be considered invalid after calling realloc on it.
+
+RETURN VALUE
+	Pointer to the new allocation, or NULL if the allocation fails.
+
+SEE ALSO
+	malloc.txt free.txt umem.txt

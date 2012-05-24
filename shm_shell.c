@@ -1,15 +1,6 @@
-/*
- * File:	user_shell.c
- * Author:	James Letendre
- * Contributors: Corey Bloodstein (added the c_io half of shm_test)
- *
- * A basic shell to launch other applications
- */
-
 #include "headers.h"
-#include "ulib.h"
 #include "shm.h"
-#include "user_shell.h"
+#include "windowing.h"
 
 char line[256];
 
@@ -22,9 +13,9 @@ int getLine( char *line, int size )
 	while( ++idx < size - 1 )
 	{
 		int c;
-		if( read( CIO_FD, &c ) != SUCCESS )
+		if( read( SIO_FD, &c ) != SUCCESS )
 		{
-			windowing_print_str("\nuser_shell: read() Error");
+			windowing_print_str("\nshm_shell: read() Error");
 			return -1;
 		}
 
@@ -155,7 +146,7 @@ void main(void)
 
 	while(1)
 	{
-		windowing_print_str("$: ");
+		windowing_print_str("[shm]$ ");
 
 		if( getLine( line, 256 ) )
 		{
@@ -163,22 +154,7 @@ void main(void)
 			continue;
 		}
 
-		ShellProg *prog = shell_commands;
-
-		if( strcmp( line, "help" ) == 0 )
-		{
-			// print out list of programs
-			windowing_print_str("Programs:\n");
-
-			while( prog->cmd != NULL )
-			{
-				windowing_print_str(prog->cmd);
-				windowing_print_str("\n");
-				prog++;
-			}
-			// don't look for "help" program
-			continue;
-		} else if (strcmp(line, "create") == 0) {
+		if (strcmp(line, "create") == 0) {
 			do_create();
 			continue;
 		} else if (strcmp(line, "open") == 0) {
@@ -193,44 +169,10 @@ void main(void)
 		} else if (strcmp(line, "write") == 0) {
 			do_write();
 			continue;
-		}
-		// have a command
-		int done = 0;
-
-		while( prog->cmd != NULL && !done )
-		{
-			if( strcmp( prog->cmd, line ) == 0 )
-			{
-				windowing_print_str("user_shell: launching command: \"");
-				windowing_print_str(prog->cmd);
-				windowing_print_str("\"\n");
-
-				// found our program
-				status = fork( &pid );
-				if( status != SUCCESS ) {
-					windowing_print_str("fork failed\n");
-					//prt_status( "user_shell: can't fork(), %s\n", status );
-				} else if( pid == 0 ) {
-					status = exec( prog->id );
-					windowing_print_str("exec failed\n");
-					//prt_status( "user_shell: can't exec(), status %s\n", status );
-					exit();
-				}
-				done = 1;
-			}
-			prog++;
+		} else if (!line[0]) {
+			continue;
 		}
 
-		// not a command or empty string
-		if( !done && (strcmp( line, "" ) != 0) )
-		{
-			// no such command
-			windowing_print_str("Error no such command: \"");
-			windowing_print_str(line);
-			windowing_print_str("\"\n");
-		}
+		windowing_print_str("No such command\n");
 	}
-
-	windowing_cleanup();
-	exit();
 }

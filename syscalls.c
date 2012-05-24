@@ -1549,6 +1549,14 @@ static void _sys_shm_close(Pcb *pcb) {
 		return;
 	}
 
+	if ((status = _mman_get_user_data(pcb, str, ptr, length)) != SUCCESS) {
+		RET(pcb) = status;
+		_kfree(str);
+		return;
+	}
+
+	str[length] = '\0';
+
 	RET(pcb) = _shm_close(pcb, str);
 
 	_kfree(str);

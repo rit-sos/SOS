@@ -1,0 +1,19 @@
+NAME
+	get_heap_base
+
+SYNOPSIS
+	Status get_heap_base(void **ptr)
+
+DESCRIPTION
+	Returns a pointer to the beginning of the heap. If this pointer is not
+	used as the heap base then heap_grow will not work properly.
+
+	This function is intended to be called by the heap manager and should
+	probably not be called by user program code directly. There is no harm
+	in doing so, however.
+
+RETURN VALUE
+	SUCCESS
+
+SEE ALSO
+	get_heap_size.txt grow_heap.txt

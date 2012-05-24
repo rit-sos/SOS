@@ -1,0 +1,13 @@
+NAME
+	umap.h
+
+SYNOPSIS
+	Program ID list
+
+DESCRIPTION
+	umap.h is an automatically generated file that contains the list of valid
+	program IDs in the build image. It is created during the build by parsing
+	the map file.
+
+SEE ALSO
+	map.txt ../../build.txt

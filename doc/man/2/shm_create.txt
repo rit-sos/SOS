@@ -1,0 +1,29 @@
+NAME
+	shm_create
+
+SYNOPSIS
+	Status shm_create(const char *name, int min_size,
+	                  unsigned int flags, void **ptr)
+
+DESCRIPTION
+	Creates a new named shared memory region, maps it, and returns a pointer
+	to the beginning of it. The region will not be created if a region already
+	exists by the same name.
+
+	The only valid values for flags are SHM_WRITE, which creates a writable
+	region, and 0, which creates a read-only region.
+
+	shm_create is actually a wrapper around another function called
+	real_shm_create, which performs the actual system call and adds an extra
+	parameter, which is the length of the name string.
+
+RETURN VALUE
+	SUCCESS if the region is created with no errors
+	BAD_PARAM if the flags parameter is invalid
+	ALREADY_EXISTS if the name is already in use
+	ALLOC_FAILED if there is no free memory to back the shared memory
+		region, if there is no room in the caller's address space, or
+		if an internal data structure allocation fails
+
+SEE ALSO
+	shm_open.txt shm_close.txt
