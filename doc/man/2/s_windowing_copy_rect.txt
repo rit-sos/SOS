@@ -1,0 +1,16 @@
+NAME
+	s_windowing_copy_rect
+
+SYNOPSIS
+	Status s_windowing_copy_rect
+
+DESCRIPTION
+	Copy the specified region of the user buffer pointer into the video frame
+	buffer using the kernel windowing library.
+
+RETURN VALUE
+	SUCCESS
+
+NOTES
+	This method of flipping the frame buffer is slow, however to enable it
+	pass the WIN_SYSCALL flag to windowing_init().
