@@ -2,7 +2,7 @@ NAME
 	s_map_framebuffer
 
 SYNOPSIS
-	s_map_framebuffer( Uint32 ** framebuffer )
+	Status s_map_framebuffer( Uint32 ** framebuffer )
 
 DESCRIPTION
 	Maps the graphics framebuffer into the user processes address space.

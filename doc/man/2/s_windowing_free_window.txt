@@ -2,7 +2,7 @@ NAME
 	s_windowing_free_window
 
 SYNOPSIS
-	s_windowing_free_window( Window win )
+	Status s_windowing_free_window( Window win )
 
 DESCRIPTION
 	Frees the provided window.

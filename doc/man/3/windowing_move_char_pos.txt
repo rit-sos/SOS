@@ -1,0 +1,13 @@
+NAME
+	windowing_move_char_pos
+
+SYNOPSIS
+	void windowing_move_char_pos( int x, int y )
+
+DESCRIPTION
+	Performs a relative move of the text cursor in the window. Out of bounds
+	destinations are clamped at the window borders.
+
+RETURN VALUE
+	None
+

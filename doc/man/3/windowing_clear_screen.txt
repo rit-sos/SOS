@@ -1,0 +1,12 @@
+NAME
+	windowing_clear_screen
+
+SYNOPSIS
+	void windowing_clear_screen(Uint8 r, Uint8 g, Uint8 b)
+
+DESCRIPTION
+	Clear the user buffer to the specified color
+
+RETURN VALUE
+	None
+

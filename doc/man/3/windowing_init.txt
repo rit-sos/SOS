@@ -1,0 +1,17 @@
+NAME
+	windowing_init
+
+SYNOPSIS
+	Status windowing_init( Uint flags )
+
+DESCRIPTION
+	Initialize user windowing.
+
+	Valid options for flags is the bitwise OR of the following values
+		WIN_AUTO_FLIP:	Auto flip the framebuffer when the screen is changed
+
+
+RETURN VALUE
+	SUCCESS if a window was obtained and all internal setup completed
+	FAILURE if a window could not be obtained, or internal setup failed
+

@@ -29,12 +29,12 @@ Status windowing_init( Uint flags );
 void windowing_cleanup(void);
 
 /*
- * windowinng_flip_screen:	Flip the user frame buffer to video memory
+ * windowing_flip_screen:	Flip the user frame buffer to video memory
  */
 void windowing_flip_screen(void);
 
 /*
- * windowinng_flip_rect:	Flip part of the user frame buffer to video memory
+ * windowing_flip_rect:		Flip part of the user frame buffer to video memory
  */
 void windowing_flip_rect( Uint x, Uint y, Uint w, Uint h );
 

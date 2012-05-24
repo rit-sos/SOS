@@ -2,7 +2,7 @@ NAME
 	s_windowing_get_window
 
 SYNOPSIS
-	s_windowing_get_window( Window *win )
+	Status s_windowing_get_window( Window *win )
 
 DESCRIPTION
 	This function reserves a window for the user process.
