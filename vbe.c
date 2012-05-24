@@ -17,6 +17,7 @@
 #include "system.h"
 #include "sio.h"
 #include "mman.h"
+#include "c_io.h"
 
 // for vbe structure addresses
 #include "bootstrap.h"

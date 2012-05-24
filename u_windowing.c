@@ -297,7 +297,7 @@ void windowing_print_char(const char c)
 					for( i = 0; i < WIN_CHAR_RES_X*WIN_CHAR_RES_Y - WIN_CHAR_RES_X; i++ )
 					{
 						_user_chars[i] = _user_chars[i+WIN_CHAR_RES_X];
-						_draw_char( c, (i%WIN_CHAR_RES_X)*(CHAR_WIDTH+WIN_FONT_SCALE), 
+						_draw_char( _user_chars[i], (i%WIN_CHAR_RES_X)*(CHAR_WIDTH+WIN_FONT_SCALE), 
 								(i/WIN_CHAR_RES_X)*(CHAR_HEIGHT+WIN_FONT_SCALE),
 								WINDOW_WIDTH, WINDOW_HEIGHT, WIN_FONT_SCALE, 
 								255, 255, 255, &windowing_draw_pixel );
@@ -305,7 +305,7 @@ void windowing_print_char(const char c)
 					for( i = 0; i < WIN_CHAR_RES_X; i++ )
 					{
 						_user_chars[i + WIN_CHAR_RES_X*y_disp] = ' ';
-						_draw_char( c, i*(CHAR_WIDTH+WIN_FONT_SCALE), 
+						_draw_char( ' ', i*(CHAR_WIDTH+WIN_FONT_SCALE), 
 								y_disp*(CHAR_HEIGHT+WIN_FONT_SCALE),
 								WINDOW_WIDTH, WINDOW_HEIGHT, WIN_FONT_SCALE, 
 								255, 255, 255, &windowing_draw_pixel );
