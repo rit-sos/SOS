@@ -328,6 +328,11 @@ void _fd_readDone(Fd *fd){
 	status = _q_remove_by_key( _reading, (void **) &pcb, key );
 
 	if (status==SUCCESS){
+		if (pcb->state == KILLED){
+			_fd_flush_rx(fd);
+			_cleanup(pcb);
+			return;
+		}
 		pcb->state=READY;
 
 		//put the newest char into the blocked process
@@ -385,6 +390,11 @@ void _fd_writeDone(Fd *fd){
 			status = _q_remove_by_key( _writing, (void **) &pcb, key );
 			if (status==SUCCESS){
 				//attempt to put the blocked process's character into the queue
+				if (pcb->state == KILLED){
+					_fd_flush_tx(fd);
+					_cleanup(pcb);
+					return;
+				}
 
 				if ((status = _in_param(pcb, 2, &c)) != SUCCESS) {
 					_cleanup(pcb);

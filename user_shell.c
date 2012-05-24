@@ -39,6 +39,46 @@ int getLine( char *line, int size )
 	line[idx] = '\0';
 	return 0;
 }
+void putNum( int num){
+	int i,j;
+	int div=10000;
+	for (i = 0 ; i < 5 ;i++){
+		windowing_print_char(num/div +'0');
+		num %= div;
+		div /= 10;
+	}
+}
+
+int readNum() {
+	int ret = 0;
+	int ch;
+	int valid=0;
+	int neg=0;
+
+	do{
+		read(CIO_FD, &ch);
+		if(ch >= '0' && ch <= '9'){
+			valid=1;
+			ret *= 10;
+			ret += ch-'0';
+			windowing_print_char(ch);
+		} else if (ch=='-'){
+			neg=1;
+			ret=0;
+			valid=0;
+			windowing_print_char(ch);
+		}else if (ch != '\r' && ch != '\n'){ //ignore \r\n
+			ret=0;
+			neg=0;
+			valid=0;
+			windowing_print_char('.');
+		}
+	}while(ch != '\n' || !valid);
+	if (neg){
+		ret *= -1;
+	}
+	return ret;
+}
 
 int strcmp( const char *a, const char *b )
 {
@@ -140,6 +180,19 @@ void do_write(void) {
 	memcpy(share, line, sizeof(line));
 }
 
+void do_kill(void) {
+	int pid;
+	Status status;
+	windowing_print_str("Kill what?");
+	pid = readNum();
+
+	status = kill(pid);
+	if(status == NOT_FOUND){
+		windowing_print_str("..A man needs a name...(not found)");
+	}
+	windowing_print_str("\n");
+}
+
 void main(void)
 {
 	Uint pid;
@@ -180,12 +233,13 @@ void main(void)
 			// don't look for "help" program
 
 			windowing_print_str("\n"
-				"shm commands:\n"
-				"create\n"
-				"open\n"
-				"close\n"
-				"read\n"
-				"write\n");
+					"shm commands:\n"
+					"create\n"
+					"open\n"
+					"close\n"
+					"read\n"
+					"write\n"
+					"kill\n");
 			continue;
 		} else if (strcmp(line, "create") == 0) {
 			do_create();
@@ -202,6 +256,9 @@ void main(void)
 		} else if (strcmp(line, "write") == 0) {
 			do_write();
 			continue;
+		} else if (strcmp(line, "kill") == 0) {
+			do_kill();
+			continue;
 		}
 		// have a command
 		int done = 0;
@@ -212,7 +269,7 @@ void main(void)
 			{
 				windowing_print_str("user_shell: launching command: \"");
 				windowing_print_str(prog->cmd);
-				windowing_print_str("\"\n");
+				windowing_print_str("\": ");
 
 				// found our program
 				status = fork( &pid );
@@ -225,6 +282,9 @@ void main(void)
 					//prt_status( "user_shell: can't exec(), status %s\n", status );
 					exit();
 				}
+
+				putNum(pid);
+				windowing_print_str("\n");
 				done = 1;
 			}
 			prog++;
