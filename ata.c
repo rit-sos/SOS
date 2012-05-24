@@ -172,11 +172,11 @@ void _isr_ata( int vector, int code ) {
 
 		if(status & DRQ && !(status & BSY) ){ //drive has provided data
 			d->state=READING;
-			handle_data_request(d);
+			_ioreq_handle_data_request(d);
 		}
 		if (status == 0x50 && !(status & BSY)){ // drive is idle
 			d->state=IDLE;
-			handle_idle_request(d);
+			_ioreq_handle_idle_request(d);
 		}
 	}
 	__outb( PIC_MASTER_CMD_PORT, PIC_EOI );
@@ -291,7 +291,7 @@ Status _ata_read_start(Fd* fd){
 	_ata_pio_enableIRQ(dev_data->d);
 
 	if (! (_ata_pio_read_status(dev_data->d) & BSY)){
-		handle_idle_request(dev_data->d);
+		_ioreq_handle_idle_request(dev_data->d);
 	}
 
 	//block until the drive is ready.. TODO: block on drive
@@ -312,7 +312,7 @@ Status _ata_write_start(Fd* fd){
 	_ata_pio_enableIRQ(dev_data->d);
 	
 	if (! (_ata_pio_read_status(dev_data->d) & BSY)){
-		handle_idle_request(dev_data->d);
+		_ioreq_handle_idle_request(dev_data->d);
 	}
 
 	return SUCCESS;
